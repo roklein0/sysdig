@@ -28,13 +28,15 @@ require "common"
 json = require ("dkjson")
 
 local markers = {}
-local fid = nil
-local flatency = nil
-local fcontname = nil
-local fexe = nil
+local fid
+local flatency
+local fcontname
+local fexe
 local MAX_DEPTH = 256
 local avg_tree = {}
 local full_tree = {}
+local tbest
+local tworst
 
 -- Argument notification callback
 function on_set_arg(name, val)
@@ -73,7 +75,7 @@ function parse_marker(mrk_cur, hr, latency, contname, exe, id)
 		
 		if j == #hr then
 			if mrk_cur[mv] == nil then
-				mrk_cur[mv] = {t=latency, tt=latency, cont=contname, exe=exe}
+				mrk_cur[mv] = {t=latency, tt=latency, cont=contname, exe=exe, c=1}
 				if j == 1 then
 					mrk_cur[mv].n = 0
 				end
@@ -81,6 +83,7 @@ function parse_marker(mrk_cur, hr, latency, contname, exe, id)
 				mrk_cur[mv]["tt"] = mrk_cur[mv]["tt"] + latency
 				mrk_cur[mv]["cont"] = contname
 				mrk_cur[mv]["exe"] = exe
+				mrk_cur[mv]["c"] = 1
 			end
 		elseif j == (#hr - 1) then
 			if mrk_cur[mv] == nil then
@@ -128,7 +131,7 @@ function on_event()
 		hr[j + 1] = evt.field(markers[j])
 	end
 
-	parse_marker(avg_tree, hr, latency, contname, exe, 0)
+--	parse_marker(avg_tree, hr, latency, contname, exe, 0)
 
 	if id > 0 then
 		if full_tree[id] == nil then
@@ -174,7 +177,6 @@ function calculate_t_in_node(node)
 			end
 		end
 
---print(st(node))
 	end
 
 	return node.tt
@@ -190,8 +192,77 @@ function normalize(node, factor)
 	end
 end
 
+function sum_transactions(dsttree, key, val)
+	if dsttree[key] == nil then
+		dsttree[key] = val
+		return
+	else
+		dsttree[key].tt = dsttree[key].tt + val.tt
+
+		if dsttree[key].n then
+			dsttree[key].n = dsttree[key].n + 1
+		end
+	end
+
+	if val.ch then
+		if dsttree[key].ch == nil then
+			dsttree[key].ch = {}
+		end
+
+		for k,d in pairs(val.ch) do
+			sum_transactions(dsttree[key].ch, k, d)
+		end
+	end
+end
+
+function is_transaction_complete(node)
+	if node.c ~= 1 then
+		return false
+	end
+
+	if node.ch then
+		for k,d in pairs(node.ch) do
+			if is_transaction_complete(d) == false then
+				return false
+			end
+		end
+	end
+
+	return true
+end
+
+-- This processes the transaction list to extract and aggregate the transactions to emit
+function collapse_tree()
+	local besttime = 1000000000000000
+	local worsttime = 0
+
+	-- scan the transaction list
+	for i,v in pairs(full_tree) do
+		local ttt = 0
+		for key,val in pairs(v) do
+			ttt = ttt + val.tt
+			if is_transaction_complete(val) then
+				sum_transactions(avg_tree, key, val)
+			end
+		end
+
+		if ttt > worsttime then
+			worsttime = ttt
+			tworst = v
+		end
+
+		if ttt < besttime then
+			besttime = ttt
+			tbest = v
+		end		
+	end
+end
+
 -- Called by the engine at the end of the capture (Ctrl-C)
 function on_capture_end()
+	-- Process the list and create the required transactions
+	collapse_tree()
+
 	-- calculate the unique time spent in each node
 	for i,v in pairs(avg_tree) do
 		calculate_t_in_node(v)
@@ -207,29 +278,6 @@ function on_capture_end()
 	AvgData[""] = {ch=avg_tree, t=0, tt=0}
 	local str = json.encode(AvgData, { indent = true })
 	print("AvgData = " .. str .. ";")
-
-	-- Locate the best and worst transaction
-	local tbest = nil
-	local tworst = nil
-	local besttime = 1000000000000000
-	local worsttime = 0
-
-	for i,v in pairs(full_tree) do
-		local ttt = 0
-		for key,val in pairs(v) do
-			ttt = ttt + val.tt
-		end
-
-		if ttt > worsttime then
-			worsttime = ttt
-			tworst = v
-		end
-
-		if ttt < besttime then
-			besttime = ttt
-			tbest = v
-		end		
-	end
 
 	-- normalize the best transaction
 	for i,v in pairs(tbest) do
