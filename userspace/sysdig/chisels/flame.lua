@@ -210,7 +210,7 @@ end
 
 function update_avg_tree(dsttree, key, val)
 	if dsttree[key] == nil then
-		dsttree[key] = val
+		dsttree[key] = copytable(val)
 		return
 	else
 		dsttree[key].tt = dsttree[key].tt + val.tt
@@ -312,5 +312,4 @@ function on_capture_end()
 	local str = json.encode(tdata, { indent = true })
 	print("MaxData = " .. str .. ";")
 
---	print(st(full_tree))
 end
