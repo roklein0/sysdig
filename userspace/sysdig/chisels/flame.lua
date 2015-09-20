@@ -35,8 +35,8 @@ local fexe
 local MAX_DEPTH = 256
 local avg_tree = {}
 local full_tree = {}
-local tbest
-local tworst
+local max_tree = {}
+local min_tree = {}
 
 -- Argument notification callback
 function on_set_arg(name, val)
@@ -192,7 +192,23 @@ function normalize(node, factor)
 	end
 end
 
-function sum_transactions(dsttree, key, val)
+function is_transaction_complete(node)
+	if node.c ~= 1 then
+		return false
+	end
+
+	if node.ch then
+		for k,d in pairs(node.ch) do
+			if is_transaction_complete(d) == false then
+				return false
+			end
+		end
+	end
+
+	return true
+end
+
+function update_avg_tree(dsttree, key, val)
 	if dsttree[key] == nil then
 		dsttree[key] = val
 		return
@@ -210,51 +226,46 @@ function sum_transactions(dsttree, key, val)
 		end
 
 		for k,d in pairs(val.ch) do
-			sum_transactions(dsttree[key].ch, k, d)
+			update_avg_tree(dsttree[key].ch, k, d)
 		end
 	end
 end
 
-function is_transaction_complete(node)
-	if node.c ~= 1 then
-		return false
-	end
-
-	if node.ch then
-		for k,d in pairs(node.ch) do
-			if is_transaction_complete(d) == false then
-				return false
-			end
+function update_max_tree(dsttree, key, val)
+	if dsttree[key] == nil then
+		dsttree[key] = val
+		return
+	else
+		if val.tt > dsttree[key].tt then
+			dsttree[key] = val
 		end
 	end
+end
 
-	return true
+function update_min_tree(dsttree, key, val)
+	if dsttree[key] == nil then
+		dsttree[key] = val
+		return
+	else
+		if val.tt < dsttree[key].tt then
+			dsttree[key] = val
+		end
+	end
 end
 
 -- This processes the transaction list to extract and aggregate the transactions to emit
 function collapse_tree()
-	local besttime = 1000000000000000
-	local worsttime = 0
-
 	-- scan the transaction list
 	for i,v in pairs(full_tree) do
 		local ttt = 0
 		for key,val in pairs(v) do
 			ttt = ttt + val.tt
 			if is_transaction_complete(val) then
-				sum_transactions(avg_tree, key, val)
+				update_avg_tree(avg_tree, key, val)
+				update_max_tree(max_tree, key, val)
+				update_min_tree(min_tree, key, val)
 			end
 		end
-
-		if ttt > worsttime then
-			worsttime = ttt
-			tworst = v
-		end
-
-		if ttt < besttime then
-			besttime = ttt
-			tbest = v
-		end		
 	end
 end
 
@@ -280,26 +291,24 @@ function on_capture_end()
 	print("AvgData = " .. str .. ";")
 
 	-- normalize the best transaction
-	for i,v in pairs(tbest) do
+	for i,v in pairs(min_tree) do
 		calculate_t_in_node(v)
 	end
 
 	-- emit the best transaction
 	local tdata = {}
-	tdata[""] = {ch=tbest, t=0, tt=0}
+	tdata[""] = {ch=min_tree, t=0, tt=0}
 	local str = json.encode(tdata, { indent = true })
 	print("MinData = " .. str .. ";")
 
 	-- normalize the worst transaction
-	if tworst ~= tbest then
-		for i,v in pairs(tworst) do
-			calculate_t_in_node(v)
-		end
+	for i,v in pairs(max_tree) do
+		calculate_t_in_node(v)
 	end
 
 	-- emit the worst transaction
 	local tdata = {}
-	tdata[""] = {ch=tworst, t=0, tt=0}
+	tdata[""] = {ch=max_tree, t=0, tt=0}
 	local str = json.encode(tdata, { indent = true })
 	print("MaxData = " .. str .. ";")
 
