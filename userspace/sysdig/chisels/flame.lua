@@ -27,16 +27,21 @@ args =
 require "common"
 json = require ("dkjson")
 
+local CAPTURE_LOGS = true
+
 local markers = {}
 local fid
 local flatency
 local fcontname
 local fexe
+local fbuf
+local fdir
 local MAX_DEPTH = 256
 local avg_tree = {}
 local full_tree = {}
 local max_tree = {}
 local min_tree = {}
+local marker_threads = {}
 
 -- Argument notification callback
 function on_set_arg(name, val)
@@ -56,16 +61,22 @@ function on_init()
 	flatency = chisel.request_field("marker.latency")
 	fcontname = chisel.request_field("container.name")
 	fexe = chisel.request_field("proc.exeline")
+	fbuf = chisel.request_field("evt.buffer")
+	fdir = chisel.request_field("evt.dir")
+	ftid = chisel.request_field("thread.tid")
 
 	-- set the filter
---	chisel.set_filter("(evt.type=marker and evt.dir=<) or (evt.is_io_write=true and (fd.num<3 or fd.name contains log))")
-	chisel.set_filter("evt.type=marker and evt.dir=<")
+	if CAPTURE_LOGS then
+		chisel.set_filter("(evt.type=marker) or (evt.is_io_write=true and evt.dir=< and (fd.num=1 or fd.num=2 or fd.name contains log))")
+	else
+		chisel.set_filter("evt.type=marker and evt.dir=<")
+	end
 
 	return true
 end
 
 -- This function parses the marker event and upgrades accordingly the given transaction entry
-function parse_marker(mrk_cur, hr, latency, contname, exe, id)
+function parse_marker(mrk_cur, hr, latency, contname, exe, id, logs)
 	for j = 1, #hr do
 		local mv = hr[j]
 		
@@ -75,7 +86,7 @@ function parse_marker(mrk_cur, hr, latency, contname, exe, id)
 		
 		if j == #hr then
 			if mrk_cur[mv] == nil then
-				mrk_cur[mv] = {t=latency, tt=latency, cont=contname, exe=exe, c=1}
+				mrk_cur[mv] = {t=latency, tt=latency, cont=contname, exe=exe, c=1, logs=logs}
 				if j == 1 then
 					mrk_cur[mv].n = 0
 				end
@@ -84,6 +95,7 @@ function parse_marker(mrk_cur, hr, latency, contname, exe, id)
 				mrk_cur[mv]["cont"] = contname
 				mrk_cur[mv]["exe"] = exe
 				mrk_cur[mv]["c"] = 1
+				mrk_cur[mv]["logs"] = logs
 			end
 		elseif j == (#hr - 1) then
 			if mrk_cur[mv] == nil then
@@ -116,32 +128,75 @@ end
 
 -- Event parsing callback
 function on_event()
+	local etype = evt.get_type()
+
+	if etype ~= "marker" then
+		local buf = evt.field(fbuf)
+		local tid = evt.field(ftid)
+
+--print("*" , buf)
+		if marker_threads[tid] == nil then
+			return
+		else
+--print("$", tid, evt.get_num())
+			for k,v in pairs(marker_threads[tid]) do
+				table.insert(v, buf)
+			end
+		end
+
+		return
+	end
+
 	local latency = evt.field(flatency)
 	local contname = evt.field(fcontname)
 	local id = evt.field(fid)
 	local exe = evt.field(fexe)
 	local hr = {}
 	local full_trs = nil
+	local dir = evt.field(fdir)
+	local tid = evt.field(ftid)
 
-	if latency == nil then
+	if dir == ">" then
+		if marker_threads[tid] == nil then
+			marker_threads[tid] = {}
+		end
+
+		if marker_threads[tid][id] == nil then
+			marker_threads[tid][id] = {}
+		end
+
 		return true
-	end
+	else
+		if latency == nil then
+			return true
+		end
 
-	for j = 0, MAX_DEPTH do
-		hr[j + 1] = evt.field(markers[j])
-	end
+		for j = 0, MAX_DEPTH do
+			hr[j + 1] = evt.field(markers[j])
+		end
 
---	parse_marker(avg_tree, hr, latency, contname, exe, 0)
-
-	if id > 0 then
 		if full_tree[id] == nil then
 			full_tree[id] = {}
 		end
 
-		parse_marker(full_tree[id], hr, latency, contname, exe, id)
-	end
+		-- find the logs for this transaction span
+		local logs
 
-	return true
+		if marker_threads[tid] == nil then
+			logs = {}
+		else
+			if marker_threads[tid][id] == nil then
+				logs = {}
+			else
+				logs = marker_threads[tid][id]
+			end
+		end
+
+		parse_marker(full_tree[id], hr, latency, contname, exe, id, logs)
+
+--		marker_threads[tid] = nil
+		return true
+	end
 end
 
 function calculate_t_in_node(node)
@@ -271,6 +326,7 @@ end
 
 -- Called by the engine at the end of the capture (Ctrl-C)
 function on_capture_end()
+--print(st(marker_threads))
 	-- Process the list and create the required transactions
 	collapse_tree()
 
