@@ -41,7 +41,8 @@ local avg_tree = {}
 local full_tree = {}
 local max_tree = {}
 local min_tree = {}
-local marker_threads = {}
+local logs_tree = {}
+local next = next -- make next faster
 
 -- Argument notification callback
 function on_set_arg(name, val)
@@ -75,7 +76,30 @@ function on_init()
 	return true
 end
 
--- This function parses a marker enter event and updates the marker_threads table
+-- This function adds a log entry into the proper place(s) in the log table
+function collect_log(tid_tree, buf)
+--print("^^^", st(logs_tree))
+	for k,entry in pairs(tid_tree) do
+
+		while true do
+			local lastv = v
+			k,v = next(entry)
+
+			if v == nil then
+				if lastv.l == nil then
+					lastv.l = {}
+				end
+
+				table.insert(lastv.l, buf)
+				return
+			end
+
+			entry = v.ch
+		end
+	end
+end
+
+-- This function parses a marker enter event and updates the logs_tree table
 function parse_marker_enter(logtable_cur, hr)
 	for j = 1, #hr do
 		local mv = hr[j]
@@ -85,24 +109,38 @@ function parse_marker_enter(logtable_cur, hr)
 		end
 		
 		if logtable_cur[mv] == nil then
-			logtable_cur[mv] = {}
+			logtable_cur[mv] = {ch={}}
 		end
 
-		logtable_cur = logtable_cur[mv]
+		if j == #hr then
+			logtable_cur[mv].r=true
+		end
+
+		logtable_cur = logtable_cur[mv].ch
 	end
 end
 
 -- This function parses a marker exit event and updates the given transaction entry
 function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id, logs)
+	local res = false
+
 	for j = 1, #hr do
 		local mv = hr[j]
-		if mv == nil or mrk_cur == nil or logtable_cur == nil then
+		if mv == nil or mrk_cur == nil then
 			break
 		end
 		
 		if j == #hr then
+			local llogs
+
+			if logtable_cur ~= nil and logtable_cur[mv] ~= nil and logtable_cur[mv].l ~= nil then
+				llogs = logtable_cur[mv].l
+			else
+				llogs = nil
+			end
+
 			if mrk_cur[mv] == nil then
-				mrk_cur[mv] = {t=latency, tt=latency, cont=contname, exe=exe, c=1, logs=logtable_cur.l}
+				mrk_cur[mv] = {t=latency, tt=latency, cont=contname, exe=exe, c=1, logs=llogs}
 				if j == 1 then
 					mrk_cur[mv].n = 0
 				end
@@ -111,14 +149,12 @@ function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id
 				mrk_cur[mv]["cont"] = contname
 				mrk_cur[mv]["exe"] = exe
 				mrk_cur[mv]["c"] = 1
-				mrk_cur[mv]["logs"] = logtable_cur.l
+				mrk_cur[mv]["logs"] = llogs
 			end
 
-print(st(marker_threads))
-print("+++ " .. mv .. " " .. evt.get_num())
-logtable_cur[mv] = nil
-print(st(marker_threads))
-print("--------")qsdf
+			if logtable_cur ~= nil and logtable_cur.r == nil then
+				res = true
+			end
 		elseif j == (#hr - 1) then
 			if mrk_cur[mv] == nil then
 				mrk_cur[mv] = {tt=0}
@@ -144,9 +180,14 @@ print("--------")qsdf
 			mrk_cur[mv].n = mrk_cur[mv].n + 1
 		end
 
-		mrk_cur = mrk_cur[mv]["ch"]
-		logtable_cur = logtable_cur[mv]
-	end		
+		mrk_cur = mrk_cur[mv].ch
+
+		if logtable_cur ~= nil then
+			logtable_cur = logtable_cur[mv].ch
+		end
+	end
+
+	return res
 end
 
 -- Event parsing callback
@@ -157,14 +198,10 @@ function on_event()
 		local buf = evt.field(fbuf)
 		local tid = evt.field(ftid)
 
---print("*" , buf)
-		if marker_threads[tid] == nil then
+		if logs_tree[tid] == nil then
 			return
 		else
---print("$", tid, evt.get_num())
-			for k,v in pairs(marker_threads[tid]) do
-				table.insert(v, buf)
-			end
+			collect_log(logs_tree[tid], buf)
 		end
 
 		return
@@ -184,15 +221,15 @@ function on_event()
 	end
 
 	if dir == ">" then
-		if marker_threads[tid] == nil then
-			marker_threads[tid] = {}
+		if logs_tree[tid] == nil then
+			logs_tree[tid] = {}
 		end
 
-		local idt = marker_threads[tid][id]
+		local idt = logs_tree[tid][id]
 
 		if idt == nil then
-			marker_threads[tid][id] = {}
-			idt = marker_threads[tid][id]			
+			logs_tree[tid][id] = {}
+			idt = logs_tree[tid][id]			
 		end
 
 		parse_marker_enter(idt, hr)
@@ -209,19 +246,25 @@ function on_event()
 		-- find the logs for this transaction span
 		local logs
 
-		if marker_threads[tid] == nil then
-			logs = {}
+		if logs_tree[tid] == nil then
+			logs = nil
 		else
-			if marker_threads[tid][id] == nil then
-				logs = {}
+			if logs_tree[tid][id] == nil then
+				logs = nil
 			else
-				logs = marker_threads[tid][id]
+				logs = logs_tree[tid][id]
 			end
 		end
 
-		parse_marker_exit(full_tree[id], logs, hr, latency, contname, exe, id, logs)
+	if parse_marker_exit(full_tree[id], logs, hr, latency, contname, exe, id, logs) then
+--			logs_tree[tid][id] = nil
 
---		marker_threads[tid] = nil
+			if next(logs_tree[tid]) == nil then
+				logs_tree[tid] = nil
+			end
+
+		end
+
 		return true
 	end
 end
@@ -353,7 +396,7 @@ end
 
 -- Called by the engine at the end of the capture (Ctrl-C)
 function on_capture_end()
-print(st(marker_threads))
+--print(st(logs_tree))
 	-- Process the list and create the required transactions
 	collapse_tree()
 
@@ -371,7 +414,7 @@ print(st(marker_threads))
 	local AvgData = {}
 	AvgData[""] = {ch=avg_tree, t=0, tt=0}
 	local str = json.encode(AvgData, { indent = true })
---	print("AvgData = " .. str .. ";")
+	print("AvgData = " .. str .. ";")
 
 	-- normalize the best transaction
 	for i,v in pairs(min_tree) do
@@ -382,7 +425,7 @@ print(st(marker_threads))
 	local tdata = {}
 	tdata[""] = {ch=min_tree, t=0, tt=0}
 	local str = json.encode(tdata, { indent = true })
---	print("MinData = " .. str .. ";")
+	print("MinData = " .. str .. ";")
 
 	-- normalize the worst transaction
 	for i,v in pairs(max_tree) do
@@ -393,5 +436,5 @@ print(st(marker_threads))
 	local tdata = {}
 	tdata[""] = {ch=max_tree, t=0, tt=0}
 	local str = json.encode(tdata, { indent = true })
---	print("MaxData = " .. str .. ";")
+	print("MaxData = " .. str .. ";")
 end
