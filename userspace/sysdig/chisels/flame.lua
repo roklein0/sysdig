@@ -78,18 +78,17 @@ end
 
 -- This function adds a log entry into the proper place(s) in the log table
 function collect_log(tid_tree, buf)
---print("^^^", st(logs_tree))
 	for k,entry in pairs(tid_tree) do
 
 		while true do
 			local lastv = v
 			k,v = next(entry)
-
 			if v == nil then
 				if lastv.l == nil then
 					lastv.l = {}
 				end
 
+--print("2*")
 				table.insert(lastv.l, buf)
 				return
 			end
@@ -121,8 +120,9 @@ function parse_marker_enter(logtable_cur, hr)
 end
 
 -- This function parses a marker exit event and updates the given transaction entry
-function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id, logs)
+function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id)
 	local res = false
+	local parent_has_logs = false;
 
 	for j = 1, #hr do
 		local mv = hr[j]
@@ -130,15 +130,21 @@ function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id
 			break
 		end
 		
+		local has_logtable_entry = (logtable_cur ~= nil and logtable_cur[mv] ~= nil)
+
+--print("! " .. evt.get_num() .. " " .. j)
+--print(parent_has_logs)
+--print(logtable_cur[mv].r)
 		if j == #hr then
 			local llogs
 
-			if logtable_cur ~= nil and logtable_cur[mv] ~= nil and logtable_cur[mv].l ~= nil then
+			if has_logtable_entry and logtable_cur[mv].l ~= nil then
 				llogs = logtable_cur[mv].l
 			else
 				llogs = nil
 			end
 
+--print("################ " .. evt.get_num() .. " " .. st(logs_tree))
 			if mrk_cur[mv] == nil then
 				mrk_cur[mv] = {t=latency, tt=latency, cont=contname, exe=exe, c=1, logs=llogs}
 				if j == 1 then
@@ -152,7 +158,12 @@ function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id
 				mrk_cur[mv]["logs"] = llogs
 			end
 
-			if logtable_cur ~= nil and logtable_cur.r == nil then
+--print("################ " .. evt.get_num())
+--print(st(logs_tree))
+--print("## " .. evt.get_num())
+--print(st(logtable_cur[mv].r))
+
+			if has_logtable_entry and parent_has_logs == false then
 				res = true
 			end
 		elseif j == (#hr - 1) then
@@ -178,6 +189,11 @@ function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id
 		
 		if #hr == 1 then
 			mrk_cur[mv].n = mrk_cur[mv].n + 1
+		end
+
+		-- end of node parsing, update pointers to movo to the child
+		if has_logtable_entry then
+			parent_has_logs = (logtable_cur[mv].r ~= nil)
 		end
 
 		mrk_cur = mrk_cur[mv].ch
@@ -256,8 +272,13 @@ function on_event()
 			end
 		end
 
-	if parse_marker_exit(full_tree[id], logs, hr, latency, contname, exe, id, logs) then
---			logs_tree[tid][id] = nil
+	if parse_marker_exit(full_tree[id], logs, hr, latency, contname, exe, id) then
+--print(st(logs_tree))
+--print("------------ " .. evt.get_num())
+--print(st(full_tree))
+--print("---------------------------------------------------")
+
+			logs_tree[tid][id] = nil
 
 			if next(logs_tree[tid]) == nil then
 				logs_tree[tid] = nil
@@ -343,6 +364,14 @@ function update_avg_tree(dsttree, key, val)
 		if dsttree[key].n then
 			dsttree[key].n = dsttree[key].n + 1
 		end
+
+		if val.logs then
+			if dsttree[key].logs == nil then
+				dsttree[key].logs = {}
+			end
+
+			concattable(dsttree[key].logs, val.logs)
+		end
 	end
 
 	if val.ch then
@@ -396,7 +425,7 @@ end
 
 -- Called by the engine at the end of the capture (Ctrl-C)
 function on_capture_end()
---print(st(logs_tree))
+--print(st(full_tree))
 	-- Process the list and create the required transactions
 	collapse_tree()
 

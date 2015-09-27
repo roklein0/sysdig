@@ -240,7 +240,7 @@ function parse_numeric_input(value, name)
 end
 
 --[[
-Perform a deep copy of a tacble.
+Perform a deep copy of a table.
 ]]--
 function copytable(orig)
     local orig_type = type(orig)
@@ -255,4 +255,15 @@ function copytable(orig)
         copy = orig
     end
     return copy
+end
+
+--[[
+Add the content of a table at the end of another one.
+]]--
+function concattable(dst, src)
+    for i=1,#src do
+        dst[#dst + 1] = src[i]
+    end
+    
+    return dst
 end
