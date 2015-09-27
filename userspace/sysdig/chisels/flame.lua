@@ -93,7 +93,11 @@ function collect_log(tid_tree)
 				local buf = evt.field(fbuf)
 				local tid = evt.field(ftid)
 
-				table.insert(lastv.l, etime .. " (" .. tid .. ") " .. buf)
+				local otxt = etime .. " (" .. tid .. ") " .. buf
+				table.insert(lastv.l, otxt)
+--print("*** " .. evt.get_num() .. " " .. otxt)
+--print(st(logs_tree))
+--print("***************************")
 				return
 			end
 
@@ -169,6 +173,10 @@ function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id
 
 			if has_logtable_entry and parent_has_logs == false then
 				res = true
+			else
+				logtable_cur[mv] = nil
+				has_logtable_entry = false
+				logtable_cur = nil
 			end
 		elseif j == (#hr - 1) then
 			if mrk_cur[mv] == nil then
