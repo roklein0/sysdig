@@ -36,6 +36,7 @@ local fcontname
 local fexe
 local fbuf
 local fdir
+local ftime
 local MAX_DEPTH = 256
 local avg_tree = {}
 local full_tree = {}
@@ -65,6 +66,7 @@ function on_init()
 	fbuf = chisel.request_field("evt.buffer")
 	fdir = chisel.request_field("evt.dir")
 	ftid = chisel.request_field("thread.tid")
+	ftime = chisel.request_field("evt.time")
 
 	-- set the filter
 	if CAPTURE_LOGS then
@@ -76,10 +78,9 @@ function on_init()
 	return true
 end
 
--- This function adds a log entry into the proper place(s) in the log table
-function collect_log(tid_tree, buf)
+-- Add a log entry into the proper place(s) in the log table
+function collect_log(tid_tree)
 	for k,entry in pairs(tid_tree) do
-
 		while true do
 			local lastv = v
 			k,v = next(entry)
@@ -88,8 +89,11 @@ function collect_log(tid_tree, buf)
 					lastv.l = {}
 				end
 
---print("2*")
-				table.insert(lastv.l, buf)
+				local etime = evt.field(ftime)
+				local buf = evt.field(fbuf)
+				local tid = evt.field(ftid)
+
+				table.insert(lastv.l, etime .. " (" .. tid .. ") " .. buf)
 				return
 			end
 
@@ -98,7 +102,7 @@ function collect_log(tid_tree, buf)
 	end
 end
 
--- This function parses a marker enter event and updates the logs_tree table
+-- Parse a marker enter event and update the logs_tree table
 function parse_marker_enter(logtable_cur, hr)
 	for j = 1, #hr do
 		local mv = hr[j]
@@ -119,7 +123,7 @@ function parse_marker_enter(logtable_cur, hr)
 	end
 end
 
--- This function parses a marker exit event and updates the given transaction entry
+-- Parse a marker exit event and update the given transaction entry
 function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id)
 	local res = false
 	local parent_has_logs = false;
@@ -211,13 +215,12 @@ function on_event()
 	local etype = evt.get_type()
 
 	if etype ~= "marker" then
-		local buf = evt.field(fbuf)
 		local tid = evt.field(ftid)
 
 		if logs_tree[tid] == nil then
 			return
 		else
-			collect_log(logs_tree[tid], buf)
+			collect_log(logs_tree[tid])
 		end
 
 		return
