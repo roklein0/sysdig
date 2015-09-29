@@ -92,10 +92,12 @@ function collect_log(tid_tree)
 				local etime = evt.field(ftime)
 				local buf = evt.field(fbuf)
 				local tid = evt.field(ftid)
+				local hi, low = evt.get_ts()
 
-				local otxt = etime .. " (" .. tid .. ") " .. buf
-				table.insert(lastv.l, otxt)
---print("*** " .. evt.get_num() .. " " .. otxt)
+				local linedata = {t=etime, th=hi, tl=low, tid=tid, b=buf}
+
+				table.insert(lastv.l, linedata)
+--print("*** " .. evt.get_num() .. " " .. linedata)
 --print(st(logs_tree))
 --print("***************************")
 				return
