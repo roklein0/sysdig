@@ -2413,21 +2413,28 @@ scap_dump_flags sinsp_evt::get_dump_flags(OUT bool* should_drop)
 			else
 			{
 				*should_drop = true;
-				goto fd_marker;
 			}
 		}
 		else
 		{
 			*should_drop = true;
 		}
+
+		if(*should_drop)
+		{
+			ppm_event_category ecat = get_info_category();
+			if(ecat & EC_INTERNAL)
+			{
+				*should_drop = false;
+			}
+		}
 	}
 
-fd_marker:
 	if(m_flags & sinsp_evt::SINSP_EF_IS_MARKER)
 	{
 		dflags |= SCAP_DF_MARKER;
 	}
-
+	
 	return (scap_dump_flags)dflags;
 }
 #endif
