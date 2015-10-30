@@ -26,7 +26,7 @@ view_info =
 	},
 	tags = {"Default"},
 	view_type = "table",
-	applies_to = {"", "container.id", "fd.name", "fd.sport", "evt.type", "fd.directory"},
+	applies_to = {"", "container.id", "fd.name", "fd.sport", "evt.type", "fd.directory", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
 	drilldown_target = "errors",
 	filter = "container.name != host",
 	use_defaults = true,
@@ -75,10 +75,75 @@ view_info =
 			groupby_aggregation = "SUM"
 		},
 		{
+			name = "ID",
+			field = "container.id",
+			description = "Container ID. The format of this column depends on the containerization technology. For example, Docker ID are 12 characters hexadecimal digit strings.",
+			colsize = 13
+		},
+		{
 			name = "Container",
 			field = "container.name",
 			description = "Name of the container. What this field contains depends on the containerization technology. For example, for docker this is the content of the 'NAMES' column in 'docker ps'",
 			colsize = 0
 		}
-	}
+	},
+	actions = 
+	{
+		{
+			hotkey = "a",
+			command = "docker attach %container.id",
+			description = "docker attach"
+		},
+		{
+			hotkey = "b",
+			command = "docker exec -i -t %container.id /bin/bash",
+			description = "bash shell",
+			wait_finish = false
+		},
+		{
+			hotkey = "f",
+			command = "docker logs -f %container.id",
+			description = "follow logs"
+		},
+		{
+			hotkey = "h",
+			command = "docker history %container.image",
+			description = "image history"
+		},
+		{
+			hotkey = "i",
+			command = "docker inspect %container.id",
+			description = "docker inspect"
+		},
+		{
+			hotkey = "k",
+			command = "docker kill %container.id",
+			description = "docker kill"
+		},
+		{
+			hotkey = "l",
+			command = "docker logs %container.id",
+			description = "docker logs"
+		},
+		{
+			hotkey = "s",
+			command = "docker stats %container.id",
+			description = "docker stop"
+		},
+		{
+			hotkey = "z",
+			command = "docker pause %container.id",
+			description = "docker pause"
+		},
+		{
+			hotkey = "u",
+			command = "docker unpause %container.id",
+			description = "docker unpause"
+		},
+		{
+			hotkey = "w",
+			command = "docker wait %container.id",
+			description = "docker wait"
+		},
+	},
 }

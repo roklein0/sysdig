@@ -67,6 +67,7 @@ sinsp_filter_check_list::sinsp_filter_check_list()
 	add_filter_check(new sinsp_filter_check_container());
 	add_filter_check(new sinsp_filter_check_utils());
 	add_filter_check(new sinsp_filter_check_fdlist());
+	add_filter_check(new sinsp_filter_check_k8s());
 	add_filter_check(new sinsp_filter_check_marker());
 }
 
@@ -984,8 +985,7 @@ Json::Value sinsp_filter_check::tojson(sinsp_evt* evt)
 		uint8_t* rawval = extract(evt, &len);
 		if(rawval == NULL)
 		{
-			return Json::Value::nullRef
-;
+			return Json::Value::nullRef;
 		}
 		return rawval_to_json(rawval, m_field, len);
 	}
