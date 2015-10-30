@@ -107,11 +107,8 @@ class sinsp_analyzer;
 class sinsp_filter;
 class cycle_writer;
 class sinsp_protodecoder;
-<<<<<<< HEAD
-class sinsp_partial_marker;
-=======
 class k8s;
->>>>>>> dev
+class sinsp_partial_marker;
 
 vector<string> sinsp_split(const string &s, char delim);
 
@@ -880,7 +877,6 @@ private:
 	friend class sinsp_table;
 	friend class curses_textbox;
 	friend class sinsp_filter_check_fd;
-	friend class sinsp_filter_check_event;
 	friend class sinsp_filter_check_k8s;
 	
 	template<class TKey,class THash,class TCompare> friend class sinsp_connection_manager;
