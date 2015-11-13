@@ -3001,6 +3001,11 @@ void sinsp_parser::parse_chdir_exit(sinsp_evt *evt)
 	sinsp_evt_param *parinfo;
 	int64_t retval;
 
+	if(!evt->m_tinfo)
+	{
+		return;
+	}
+
 	//
 	// Extract the return value
 	//

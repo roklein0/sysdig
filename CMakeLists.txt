@@ -265,18 +265,20 @@ if(NOT USE_BUNDLED_OPENSSL)
 	message(STATUS "Found OpenSSL: include: ${OPENSSL_INCLUDE_DIR}, lib: ${OPENSSL_LIBRARIES}")
 else()
 	set(OPENSSL_BUNDLE_DIR "${PROJECT_BINARY_DIR}/openssl-prefix/src/openssl")
-	set(OPENSSL_INCLUDE_DIR "${OPENSSL_BUNDLE_DIR}/include/")
-	set(OPENSSL_LIBRARIES "${OPENSSL_BUNDLE_DIR}/lib/")
+	set(OPENSSL_INSTALL_DIR "${OPENSSL_BUNDLE_DIR}/target")
+	set(OPENSSL_LIBRARY_SSL "${OPENSSL_INSTALL_DIR}/lib/libssl.a")
+	set(OPENSSL_LIBRARY_CRYPTO "${OPENSSL_INSTALL_DIR}/lib/libcrypto.a")
 
+	message(STATUS "Using bundled openssl in '${OPENSSL_BUNDLE_DIR}'")
 	message(STATUS "Using bundled openssl in '${OPENSSL_BUNDLE_DIR}'")
 
 	ExternalProject_Add(openssl
 		URL "http://download.draios.com/dependencies/openssl-1.0.2d.tar.gz"
 		URL_MD5 "38dd619b2e77cbac69b99f52a053d25a"
-		CONFIGURE_COMMAND ./config
+		CONFIGURE_COMMAND ./config shared --prefix=${OPENSSL_INSTALL_DIR}
 		BUILD_COMMAND ${CMD_MAKE}
 		BUILD_IN_SOURCE 1
-		INSTALL_COMMAND "")	
+		INSTALL_COMMAND ${CMD_MAKE} install)
 endif()
 
 #
@@ -295,16 +297,17 @@ else()
 	if(NOT USE_BUNDLED_OPENSSL)
 		set(CURL_SSL_OPTION "")
 	else()
-		set(CURL_SSL_OPTION "--with-ssl=${OPENSSL_BUNDLE_DIR}")
+		set(CURL_SSL_OPTION "--with-ssl=${OPENSSL_INSTALL_DIR}")
 	endif()
 
 	message(STATUS "Using bundled curl in '${CURL_BUNDLE_DIR}'")
+	message(STATUS "Using SSL for curl in '${CURL_SSL_OPTION}'")
 
 	ExternalProject_Add(curl
 		DEPENDS openssl
 		URL "http://download.draios.com/dependencies/curl-7.45.0.tar.bz2"
 		URL_MD5 "62c1a352b28558f25ba6209214beadc8"
-		CONFIGURE_COMMAND ./configure ${CURL_SSL_OPTION} --disable-shared --enable-optimize --disable-curldebug --disable-rt --enable-http --disable-ftp --disable-file --disable-ldap --disable-ldaps --disable-rtsp --disable-telnet --disable-tftp --disable-pop3 --disable-imap --disable-smb --disable-smtp --disable-gopher --disable-sspi --disable-ntlm-wb --disable-tls-srp --without-winssl --without-darwinssl --without-ssl --without-polarssl --without-cyassl --without-nss --without-axtls --without-ca-path --without-libmetalink --without-librtmp --without-winidn --without-libidn --without-nghttp2
+		CONFIGURE_COMMAND ./configure ${CURL_SSL_OPTION} --disable-shared --enable-optimize --disable-curldebug --disable-rt --enable-http --disable-ftp --disable-file --disable-ldap --disable-ldaps --disable-rtsp --disable-telnet --disable-tftp --disable-pop3 --disable-imap --disable-smb --disable-smtp --disable-gopher --disable-sspi --disable-ntlm-wb --disable-tls-srp --without-winssl --without-darwinssl --without-polarssl --without-cyassl --without-nss --without-axtls --without-ca-path --without-libmetalink --without-librtmp --without-winidn --without-libidn --without-nghttp2
 		BUILD_COMMAND ${CMD_MAKE}
 		BUILD_IN_SOURCE 1
 		INSTALL_COMMAND "")	
