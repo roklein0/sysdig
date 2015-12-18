@@ -42,7 +42,7 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 #ifdef _WIN32
-#pragma warning(disable: 4251 4200)
+#pragma warning(disable: 4251 4200 4221)
 #endif
 
 #ifdef _WIN32
@@ -545,7 +545,7 @@ public:
 	*/
 	inline bool is_live()
 	{
-		return m_islive;		
+		return m_islive;
 	}
 
 	/*!
@@ -651,7 +651,8 @@ public:
 	*/
 	double get_read_progress();
 
-	void init_k8s_client(const string& api_server);
+	void init_k8s_client(string* api_server);
+	k8s* get_k8s_client() const { return m_k8s_client; }
 
 	//
 	// Misc internal stuff
@@ -687,6 +688,9 @@ public:
 	void import_ipv4_interface(const sinsp_ipv4_ifinfo& ifinfo);
 	void add_meta_event(sinsp_evt *metaevt);
 	void add_meta_event_and_repeat(sinsp_evt *metaevt);
+	void add_meta_event_callback(meta_event_callback cback, void* data);
+	void remove_meta_event_callback();
+	void filter_proc_table_when_saving(bool filter);
 
 	void refresh_ifaddr_list();
 
@@ -717,6 +721,9 @@ private:
 	bool remove_inactive_threads();
 	void update_kubernetes_state();
 
+	static int64_t get_file_size(const std::string& fname, char *error);
+	static std::string get_error_desc(const std::string& msg = "");
+
 	scap_t* m_h;
 	uint32_t m_nevts;
 	int64_t m_filesize;
@@ -738,6 +745,7 @@ private:
 	sinsp_parser* m_parser;
 	// the statistics analysis engine
 	scap_dumper_t* m_dumper;
+	bool m_filter_proc_table_when_saving;
 	const scap_machine_info* m_machine_info;
 	uint32_t m_num_cpus;
 	sinsp_thread_privatestate_manager m_thread_privatestate_manager;
@@ -751,7 +759,7 @@ private:
 	//
 	// Kubernetes stuff
 	//
-	string m_k8s_api_server;
+	string* m_k8s_api_server;
 	k8s* m_k8s_client;
 	uint64_t m_k8s_last_watch_time_ns;
 
@@ -790,6 +798,7 @@ private:
 	// Some thread table limits
 	//
 	uint32_t m_max_thread_table_size;
+	uint32_t m_max_fdtable_size;
 	uint64_t m_thread_timeout_ns;
 	uint64_t m_inactive_thread_scan_time_ns;
 
@@ -844,6 +853,7 @@ private:
 	sinsp_evt* m_metaevt;
 	sinsp_evt* m_skipped_evt;
 	meta_event_callback m_meta_event_callback;
+	void* m_meta_event_callback_data;
 
 	//
 	// End of second housekeeping
@@ -886,6 +896,12 @@ private:
 // Macros for enable/disable k8s threading
 // Used to eliminate mutex locking when running single-threaded
 //
+
+#ifndef HAS_CAPTURE
+#ifndef K8S_DISABLE_THREAD
+#define K8S_DISABLE_THREAD
+#endif
+#endif
 
 #ifndef K8S_DISABLE_THREAD
 #include <mutex>

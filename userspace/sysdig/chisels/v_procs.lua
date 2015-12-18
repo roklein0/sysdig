@@ -77,16 +77,16 @@ view_info =
 		},
 		{
 			name = "VIRT",
-			field = "thread.vmsize",
-			description = "total virtual memory for the process (as kb).",
+			field = "thread.vmsize.b",
+			description = "Total virtual memory for the process.",
 			aggregation = "MAX",
 			groupby_aggregation = "MAX",
 			colsize = 9
 		},
 		{
 			name = "RES",
-			field = "thread.vmrss",
-			description = "resident non-swapped memory for the process (as kb).",
+			field = "thread.vmrss.b",
+			description = "Resident non-swapped memory for the process.",
 			aggregation = "MAX",
 			groupby_aggregation = "MAX",
 			colsize = 9
@@ -127,6 +127,7 @@ view_info =
 			hotkey = "9",
 			command = "kill -9 %proc.pid",
 			description = "kill -9",
+			ask_confirmation = true,
 			wait_finish = false
 		},
 		{
@@ -144,6 +145,7 @@ view_info =
 			hotkey = "k",
 			command = "kill %proc.pid",
 			description = "kill",
+			ask_confirmation = true,
 			wait_finish = false
 		},
 		{
