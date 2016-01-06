@@ -1363,7 +1363,7 @@ cgroups_error:
 			syscall_get_arguments(current, args->regs, 2, 1, &val);
 #ifdef CONFIG_COMPAT
 			if (unlikely(args->compat))
-				env_len = compat_accumulate_argv_or_env( (compat_uptr_t)val,
+				env_len = compat_accumulate_argv_or_env((compat_uptr_t)val,
 							  args->str_storage, available);
 			else
 #endif
@@ -1472,7 +1472,7 @@ static int f_sys_connect_x(struct event_filler_arguments *args)
 	 * Note that, even if we are in the exit callback, the arguments are still
 	 * in the stack, and therefore we can consume them.
 	 */
-	if (!args->is_socketcall){
+	if (!args->is_socketcall) {
 		syscall_get_arguments(current, args->regs, 0, 1, &val);
 		fd = (int)val;
 	} else
@@ -1754,8 +1754,7 @@ static int f_sys_send_e(struct event_filler_arguments *args)
 
 	if (likely(res == PPM_SUCCESS))
 		return add_sentinel(args);
-	else
-		return res;
+	return res;
 }
 
 static int f_sys_sendto_e(struct event_filler_arguments *args)
@@ -1924,8 +1923,7 @@ static int f_sys_recv_e(struct event_filler_arguments *args)
 
 	if (likely(res == PPM_SUCCESS))
 		return add_sentinel(args);
-	else
-		return res;
+	return res;
 }
 
 static int f_sys_recvfrom_e(struct event_filler_arguments *args)
@@ -1935,8 +1933,7 @@ static int f_sys_recvfrom_e(struct event_filler_arguments *args)
 	res = f_sys_recv_e_common(args);
 	if (likely(res == PPM_SUCCESS))
 		return add_sentinel(args);
-	else
-		return res;
+	return res;
 }
 
 static int f_sys_recv_x_common(struct event_filler_arguments *args, int64_t *retval)
@@ -2002,8 +1999,7 @@ static int f_sys_recv_x(struct event_filler_arguments *args)
 
 	if (likely(res == PPM_SUCCESS))
 		return add_sentinel(args);
-	else
-		return res;
+	return res;
 }
 
 static int f_sys_recvfrom_x(struct event_filler_arguments *args)
@@ -2168,7 +2164,7 @@ static int f_sys_sendmsg_e(struct event_filler_arguments *args)
 #ifdef CONFIG_COMPAT
 	} else {
 		if (unlikely(ppm_copy_from_user(&compat_mh, (const void __user *)compat_ptr(val), sizeof(compat_mh))))
-		return PPM_FAILURE_INVALID_USER_MEMORY;
+			return PPM_FAILURE_INVALID_USER_MEMORY;
 
 		/*
 		 * size
@@ -2258,7 +2254,7 @@ static int f_sys_sendmsg_x(struct event_filler_arguments *args)
 	 * data
 	 */
 #ifdef CONFIG_COMPAT
-	if(!args->compat) {
+	if (!args->compat) {
 #endif
 		if (unlikely(ppm_copy_from_user(&mh, (const void __user *)val, sizeof(mh))))
 			return PPM_FAILURE_INVALID_USER_MEMORY;
@@ -3164,7 +3160,7 @@ static int f_sys_readv_x(struct event_filler_arguments *args)
 	} else
 #endif
 	{
-		iov = (const struct iovec __user*)val;
+		iov = (const struct iovec __user *)val;
 		res = parse_readv_writev_bufs(args, iov, iovcnt, retval, PRB_FLAG_PUSH_ALL);
 	}
 	if (unlikely(res != PPM_SUCCESS))
@@ -3701,8 +3697,6 @@ static int f_sys_prlimit_x(struct event_filler_arguments *args)
 }
 
 #ifdef CAPTURE_CONTEXT_SWITCHES
-extern void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st);
-void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
 
 static int f_sched_switch_e(struct event_filler_arguments *args)
 {

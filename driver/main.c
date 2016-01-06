@@ -242,6 +242,7 @@ static void check_remove_consumer(struct ppm_consumer_t *consumer, int remove_fr
 
 	for_each_possible_cpu(cpu) {
 		struct ppm_ring_buffer_context *ring = per_cpu_ptr(consumer->ring_buffers, cpu);
+
 		if (ring && ring->open)
 			++open_rings;
 	}
@@ -697,6 +698,7 @@ cleanup_ioctl_procinfo:
 		int ring_no = iminor(filp->f_dentry->d_inode);
 #endif
 		struct ppm_ring_buffer_context *ring = per_cpu_ptr(consumer->ring_buffers, ring_no);
+
 		if (!ring) {
 			ASSERT(false);
 			return -ENODEV;
@@ -717,6 +719,7 @@ cleanup_ioctl_procinfo:
 		int ring_no = iminor(filp->f_dentry->d_inode);
 #endif
 		struct ppm_ring_buffer_context *ring = per_cpu_ptr(consumer->ring_buffers, ring_no);
+
 		if (!ring) {
 			ASSERT(false);
 			return -ENODEV;
@@ -1361,9 +1364,8 @@ static int record_event_consumer(struct ppm_consumer_t *consumer,
 			ring_info->n_context_switches++;
 		}
 	} else if (event_datap->category == PPMC_SIGNAL) {
-		if (event_type == PPME_SIGNALDELIVER_E) {
+		if (event_type == PPME_SIGNALDELIVER_E)
 			ASSERT(event_datap->event_info.signal_data.info != NULL);
-		}
 	}
 
 	/*
@@ -2064,7 +2066,7 @@ int sysdig_init(void)
 
 	g_ppm_major = MAJOR(dev);
 	g_ppm_numdevs = num_cpus;
-	g_ppm_devs = kmalloc(g_ppm_numdevs * sizeof(struct ppm_device), GFP_KERNEL);
+	g_ppm_devs = kmalloc_array(g_ppm_numdevs, sizeof(struct ppm_device), GFP_KERNEL);
 	if (!g_ppm_devs) {
 		pr_err("can't allocate devices\n");
 		ret = -ENOMEM;
@@ -2149,7 +2151,7 @@ int sysdig_init(void)
 	}
 
 	/*
-	 * Set up our callback in case we get a hotplug even while we are 
+	 * Set up our callback in case we get a hotplug even while we are
 	 * initializing the cpu structures
 	 */
 	register_cpu_notifier(&cpu_notifier);
