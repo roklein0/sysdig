@@ -249,6 +249,15 @@ void curses_table_sidemenu::render()
 
 		// add the new line
 		mvwaddnstr(m_win, j - m_firstrow + 1, 0, m_entries.at(j).m_name.c_str(), m_w);
+		// put sorting order indicator at the right end of this row
+		if(m_parent->m_sidemenu_sorting_col == j) 
+		{
+			wmove(m_win, j - m_firstrow + 1, m_w - 4);
+			char sort_order = m_parent->m_datatable->is_sorting_ascending() ? '^' : 'V';
+			waddch(m_win, '(');
+			waddch(m_win, sort_order);
+			waddch(m_win, ')');
+		}
 
 		// white space at the right
 		wattrset(m_win, m_parent->m_colors[sinsp_cursesui::PROCESS]);
@@ -308,7 +317,9 @@ sysdig_table_action curses_table_sidemenu::handle_input(int ch)
 				}
 
 				m_parent->m_selected_view_sidemenu_entry = m_selct;
-			}
+			} else if(m_type == ST_COLUMNS) {
+				m_parent->m_selected_view_sort_sidemenu_entry = m_selct;
+			}  
 			else
 			{
 				m_parent->m_selected_action_sidemenu_entry = m_selct;
@@ -331,6 +342,11 @@ sysdig_table_action curses_table_sidemenu::handle_input(int ch)
 				m_parent->m_selected_view_sidemenu_entry = m_selct_ori;
 	
 				return STA_SWITCH_VIEW;
+			}
+			else if(m_type == ST_COLUMNS) 
+			{
+				m_parent->m_selected_view_sort_sidemenu_entry = m_selct_ori;
+				return STA_DESTROY_CHILD;
 			}
 			else
 			{
@@ -538,6 +554,10 @@ sysdig_table_action curses_table_sidemenu::handle_input(int ch)
 							if(m_type == ST_VIEWS)
 							{
 								m_parent->m_selected_view_sidemenu_entry = m_selct;
+							} 
+							else if(m_type == ST_COLUMNS) 
+							{
+								m_parent->m_selected_view_sort_sidemenu_entry = m_selct;
 							}
 							else
 							{
@@ -561,7 +581,7 @@ sysdig_table_action curses_table_sidemenu::handle_input(int ch)
 ///////////////////////////////////////////////////////////////////////////////
 // curses_textbox implementation
 ///////////////////////////////////////////////////////////////////////////////
-curses_textbox::curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t viz_type)
+curses_textbox::curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t viz_type, bool is_spectro_drilldown)
 {
 	ASSERT(inspector != NULL);
 	ASSERT(parent != NULL);
@@ -595,14 +615,32 @@ curses_textbox::curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t
 	//
 	if(m_viz_type == VIEW_ID_DIG)
 	{
-		if(m_parent->m_print_containers)
+		if(is_spectro_drilldown)
 		{
-			m_formatter = new sinsp_evt_formatter(m_inspector, "*%evt.num %evt.time %evt.cpu %container.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.info");
+			if(m_parent->m_print_containers)
+			{
+				m_formatter = new sinsp_evt_formatter(m_inspector, 
+					"*(latency=%evt.latency.human) (fd=%fd.name) %evt.num %evt.time %evt.cpu %container.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.info");
+			}
+			else
+			{
+				m_formatter = new sinsp_evt_formatter(m_inspector, 
+					"*(latency=%evt.latency.human) (fd=%fd.name) %evt.num %evt.time %evt.cpu %proc.name %thread.tid %evt.dir %evt.type %evt.info");
+			}
 		}
 		else
 		{
-			m_formatter = new sinsp_evt_formatter(m_inspector, DEFAULT_OUTPUT_STR);
+			if(m_parent->m_print_containers)
+			{
+				m_formatter = new sinsp_evt_formatter(m_inspector, 
+					"*%evt.num %evt.time %evt.cpu %container.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.info");
+			}
+			else
+			{
+				m_formatter = new sinsp_evt_formatter(m_inspector, DEFAULT_OUTPUT_STR);
+			}
 		}
+
 		config.m_do_wrap = false;
 	}
 	else
@@ -1294,7 +1332,7 @@ curses_viewinfo_page::curses_viewinfo_page(sinsp_cursesui* parent,
 	config.m_scroll_on_append = false;
 	config.m_bounding_box = true;
 	config.m_do_wrap = true;
-
+	parent->m_selected_view_sort_sidemenu_entry = 0;
 	m_ctext->set_config(&config);
 
 	//
@@ -1654,6 +1692,16 @@ curses_mainhelp_page::curses_mainhelp_page(sinsp_cursesui* parent)
 	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS]);
 	m_ctext->printf(": open the view's actions panel\n");
 
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS_MEGABYTES]);
+	m_ctext->printf("<shift>1-9");
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS]);
+	m_ctext->printf(": sort column <n>           ");
+
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS_MEGABYTES]);
+	m_ctext->printf("F9 >");
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS]);
+	m_ctext->printf(": open the column sort panel\n");
+
 	//
 	// Text windows keys
 	//
@@ -1700,6 +1748,28 @@ curses_mainhelp_page::curses_mainhelp_page(sinsp_cursesui* parent)
 	m_ctext->printf("CTRL+G");
 	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS]);
 	m_ctext->printf(": go to line\n");
+
+	//
+	// Spectrogram window keys
+	//
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::HELP_BOLD]);
+	m_ctext->printf("\nKeyboard Shortcuts for the Spectrogram Window\n",
+		g_version_string.c_str());
+
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS_MEGABYTES]);
+	m_ctext->printf("     F2");
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS]);
+	m_ctext->printf(": switch view                     ");
+
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS_MEGABYTES]);
+	m_ctext->printf("p");
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS]);
+	m_ctext->printf(": pause\n");
+
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS_MEGABYTES]);
+	m_ctext->printf("Bkspace");
+	wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS]);
+	m_ctext->printf(": drill up\n\n");
 
 	//
 	// Mouse

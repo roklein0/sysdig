@@ -56,7 +56,6 @@ class sinsp_chart
 public:
 	virtual ~sinsp_chart()
 	{
-
 	}
 
 	//
@@ -120,6 +119,7 @@ public:
 		ST_NONE,
 		ST_VIEWS,
 		ST_ACTIONS,
+		ST_COLUMNS,
 	};
 
 	curses_table_sidemenu(sidemenu_type type, 
@@ -159,7 +159,7 @@ class curses_textbox :
 public sinsp_chart, public search_caller_interface
 {
 public:
-	curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t viz_type);
+	curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t viz_type, bool is_spectro_drilldown);
 	~curses_textbox();
 	void render();
 	void set_filter(string filter);
@@ -230,6 +230,7 @@ private:
 	sinsp_cursesui* m_parent;
 	ctext* m_ctext;
 };
+
 
 #endif // NOCURSESUI
 #endif // CSYSDIG
