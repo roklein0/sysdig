@@ -244,3 +244,35 @@ private:
 	list<OBJ*> m_avail_list;
 	list<OBJ*> m_full_list;
 };
+
+///////////////////////////////////////////////////////////////////////////////
+// Curl helpers
+///////////////////////////////////////////////////////////////////////////////
+#ifndef _WIN32
+class uri;
+
+class sinsp_curl
+{
+public:
+	sinsp_curl(const std::string& uristr, const std::string& cert = "");
+
+	~sinsp_curl();
+
+	bool get_data(std::ostream& os);
+	string get_data();
+
+	void set_timeout(long seconds);
+
+	long get_timeout() const;
+
+private:
+	static size_t write_data(void *ptr, size_t size, size_t nmemb, void *cb);
+
+	void check_error(unsigned ret);
+
+	void* m_curl;
+	uri* m_uri;
+	string m_cert;
+	long m_timeout;
+};
+#endif // _WIN32
