@@ -478,7 +478,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 	m_type_str = p++;
 
 	//
-	// Jump to the beginning of the tags
+	// Skip to the scope/id
 	//
 	if(*p != ':')
 	{
@@ -1170,7 +1170,7 @@ void sinsp_markerparser::test()
 
 	for(uint64_t j = 0; j < 30000000; j++)
 	{
-		process_event_data(doc, 65, 10);
+		process_event_data(doc1, 65, 10);
 
 		if(m_res != sinsp_markerparser::RES_OK)
 		{

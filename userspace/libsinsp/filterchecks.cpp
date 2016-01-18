@@ -2784,33 +2784,33 @@ uint8_t* sinsp_filter_check_event::extract(sinsp_evt *evt, OUT uint32_t* len)
 			return (uint8_t*)&m_u64val;
 		}
 	case TYPE_LATENCY_QUANTIZED:
-	{
-		if(evt->m_tinfo != NULL)
 		{
-			ppm_event_category ecat = evt->get_info_category();
-			if(ecat & EC_INTERNAL)
+			if(evt->m_tinfo != NULL)
 			{
-				return NULL;
-			}
-
-			uint64_t lat = evt->m_tinfo->m_latency;
-			if(lat != 0)
-			{
-				double llatency = log10((double)lat);
-
-				if(llatency > 11)
+				ppm_event_category ecat = evt->get_info_category();
+				if(ecat & EC_INTERNAL)
 				{
-					llatency = 11;
+					return NULL;
 				}
 
-				m_u64val = (uint64_t)(llatency * g_csysdig_screen_w / 11) + 1;
+				uint64_t lat = evt->m_tinfo->m_latency;
+				if(lat != 0)
+				{
+					double llatency = log10((double)lat);
 
-				return (uint8_t*)&m_u64val;
+					if(llatency > 11)
+					{
+						llatency = 11;
+					}
+
+					m_u64val = (uint64_t)(llatency * g_csysdig_screen_w / 11) + 1;
+
+					return (uint8_t*)&m_u64val;
+				}
 			}
-		}
 
-		return NULL;
-	}
+			return NULL;
+		}
 	case TYPE_DELTA:
 	case TYPE_DELTA_S:
 	case TYPE_DELTA_NS:
@@ -4165,7 +4165,9 @@ const filtercheck_field_info sinsp_filter_check_marker_fields[] =
 	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.tag", "one of the app event tags specified by offset. E.g. 'marker.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'marker.tag[-1]' returns the last tag."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.args", "comma-separated list of event arguments."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.arg", "one of the app event arguments specified by name or by offset. E.g. 'marker.tag.mytag' or 'marker.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'marker.arg[-1]' returns the last argument."},
-	{PT_RELTIME, EPF_NONE, PF_DEC, "marker.latency", "delta between an exit event and the correspondent enter event."},
+	{PT_RELTIME, EPF_NONE, PF_DEC, "marker.latency", "delta between an exit marker event and the correspondent enter event."},
+	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.latency.quantized", "10-base log of the delta between an exit marker event and the correspondent enter event."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.latency.human", "delta between an exit marker event and the correspondent enter event, as a human readable string (e.g. 10.3ms)."},
 };
 
 sinsp_filter_check_marker::sinsp_filter_check_marker()
@@ -4173,6 +4175,7 @@ sinsp_filter_check_marker::sinsp_filter_check_marker()
 	m_info.m_name = "marker";
 	m_info.m_fields = sinsp_filter_check_marker_fields;
 	m_info.m_nfields = sizeof(sinsp_filter_check_marker_fields) / sizeof(sinsp_filter_check_marker_fields[0]);
+	m_converter = new sinsp_filter_check_reference();
 
 	m_storage_size = UESTORAGE_INITIAL_BUFSIZE;
 	m_storage = (char*)malloc(m_storage_size);
@@ -4182,6 +4185,14 @@ sinsp_filter_check_marker::sinsp_filter_check_marker()
 	}
 
 	m_cargname = NULL;
+}
+
+sinsp_filter_check_marker::~sinsp_filter_check_marker()
+{
+	if(m_converter != NULL)
+	{
+		delete m_converter;
+	}
 }
 
 sinsp_filter_check* sinsp_filter_check_marker::allocate_new()
@@ -4257,12 +4268,41 @@ int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_
 		res = sinsp_filter_check::parse_field_name(str, alloc_state);
 	}
 
-	if(m_field_id == TYPE_LATENCY || m_field_id == TYPE_ARG || m_field_id == TYPE_ARGS)
+	if(m_field_id == TYPE_LATENCY ||
+		m_field_id == TYPE_LATENCY_QUANTIZED ||
+		m_field_id == TYPE_LATENCY_HUMAN ||
+		m_field_id == TYPE_ARG ||
+		m_field_id == TYPE_ARGS)
 	{
 		m_inspector->request_marker_state_tracking();
 	}
 
 	return res;
+}
+
+int64_t* sinsp_filter_check_marker::extract_latency(uint16_t etype, sinsp_markerparser* eparser)
+{
+	if(etype == PPME_MARKER_X)
+	{
+		sinsp_partial_marker* pae = eparser->m_enter_pae;
+		if(pae == NULL)
+		{
+			return NULL;
+		}
+
+		m_s64val = eparser->m_exit_pae.m_time - pae->m_time;
+		if(m_s64val < 0)
+		{
+			ASSERT(false);
+			m_s64val = 0;
+		}
+
+		return &m_s64val;
+	}
+	else
+	{
+		return NULL;
+	}
 }
 
 uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
@@ -4469,24 +4509,52 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 			return (uint8_t*)res;
 		}
 	case TYPE_LATENCY:
+		return (uint8_t*)extract_latency(etype, eparser);
+	case TYPE_LATENCY_HUMAN:
 		{
-			if(etype == PPME_MARKER_X)
-			{
-				sinsp_partial_marker* pae = eparser->m_enter_pae;
-				if(pae == NULL)
-				{
-					return NULL;
-				}
-
-				m_u64val = eparser->m_exit_pae.m_time - pae->m_time;
-				return (uint8_t*)&m_u64val;
-			}
-			else
+			if(extract_latency(etype, eparser) == NULL)
 			{
 				return NULL;
 			}
+			else
+			{
+				m_converter->set_val(PT_RELTIME, 
+					(uint8_t*)&m_s64val,
+					8,
+					0,
+					ppm_print_format::PF_DEC);
+
+				m_strstorage = m_converter->tostring_nice(NULL, 0, 1000000000);
+			}
+
+			return (uint8_t*)m_strstorage.c_str();
 		}
-		break;
+	case TYPE_LATENCY_QUANTIZED:
+		{
+			if(extract_latency(etype, eparser) == NULL)
+			{
+				return NULL;
+			}
+			else
+			{
+				uint64_t lat = m_s64val;
+				if(lat != 0)
+				{
+					double llatency = log10((double)lat);
+
+					if(llatency > 11)
+					{
+						llatency = 11;
+					}
+
+					m_s64val = (uint64_t)(llatency * g_csysdig_screen_w / 11) + 1;
+
+					return (uint8_t*)&m_s64val;
+				}
+			}
+
+			return NULL;
+		}
 	default:
 		ASSERT(false);
 		break;

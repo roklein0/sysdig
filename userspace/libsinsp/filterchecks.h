@@ -540,23 +540,29 @@ public:
 		TYPE_ARGS,
 		TYPE_ARG,
 		TYPE_LATENCY,
+		TYPE_LATENCY_QUANTIZED,
+		TYPE_LATENCY_HUMAN,
 	};
 
 	sinsp_filter_check_marker();
+	~sinsp_filter_check_marker();
 	sinsp_filter_check* allocate_new();
 	int32_t parse_field_name(const char* str, bool alloc_state);
 	uint8_t* extract(sinsp_evt *evt, OUT uint32_t* len);
 
 private:
 	int32_t extract_arg(string fldname, string val, OUT const struct ppm_param_info** parinfo);
+	inline int64_t* extract_latency(uint16_t etype, sinsp_markerparser* eparser);
 
 	int32_t m_argid;
 	string m_argname;
 	const char* m_cargname;
 	char* m_storage;
 	uint32_t m_storage_size;
-	int64_t m_u64val;
+	int64_t m_s64val;
 	int32_t m_u32val;
+	sinsp_filter_check_reference* m_converter;
+	string m_strstorage;
 };
 
 //
