@@ -60,7 +60,7 @@ public:
 		ALIGN_RIGHT,
 	};
 
-	curses_spectro(sinsp_cursesui* parent, sinsp* inspector);
+	curses_spectro(sinsp_cursesui* parent, sinsp* inspector, string drilldown_target);
 	~curses_spectro();
 
 	void configure(sinsp_table* table);
@@ -127,6 +127,7 @@ private:
 	int32_t m_selstart_x, m_selstart_y;
 	int32_t m_prev_sel_x1, m_prev_sel_x2;
 	int32_t m_prev_sel_y1, m_prev_sel_y2;
+	string m_drilldown_target;
 
 	friend class curses_spectro_sidemenu;
 };

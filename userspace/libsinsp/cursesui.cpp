@@ -448,7 +448,9 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 		if(wi != NULL && wi->m_type == sinsp_view_info::T_SPECTRO)
 		{
 			ASSERT(ty == sinsp_table::TT_TABLE);
-			m_spectro = new curses_spectro(this, m_inspector);
+			m_spectro = new curses_spectro(this, 
+				m_inspector, 
+				m_views.at(m_selected_view)->m_drilldown_target);
 			m_viz = NULL;
 			m_chart = m_spectro;
 		}
