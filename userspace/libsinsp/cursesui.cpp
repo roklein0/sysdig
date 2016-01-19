@@ -1221,9 +1221,16 @@ void sinsp_cursesui::create_complete_filter()
 {
 	if(m_is_filter_sysdig)
 	{
-		m_complete_filter = "(" + m_complete_filter + 
-			") and (" +  
-			m_manual_filter + ")";
+		if(m_complete_filter != "")
+		{
+			m_complete_filter = "(" + m_complete_filter + 
+				") and (" +  
+				m_manual_filter + ")";
+		}
+		else
+		{
+			m_complete_filter = m_manual_filter;
+		}
 	}
 	else
 	{

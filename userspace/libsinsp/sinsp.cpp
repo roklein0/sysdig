@@ -248,6 +248,7 @@ void sinsp::init()
 	m_fds_to_remove->clear();
 	m_n_proc_lookups = 0;
 	m_n_proc_lookups_duration_ns = 0;
+	m_partial_markers_list.clear();
 
 	//
 	// If we're reading from file, we try to pre-parse the container events before
