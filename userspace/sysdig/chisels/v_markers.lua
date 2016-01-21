@@ -24,20 +24,21 @@ view_info =
 	view_type = "table",
 	applies_to = {"", "container.id", "proc.pid", "proc.name", "thread.tid", "fd.directory", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
 	use_defaults = true,
---	filter = "evt.type=marker",
-	filter = "marker.ntags=1",
-	drilldown_target = "syscall_procs",
+	filter = "evt.type=marker",
+--	filter = "marker.ntags=1",
+	drilldown_target = "markers",
+	drilldown_increase_depth = true,
 	columns = 
 	{
 		{
 			name = "NA",
-			field = "marker.tag[0]",
+			field = "marker.tag[%depth]",
 			is_key = true
 		},
 		{
 			is_sorting = true,
 			name = "#CALLS",
-			field = "evt.count",
+			field = "marker.count.fortag[%depth]",
 			description = "Number of calls per second for this system call.",
 			colsize = 10,
 			aggregation = "SUM"
@@ -65,7 +66,7 @@ view_info =
 		},
 		{
 			name = "TAGs",
-			field = "marker.tag[0]",
+			field = "marker.tag[%depth]",
 			description = "System call name.",
 			colsize = 32,
 			aggregation = "SUM"
