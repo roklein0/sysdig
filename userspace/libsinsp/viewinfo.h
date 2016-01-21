@@ -54,7 +54,7 @@ public:
 		sinsp_field_aggregation groupby_aggregation,
 		vector<string> tags)
 	{
-		m_field = field;
+		m_field_x = field;
 		m_name = name;
 		m_description = description;
 		m_colsize = colsize;
@@ -64,7 +64,9 @@ public:
 		m_tags = tags;
 	}
 
-	string m_field;
+	string get_field(uint32_t depth);
+
+	string m_field_x;
 	string m_name;
 	string m_description;
 	uint32_t m_colsize;
@@ -128,7 +130,8 @@ public:
 		string drilldown_target,
 		bool use_defaults,
 		bool is_root,
-		vector<sinsp_view_action_info> actions);
+		vector<sinsp_view_action_info> actions,
+		bool drilldown_increase_depth);
 
 	void get_col_names_and_sizes(OUT vector<string>* colnames, OUT vector<int32_t>* colsizes);
 	viewtype get_type()
@@ -162,6 +165,8 @@ public:
 	vector<sinsp_view_action_info> m_actions;
 	vector<char> m_col_sort_hotkeys;
 	uint32_t max_col_sort_hotkeys;
+	bool m_drilldown_increase_depth;
+
 private:
 	void set_sorting_col();
 	void move_key_to_front(uint32_t keyflag);

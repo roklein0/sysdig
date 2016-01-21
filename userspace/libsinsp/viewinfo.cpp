@@ -26,6 +26,23 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 #include <algorithm>
 
 ///////////////////////////////////////////////////////////////////////////////
+// sinsp_view_column_info implementation
+///////////////////////////////////////////////////////////////////////////////
+string sinsp_view_column_info::get_field(uint32_t depth)
+{
+	if(m_field_x.find("%depth") != string::npos)
+	{
+		string res = m_field_x;
+		replace_in_place(res, "%depth", to_string(depth));
+		return res;
+	}
+	else
+	{
+		return m_field_x;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // sinsp_view_info implementation
 ///////////////////////////////////////////////////////////////////////////////
 sinsp_view_info::sinsp_view_info()
@@ -45,7 +62,8 @@ sinsp_view_info::sinsp_view_info(viewtype type,
 	string drilldown_target,
 	bool use_defaults,
 	bool is_root,
-	vector<sinsp_view_action_info> actions)
+	vector<sinsp_view_action_info> actions,
+	bool drilldown_increase_depth)
 {
 	m_id = id;
 	m_name = name;
@@ -58,6 +76,7 @@ sinsp_view_info::sinsp_view_info(viewtype type,
 	m_drilldown_target = drilldown_target;
 	m_is_root = is_root;
 	m_applies_to = applies_to;
+	m_drilldown_increase_depth = drilldown_increase_depth;
 
 	m_use_defaults = use_defaults;
 	

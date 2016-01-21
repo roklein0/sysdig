@@ -639,6 +639,7 @@ public:
 	bool m_offline_replay;
 	uint64_t m_refresh_interval_ns;
 	sinsp* m_inspector;
+	uint32_t m_view_depth;
 
 private:
 	void handle_end_of_sample(sinsp_evt* evt, int32_t next_res);

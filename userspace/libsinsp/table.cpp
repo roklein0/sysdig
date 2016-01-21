@@ -135,9 +135,11 @@ sinsp_table::~sinsp_table()
 	delete m_printer;
 }
 
-void sinsp_table::configure(vector<sinsp_view_column_info>* entries, const string& filter, bool use_defaults)
+void sinsp_table::configure(vector<sinsp_view_column_info>* entries, const string& filter, 
+	bool use_defaults, uint32_t view_depth)
 {
 	m_use_defaults = use_defaults;
+	m_view_depth = view_depth;
 
 	//
 	// If this is a list table, increase the refresh time to improve realtimyiness
@@ -162,19 +164,19 @@ void sinsp_table::configure(vector<sinsp_view_column_info>* entries, const strin
 
 	for(auto vit : *entries)
 	{
-		sinsp_filter_check* chk = g_filterlist.new_filter_check_from_fldname(vit.m_field, 
+		sinsp_filter_check* chk = g_filterlist.new_filter_check_from_fldname(vit.get_field(m_view_depth), 
 			m_inspector,
 			false);
 
 		if(chk == NULL)
 		{
-			throw sinsp_exception("invalid field name " + vit.m_field);
+			throw sinsp_exception("invalid field name " + vit.get_field(m_view_depth));
 		}
 
 		chk->m_aggregation = (sinsp_field_aggregation)vit.m_aggregation;
 		m_chks_to_free.push_back(chk);
 
-		chk->parse_field_name(vit.m_field.c_str(), true);
+		chk->parse_field_name(vit.get_field(m_view_depth).c_str(), true);
 
 		if((vit.m_flags & TEF_IS_KEY) != 0)
 		{

@@ -4168,6 +4168,8 @@ const filtercheck_field_info sinsp_filter_check_marker_fields[] =
 	{PT_RELTIME, EPF_NONE, PF_DEC, "marker.latency", "delta between an exit marker event and the correspondent enter event."},
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.latency.quantized", "10-base log of the delta between an exit marker event and the correspondent enter event."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.latency.human", "delta between an exit marker event and the correspondent enter event, as a human readable string (e.g. 10.3ms)."},
+	{PT_RELTIME, EPF_TABLE_ONLY, PF_DEC, "marker.latency.fortag", "Latency of the marker if the number of tags matches the field argument, otherwise 0. For example, marker.latency.fortag[1] returns the latency of all the markers with 1 tag, and zero for all the other ones."},
+	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.count.fortag", "1 if the marker's number of tags matches the field argument."},
 };
 
 sinsp_filter_check_marker::sinsp_filter_check_marker()
@@ -4263,6 +4265,20 @@ int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_
 
 		res = extract_arg("marker.arg", val, NULL);
 	}
+	else if(string(val, 0, sizeof("marker.latency.fortag") - 1) == "marker.latency.fortag")
+	{
+		m_field_id = TYPE_TAGLATENCY;
+		m_field = &m_info.m_fields[m_field_id];
+
+		res = extract_arg("marker.latency.fortag", val, NULL);
+	}
+	else if(string(val, 0, sizeof("marker.count.fortag") - 1) == "marker.count.fortag")
+	{
+		m_field_id = TYPE_TAGCOUNT;
+		m_field = &m_info.m_fields[m_field_id];
+
+		res = extract_arg("marker.count.fortag", val, NULL);
+	}
 	else
 	{
 		res = sinsp_filter_check::parse_field_name(str, alloc_state);
@@ -4271,6 +4287,7 @@ int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_
 	if(m_field_id == TYPE_LATENCY ||
 		m_field_id == TYPE_LATENCY_QUANTIZED ||
 		m_field_id == TYPE_LATENCY_HUMAN ||
+		m_field_id == TYPE_TAGLATENCY ||
 		m_field_id == TYPE_ARG ||
 		m_field_id == TYPE_ARGS)
 	{
@@ -4553,6 +4570,25 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 				}
 			}
 
+			return NULL;
+		}
+	case TYPE_TAGLATENCY:
+		if((uint32_t)eparser->m_tags.size() == m_argid)
+		{
+			return (uint8_t*)extract_latency(etype, eparser);
+		}
+		else
+		{
+			return NULL;
+		}
+	case TYPE_TAGCOUNT:
+		if(PPME_IS_EXIT(evt->get_type()) && (uint32_t)eparser->m_tags.size() - 1 == m_argid)
+		{
+			m_s64val = 1;
+			return (uint8_t*)&m_s64val;
+		}
+		else
+		{
 			return NULL;
 		}
 	default:

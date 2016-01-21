@@ -676,6 +676,7 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 	vector<string> tags;
 	vector<string> tips;
 	string drilldown_target;
+	bool drilldown_increase_depth = false;
 	bool is_root = false;
 
 	while(lua_next(ls, -2) != 0)
@@ -845,6 +846,17 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 				throw sinsp_exception("error in view " + cd->m_name + ": " + string(lua_tostring(ls, -2)) + " is not a table");
 			}
 		}
+		else if(fldname == "drilldown_increase_depth")
+		{
+			if(lua_isboolean(ls, -1))
+			{
+				drilldown_increase_depth = (lua_toboolean(ls, -1) != 0);
+			}
+			else
+			{
+				throw sinsp_exception("error in view " + cd->m_name + ": " + string(lua_tostring(ls, -2)) + " must be a boolean");
+			}
+		}
 
 		lua_pop(ls, 1);
 	}
@@ -861,7 +873,8 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 		drilldown_target,
 		use_defaults,
 		is_root,
-		actions);
+		actions,
+		drilldown_increase_depth);
 
 	return true;
 }

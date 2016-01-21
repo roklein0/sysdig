@@ -542,6 +542,8 @@ public:
 		TYPE_LATENCY,
 		TYPE_LATENCY_QUANTIZED,
 		TYPE_LATENCY_HUMAN,
+		TYPE_TAGLATENCY,
+		TYPE_TAGCOUNT,
 	};
 
 	sinsp_filter_check_marker();

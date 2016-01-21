@@ -95,6 +95,8 @@ sinsp_cursesui::sinsp_cursesui(sinsp* inspector,
 	m_print_containers = print_containers;
 	m_raw_output = raw_output;
 	m_truncated_input = false;
+	m_view_depth = 0;
+
 #ifndef NOCURSESUI
 	m_viz = NULL;
 	m_spectro = NULL;
@@ -407,13 +409,19 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 		{
 			m_datatable->configure(&wi->m_columns, 
 				m_complete_filter,
-				wi->m_use_defaults);
+				wi->m_use_defaults,
+				m_view_depth);
 		}
 		catch(...)
 		{
 			delete m_datatable;
 			m_datatable = NULL;
 			throw;
+		}
+
+		if(wi->m_drilldown_increase_depth)
+		{
+			m_view_depth++;
 		}
 
 		m_datatable->set_sorting_col(wi->m_sortingcol);

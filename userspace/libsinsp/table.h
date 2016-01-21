@@ -229,7 +229,7 @@ public:
 
 	sinsp_table(sinsp* inspector, tabletype type, uint64_t refresh_interval_ns, bool print_to_stdout);
 	~sinsp_table();
-	void configure(vector<sinsp_view_column_info>* entries, const string& filter, bool use_defaults);
+	void configure(vector<sinsp_view_column_info>* entries, const string& filter, bool use_defaults, uint32_t view_depth);
 	void process_event(sinsp_evt* evt);
 	void flush(sinsp_evt* evt);
 	void filter_sample();
@@ -345,6 +345,7 @@ private:
 	string m_freetext_filter;
 	tabletype m_type;
 	bool m_print_to_stdout;
+	uint32_t m_view_depth;
 
 	friend class curses_table;	
 	friend class sinsp_cursesui;
