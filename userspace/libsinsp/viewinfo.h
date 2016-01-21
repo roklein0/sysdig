@@ -134,6 +134,7 @@ public:
 		bool drilldown_increase_depth);
 
 	void get_col_names_and_sizes(OUT vector<string>* colnames, OUT vector<int32_t>* colsizes);
+	sinsp_view_column_info* get_key();
 	viewtype get_type()
 	{
 		return m_type;

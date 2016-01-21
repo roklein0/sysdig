@@ -234,6 +234,29 @@ void sinsp_view_info::move_key_to_front(uint32_t keyflag)
 	}
 }
 
+sinsp_view_column_info* sinsp_view_info::get_key()
+{
+	for(uint32_t j = 0; j < m_columns.size(); j++)
+	{
+		if((m_columns[j].m_flags & TEF_IS_GROUPBY_KEY) != 0)
+		{
+			return &m_columns[j];
+		}
+	}
+
+	for(uint32_t j = 0; j < m_columns.size(); j++)
+	{
+		if((m_columns[j].m_flags & TEF_IS_KEY) != 0)
+		{
+			return &m_columns[j];
+		}
+	}
+
+	// The *must* be a key
+	ASSERT(false);
+	return NULL;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // sinsp_view_manager implementation
 ///////////////////////////////////////////////////////////////////////////////
