@@ -4573,7 +4573,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 			return NULL;
 		}
 	case TYPE_TAGLATENCY:
-		if((uint32_t)eparser->m_tags.size() == m_argid)
+		if((int32_t)eparser->m_tags.size() == m_argid)
 		{
 			return (uint8_t*)extract_latency(etype, eparser);
 		}
@@ -4582,7 +4582,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 			return NULL;
 		}
 	case TYPE_TAGCOUNT:
-		if(PPME_IS_EXIT(evt->get_type()) && (uint32_t)eparser->m_tags.size() - 1 == m_argid)
+		if(PPME_IS_EXIT(evt->get_type()) && (int32_t)eparser->m_tags.size() - 1 == m_argid)
 		{
 			m_s64val = 1;
 			return (uint8_t*)&m_s64val;

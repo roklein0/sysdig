@@ -23,9 +23,9 @@ view_info =
 	tags = {"Default"},
 	view_type = "table",
 	applies_to = {"", "container.id", "proc.pid", "proc.name", "thread.tid", "fd.directory", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
-	use_defaults = true,
-	filter = "evt.type=marker",
---	filter = "marker.ntags=1",
+--	use_defaults = true,
+--	filter = "evt.type=marker",
+	filter = "marker.ntags>=%depth",
 	drilldown_target = "markers",
 	drilldown_increase_depth = true,
 	columns = 
@@ -37,7 +37,7 @@ view_info =
 		},
 		{
 			is_sorting = true,
-			name = "#CALLS",
+			name = "#HITS",
 			field = "marker.count.fortag[%depth]",
 			description = "Number of calls per second for this system call.",
 			colsize = 10,
@@ -65,7 +65,7 @@ view_info =
 			aggregation = "MAX"
 		},
 		{
-			name = "TAGs",
+			name = "TAG",
 			field = "marker.tag[%depth]",
 			description = "System call name.",
 			colsize = 32,

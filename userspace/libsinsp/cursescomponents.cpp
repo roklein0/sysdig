@@ -1432,13 +1432,14 @@ curses_viewinfo_page::curses_viewinfo_page(sinsp_cursesui* parent,
 	//
 	// If there's a filter, print it 
 	//
-	if(vinfo->m_filter != "")
+	ASSERT(m_parent->m_view_depth > 0);
+	if(vinfo->get_filter(m_parent->m_view_depth - 1) != "")
 	{
 		wattrset(m_win, parent->m_colors[sinsp_cursesui::HELP_BOLD]);
 		m_ctext->printf("Filter\n");
 
 		wattrset(m_win, parent->m_colors[sinsp_cursesui::PROCESS]);
-		m_ctext->printf("%s\n\n", vinfo->m_filter.c_str());
+		m_ctext->printf("%s\n\n", vinfo->get_filter(m_parent->m_view_depth - 1).c_str());
 	}
 
 	//

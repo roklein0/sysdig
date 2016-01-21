@@ -165,6 +165,7 @@ public:
 			}
 
 			res += m_hierarchy[j].m_field;
+
 			res += "=";
 			res += m_hierarchy[j].m_val;
 
@@ -467,7 +468,7 @@ public:
 						auto res = m_datatable->get_row_key_name_and_val(m_viz->m_selct);
 						if(res.first != NULL)
 						{
-							drilldown(res.first->m_name, res.second.c_str(), res.first);
+							drilldown(get_selected_view()->get_key()->get_field(m_view_depth - 1), res.second.c_str(), res.first);
 						}
 					}
 					return false;
@@ -480,7 +481,8 @@ public:
 						auto res = m_datatable->get_row_key_name_and_val(m_viz->m_selct);
 						if(res.first != NULL)
 						{
-							spectro_selection(res.first->m_name, res.second.c_str(), res.first, ta);
+							ASSERT(m_view_depth > 0);
+							spectro_selection(get_selected_view()->get_key()->get_field(m_view_depth - 1), res.second.c_str(), res.first, ta);
 						}
 					}
 					return false;
@@ -489,7 +491,8 @@ public:
 						auto res = m_datatable->get_row_key_name_and_val(m_viz->m_selct);
 						if(res.first != NULL)
 						{
-							spy_selection(res.first->m_name, res.second.c_str(), false);
+							ASSERT(m_view_depth > 0);
+							spy_selection(get_selected_view()->get_key()->get_field(m_view_depth - 1), res.second.c_str(), false);
 						}
 					}
 					return false;
@@ -500,7 +503,8 @@ public:
 							auto res = m_datatable->get_row_key_name_and_val(m_viz->m_selct);
 							if(res.first != NULL)
 							{
-								spy_selection(res.first->m_name, res.second.c_str(), true);
+								ASSERT(m_view_depth > 0);
+								spy_selection(get_selected_view()->get_key()->get_field(m_view_depth - 1), res.second.c_str(), true);
 							}
 						}
 						else
