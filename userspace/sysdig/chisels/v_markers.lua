@@ -67,7 +67,7 @@ view_info =
 		{
 			name = "TAG",
 			field = "marker.tag[%depth]",
-			description = "System call name.",
+			description = "Marker tag.",
 			colsize = 32,
 			aggregation = "SUM"
 		},

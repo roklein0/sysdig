@@ -4169,7 +4169,7 @@ const filtercheck_field_info sinsp_filter_check_marker_fields[] =
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.latency.quantized", "10-base log of the delta between an exit marker event and the correspondent enter event."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.latency.human", "delta between an exit marker event and the correspondent enter event, as a human readable string (e.g. 10.3ms)."},
 	{PT_RELTIME, EPF_TABLE_ONLY, PF_DEC, "marker.latency.fortag", "Latency of the marker if the number of tags matches the field argument, otherwise 0. For example, marker.latency.fortag[1] returns the latency of all the markers with 1 tag, and zero for all the other ones."},
-	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.count.fortag", "1 if the marker's number of tags matches the field argument."},
+	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.count.fortag", "1 if the marker's number of tags matches the field argument, and zero for all the other ones."},
 };
 
 sinsp_filter_check_marker::sinsp_filter_check_marker()
@@ -4585,12 +4585,13 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 		if(PPME_IS_EXIT(evt->get_type()) && (int32_t)eparser->m_tags.size() - 1 == m_argid)
 		{
 			m_s64val = 1;
-			return (uint8_t*)&m_s64val;
 		}
 		else
 		{
-			return NULL;
+			m_s64val = 0;
 		}
+
+		return (uint8_t*)&m_s64val;
 	default:
 		ASSERT(false);
 		break;
