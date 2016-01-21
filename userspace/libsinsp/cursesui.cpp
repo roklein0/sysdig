@@ -1255,7 +1255,7 @@ void sinsp_cursesui::create_complete_filter()
 		if(m_selected_view >= 0)
 		{
 			m_complete_filter = combine_filters(m_complete_filter, 
-				m_views.at(m_selected_view)->m_filter);
+				m_views.at(m_selected_view)->get_filter(m_view_depth));
 		}
 	}
 }
@@ -1403,7 +1403,7 @@ void sinsp_cursesui::spy_selection(string field, string val, bool is_dig)
 #endif
 
 	ASSERT(m_selected_view < (int32_t)m_views.size());
-	m_sel_hierarchy.push_back(field, val, m_views.at(m_selected_view)->m_filter,
+	m_sel_hierarchy.push_back(field, val, m_views.at(m_selected_view)->get_filter(m_view_depth),
 		m_selected_view, m_selected_view_sidemenu_entry, 
 		&rowkeybak, srtcol, m_manual_filter, m_is_filter_sysdig, 
 		m_datatable->is_sorting_ascending());
@@ -1479,7 +1479,7 @@ bool sinsp_cursesui::do_drilldown(string field, string val, uint32_t new_view_nu
 	uint32_t srtcol;
 	srtcol = m_datatable->get_sorting_col();
 
-	m_sel_hierarchy.push_back(field, val, m_views.at(m_selected_view)->m_filter,
+	m_sel_hierarchy.push_back(field, val, m_views.at(m_selected_view)->get_filter(m_view_depth),
 		m_selected_view, m_selected_view_sidemenu_entry, 
 		&rowkeybak, srtcol, m_manual_filter, m_is_filter_sysdig,
 		m_datatable->is_sorting_ascending());

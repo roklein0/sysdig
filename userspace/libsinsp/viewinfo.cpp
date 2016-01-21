@@ -30,15 +30,15 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 ///////////////////////////////////////////////////////////////////////////////
 string sinsp_view_column_info::get_field(uint32_t depth)
 {
-	if(m_field_x.find("%depth") != string::npos)
+	if(m_field.find("%depth") != string::npos)
 	{
-		string res = m_field_x;
+		string res = m_field;
 		replace_in_place(res, "%depth", to_string(depth));
 		return res;
 	}
 	else
 	{
-		return m_field_x;
+		return m_field;
 	}
 }
 
@@ -255,6 +255,21 @@ sinsp_view_column_info* sinsp_view_info::get_key()
 	// The *must* be a key
 	ASSERT(false);
 	return NULL;
+}
+
+string sinsp_view_info::get_filter(uint32_t depth)
+{
+	if(m_filter.find("%depth") != string::npos)
+	{
+		string res = m_filter;
+		replace_in_place(res, "%depth", to_string(depth));
+		return res;
+	}
+	else
+	{
+		return m_filter;
+	}
+	return m_filter;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

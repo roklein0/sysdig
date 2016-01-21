@@ -54,7 +54,7 @@ public:
 		sinsp_field_aggregation groupby_aggregation,
 		vector<string> tags)
 	{
-		m_field_x = field;
+		m_field = field;
 		m_name = name;
 		m_description = description;
 		m_colsize = colsize;
@@ -66,7 +66,7 @@ public:
 
 	string get_field(uint32_t depth);
 
-	string m_field_x;
+	string m_field;
 	string m_name;
 	string m_description;
 	uint32_t m_colsize;
@@ -135,6 +135,7 @@ public:
 
 	void get_col_names_and_sizes(OUT vector<string>* colnames, OUT vector<int32_t>* colsizes);
 	sinsp_view_column_info* get_key();
+	string get_filter(uint32_t depth);
 	viewtype get_type()
 	{
 		return m_type;
@@ -154,7 +155,6 @@ public:
 	vector<string> m_tags;
 	vector<string> m_tips;
 	uint32_t m_sortingcol;
-	string m_filter;
 	vector<string> m_applies_to;
 	vector<sinsp_view_column_info> m_columns;
 	bool m_use_defaults;
@@ -174,6 +174,7 @@ private:
 	void set_col_sorting_hotkeys();
 
 	uint32_t m_n_sorting_cols;
+	string m_filter;
 };
 
 
