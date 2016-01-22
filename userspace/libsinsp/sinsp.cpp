@@ -1032,7 +1032,7 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 			}
 		}
 
-		scap_evt* pdevt = (m_evt.m_poriginal_evt)? m_evt.m_poriginal_evt : m_evt.m_pevt;
+		scap_evt* pdevt = (evt->m_poriginal_evt)? evt->m_poriginal_evt : evt->m_pevt;
 
 		res = scap_dump(m_h, m_dumper, pdevt, evt->m_cpuid, dflags);
 
