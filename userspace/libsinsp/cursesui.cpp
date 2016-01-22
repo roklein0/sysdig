@@ -1563,13 +1563,20 @@ bool sinsp_cursesui::spectro_selection(string field, string val,
 	uint32_t j = 0;
 	string spectro_name;
 
-	if(ta == STA_SPECTRO)
-	{
-		spectro_name = "spectro_all";
-	}
-	else
-	{
-		spectro_name = "spectro_file";		
+ 	if(m_views.at(m_selected_view)->m_spectro_type == "markers")
+ 	{
+		spectro_name = "spectro_app";
+ 	}
+ 	else
+ 	{
+		if(ta == STA_SPECTRO)
+		{
+			spectro_name = "spectro_all";
+		}
+		else
+		{
+			spectro_name = "spectro_file";		
+		}
 	}
 
 	for(j = 0; j < m_views.size(); ++j)
