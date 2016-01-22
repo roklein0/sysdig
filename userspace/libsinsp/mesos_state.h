@@ -44,13 +44,14 @@ public:
 	// tasks
 	//
 
+	std::unordered_set<std::string> get_all_task_ids() const;
 	const mesos_framework::task_map& get_tasks(const std::string& framework_uid) const;
 
 	mesos_framework::task_map& get_tasks(const std::string& framework_uid);
 
 	mesos_framework::task_ptr_t get_task(const std::string& uid);
 
-	void add_or_replace_task(mesos_framework& framework, std::shared_ptr<mesos_task> task);
+	void add_or_replace_task(mesos_framework& framework, mesos_task::ptr_t task);
 
 	void remove_task(mesos_framework& framework, const std::string& uid);
 
@@ -71,23 +72,26 @@ public:
 	void emplace_slave(mesos_slave&& slave);
 
 	//
-	// apps
+	// Marathon apps
 	//
 
 	void parse_apps(const std::string& json);
 
-	const marathon_apps& get_apps() const;
-
-	marathon_apps& get_apps();
-
 	marathon_app::ptr_t get_app(const std::string& app_id);
 
-	void add_or_replace_app(marathon_group::app_ptr_t app);
+	marathon_group::app_ptr_t add_or_replace_app(const std::string& id,
+												const std::string& group,
+												const std::string& task = "");
 
 	bool remove_app(const std::string& id);
 
+	void add_task_to_app(marathon_group::app_ptr_t app, const std::string& task_id)
+	{
+		app->add_task(get_task(task_id), get_all_task_ids());
+	}
+
 	//
-	// groups
+	// Marathon groups
 	//
 
 	bool parse_groups(const std::string& json);
@@ -100,6 +104,8 @@ public:
 
 	marathon_group::ptr_t add_or_replace_group(marathon_group::ptr_t group, marathon_group::ptr_t to_group = 0);
 
+	marathon_group::ptr_t get_app_group(const std::string& app_id);
+
 	//
 	// state
 	//
@@ -109,16 +115,16 @@ public:
 	void print_groups() const;
 
 private:
-	marathon_group::ptr_t add_group(const Json::Value& group, marathon_group::ptr_t to_group);
-	bool handle_groups(const Json::Value& groups, marathon_group::ptr_t p_groups);
-	marathon_app::ptr_t add_app(const Json::Value& app);
+	marathon_group::ptr_t add_group(const Json::Value& group, marathon_group::ptr_t to_group, const std::string& framework_id = "");
+	bool handle_groups(const Json::Value& groups, marathon_group::ptr_t p_groups, const std::string& framework_id = "");
+	marathon_app::ptr_t add_app(const Json::Value& app, const std::string& framework_id = "");
 
 	mesos_frameworks m_frameworks;
 	mesos_slaves     m_slaves;
-	marathon_apps    m_apps;
 	marathon_groups  m_groups;
 	bool             m_is_captured;
 
+	std::unordered_multimap<std::string, std::string> m_marathon_task_cache;
 	friend class marathon_dispatcher;
 };
 
@@ -170,13 +176,43 @@ inline void mesos_state_t::emplace_framework(mesos_framework&& framework)
 	m_frameworks.emplace_back(std::move(framework));
 }
 
-inline void mesos_state_t::add_or_replace_task(mesos_framework& framework, std::shared_ptr<mesos_task> task)
+inline void mesos_state_t::add_or_replace_task(mesos_framework& framework, mesos_task::ptr_t task)
 {
 	framework.add_or_replace_task(task);
 }
 
 inline void mesos_state_t::remove_task(mesos_framework& framework, const std::string& uid)
 {
+	mesos_task::ptr_t task = framework.get_task(uid);
+	if(task)
+	{
+		std::string app_id = task->get_marathon_app_id();
+		if(!app_id.empty())
+		{
+			marathon_group::ptr_t group = get_app_group(app_id);
+			if(group)
+			{
+				if(!group->remove_task(uid))
+				{
+					g_logger.log("Task [" + uid + "] not found in Marathon app [" + app_id + ']',
+							 sinsp_logger::SEV_ERROR);
+				}
+			}
+			else
+			{
+				g_logger.log("Group not found for Marathon app [" + app_id + "] while trying to remove task [" + uid + ']',
+							 sinsp_logger::SEV_ERROR);
+			}
+		}
+		else
+		{
+			g_logger.log("Task [" + uid + "] has no Marathon app ID.", sinsp_logger::SEV_WARNING);
+		}
+	}
+	else
+	{
+		g_logger.log("Task [" + uid + "] not found in framework [" + framework.get_uid() + ']', sinsp_logger::SEV_WARNING);
+	}
 	framework.remove_task(uid);
 }
 
@@ -232,15 +268,6 @@ inline void mesos_state_t::emplace_slave(mesos_slave&& slave)
 // apps
 //
 
-inline const marathon_apps& mesos_state_t::get_apps() const
-{
-	return m_apps;
-}
-
-inline marathon_apps& mesos_state_t::get_apps()
-{
-	return m_apps;
-}
 
 //
 // groups
@@ -264,9 +291,5 @@ inline void mesos_state_t::clear(bool marathon)
 {
 	m_frameworks.clear();
 	m_slaves.clear();
-	if(marathon)
-	{
-		m_apps.clear();
-		m_groups.clear();
-	}
+	if(marathon) { m_groups.clear(); }
 }
