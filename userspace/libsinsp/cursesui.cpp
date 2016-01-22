@@ -419,11 +419,6 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 			throw;
 		}
 
-		if(wi->m_drilldown_increase_depth)
-		{
-			m_view_depth++;
-		}
-
 		m_datatable->set_sorting_col(wi->m_sortingcol);
 	}
 #ifndef NOCURSESUI
@@ -1479,6 +1474,11 @@ bool sinsp_cursesui::do_drilldown(string field, string val, uint32_t new_view_nu
 	uint32_t srtcol;
 	srtcol = m_datatable->get_sorting_col();
 
+	if(m_views.at(m_selected_view)->m_drilldown_increase_depth)
+	{
+		m_view_depth++;
+	}
+
 	m_sel_hierarchy.push_back(field, val, m_views.at(m_selected_view)->get_filter(m_view_depth),
 		m_selected_view, m_selected_view_sidemenu_entry, 
 		&rowkeybak, srtcol, m_manual_filter, m_is_filter_sysdig,
@@ -1613,7 +1613,12 @@ bool sinsp_cursesui::drillup()
 
 		m_selected_view = sinfo->m_prev_selected_view;
 		m_selected_view_sidemenu_entry = sinfo->m_prev_selected_sidemenu_entry;
-		
+
+		if(m_views.at(m_selected_view)->m_drilldown_increase_depth)
+		{
+			m_view_depth--;
+		}
+
 		if(m_views.at(m_selected_view)->m_type == sinsp_view_info::T_SPECTRO)
 		{
 			m_is_filter_sysdig = false;

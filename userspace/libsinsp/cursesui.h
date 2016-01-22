@@ -468,7 +468,7 @@ public:
 						auto res = m_datatable->get_row_key_name_and_val(m_viz->m_selct);
 						if(res.first != NULL)
 						{
-							drilldown(get_selected_view()->get_key()->get_field(m_view_depth - 1), res.second.c_str(), res.first);
+							drilldown(get_selected_view()->get_key()->get_field(m_view_depth), res.second.c_str(), res.first);
 						}
 					}
 					return false;
@@ -482,7 +482,7 @@ public:
 						if(res.first != NULL)
 						{
 							ASSERT(m_view_depth > 0);
-							spectro_selection(get_selected_view()->get_key()->get_field(m_view_depth - 1), res.second.c_str(), res.first, ta);
+							spectro_selection(get_selected_view()->get_key()->get_field(m_view_depth), res.second.c_str(), res.first, ta);
 						}
 					}
 					return false;
@@ -492,7 +492,7 @@ public:
 						if(res.first != NULL)
 						{
 							ASSERT(m_view_depth > 0);
-							spy_selection(get_selected_view()->get_key()->get_field(m_view_depth - 1), res.second.c_str(), false);
+							spy_selection(get_selected_view()->get_key()->get_field(m_view_depth), res.second.c_str(), false);
 						}
 					}
 					return false;
@@ -504,7 +504,7 @@ public:
 							if(res.first != NULL)
 							{
 								ASSERT(m_view_depth > 0);
-								spy_selection(get_selected_view()->get_key()->get_field(m_view_depth - 1), res.second.c_str(), true);
+								spy_selection(get_selected_view()->get_key()->get_field(m_view_depth), res.second.c_str(), true);
 							}
 						}
 						else
