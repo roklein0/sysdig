@@ -27,6 +27,7 @@ view_info =
 --	filter = "evt.type=marker",
 	filter = "marker.ntags>=%depth",
 	drilldown_target = "markers",
+	spectro_type = "markers",
 	drilldown_increase_depth = true,
 	columns = 
 	{

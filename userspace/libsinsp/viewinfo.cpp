@@ -63,7 +63,8 @@ sinsp_view_info::sinsp_view_info(viewtype type,
 	bool use_defaults,
 	bool is_root,
 	vector<sinsp_view_action_info> actions,
-	bool drilldown_increase_depth)
+	bool drilldown_increase_depth,
+	string spectro_type)
 {
 	m_id = id;
 	m_name = name;
@@ -77,6 +78,7 @@ sinsp_view_info::sinsp_view_info(viewtype type,
 	m_is_root = is_root;
 	m_applies_to = applies_to;
 	m_drilldown_increase_depth = drilldown_increase_depth;
+	m_spectro_type = spectro_type;
 
 	m_use_defaults = use_defaults;
 	

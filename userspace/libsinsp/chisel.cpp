@@ -676,6 +676,7 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 	vector<string> tags;
 	vector<string> tips;
 	string drilldown_target;
+	string spectro_type;
 	bool drilldown_increase_depth = false;
 	bool is_root = false;
 
@@ -771,6 +772,10 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 		else if(fldname == "drilldown_target")
 		{
 			drilldown_target = lua_tostring(ls, -1);
+		}
+		else if(fldname == "spectro_type")
+		{
+			spectro_type = lua_tostring(ls, -1);
 		}
 		else if(fldname == "applies_to")
 		{
@@ -874,7 +879,8 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 		use_defaults,
 		is_root,
 		actions,
-		drilldown_increase_depth);
+		drilldown_increase_depth,
+		spectro_type);
 
 	return true;
 }

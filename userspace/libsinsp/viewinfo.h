@@ -131,7 +131,8 @@ public:
 		bool use_defaults,
 		bool is_root,
 		vector<sinsp_view_action_info> actions,
-		bool drilldown_increase_depth);
+		bool drilldown_increase_depth,
+		string spectro_type);
 
 	void get_col_names_and_sizes(OUT vector<string>* colnames, OUT vector<int32_t>* colsizes);
 	sinsp_view_column_info* get_key();
@@ -167,6 +168,7 @@ public:
 	vector<char> m_col_sort_hotkeys;
 	uint32_t max_col_sort_hotkeys;
 	bool m_drilldown_increase_depth;
+	string m_spectro_type;
 
 private:
 	void set_sorting_col();
