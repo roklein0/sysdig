@@ -503,6 +503,7 @@ sysdig_table_action curses_spectro::handle_input(int ch)
 
 							string lat_fld_name;
 
+
 							if(m_drilldown_target == "dig_app")
 							{
 								lat_fld_name = "marker.latency";

@@ -581,7 +581,7 @@ sysdig_table_action curses_table_sidemenu::handle_input(int ch)
 ///////////////////////////////////////////////////////////////////////////////
 // curses_textbox implementation
 ///////////////////////////////////////////////////////////////////////////////
-curses_textbox::curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t viz_type, bool is_spectro_drilldown)
+curses_textbox::curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t viz_type, sysdig_output_type sotype)
 {
 	ASSERT(inspector != NULL);
 	ASSERT(parent != NULL);
@@ -615,7 +615,7 @@ curses_textbox::curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t
 	//
 	if(m_viz_type == VIEW_ID_DIG)
 	{
-		if(is_spectro_drilldown)
+		if(sotype == OT_LATENCY)
 		{
 			if(m_parent->m_print_containers)
 			{
@@ -626,6 +626,19 @@ curses_textbox::curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t
 			{
 				m_formatter = new sinsp_evt_formatter(m_inspector, 
 					"*(latency=%evt.latency.human) (fd=%fd.name) %evt.num %evt.time %evt.cpu %proc.name %thread.tid %evt.dir %evt.type %evt.info");
+			}
+		}
+		else if(sotype == OT_LATENCY_APP)
+		{
+			if(m_parent->m_print_containers)
+			{
+				m_formatter = new sinsp_evt_formatter(m_inspector, 
+					"*(latency=%marker.latency.human) %evt.num %evt.time %evt.cpu %container.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.info");
+			}
+			else
+			{
+				m_formatter = new sinsp_evt_formatter(m_inspector, 
+					"*(latency=%marker.latency.human) %evt.num %evt.time %evt.cpu %proc.name %thread.tid %evt.dir %evt.type %evt.info");
 			}
 		}
 		else

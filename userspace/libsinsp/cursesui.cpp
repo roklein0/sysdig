@@ -303,7 +303,7 @@ void sinsp_cursesui::configure(sinsp_view_manager* views)
 
 void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 {
-	bool is_spectro_dig = false;
+	curses_textbox::sysdig_output_type dig_otype = curses_textbox::OT_NORMAL;
 
 	//
 	// Input validation
@@ -346,7 +346,14 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 		{
 			delete m_spectro;
 			m_spectro = NULL;
-			is_spectro_dig = true;
+			if(m_views.at(m_prev_selected_view)->m_drilldown_target == "dig_app")
+			{
+				dig_otype = curses_textbox::OT_LATENCY_APP;
+			}
+			else
+			{
+				dig_otype = curses_textbox::OT_LATENCY;
+			}
 		}
 
 		if(m_spy_box && !is_spy_switch)
@@ -432,7 +439,7 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 		//
 		// Create the visualization component
 		//
-		m_spy_box = new curses_textbox(m_inspector, this, m_selected_view, is_spectro_dig);
+		m_spy_box = new curses_textbox(m_inspector, this, m_selected_view, dig_otype);
 		m_spy_box->reset();
 		m_chart = m_spy_box;
 		m_spy_box->set_filter(m_complete_filter);
