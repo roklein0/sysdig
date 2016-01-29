@@ -1632,7 +1632,7 @@ void sinsp_filter::compile(const string& fltstr)
 {
 	m_fltstr = fltstr;
 	m_scansize = (uint32_t)m_fltstr.size();
-
+lo("**** %s", fltstr.c_str());
 	while(true)
 	{
 		char a = next();

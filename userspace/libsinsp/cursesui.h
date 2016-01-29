@@ -161,13 +161,16 @@ public:
 				}
 				res += "(";
 				res += m_hierarchy[j].m_view_filter;
-				res += ") and ";
+				res += ")";
 			}
 
-			res += m_hierarchy[j].m_field;
+			if(has_filter && m_hierarchy[j].m_field != "")
+			{
+				res += " and " + m_hierarchy[j].m_field;
 
-			res += "=";
-			res += m_hierarchy[j].m_val;
+				res += "=";
+				res += m_hierarchy[j].m_val;
+			}
 
 			if(has_filter && hs > 1)
 			{
@@ -465,10 +468,18 @@ public:
 					return false;
 				case STA_DRILLDOWN:
 					{
-						auto res = m_datatable->get_row_key_name_and_val(m_viz->m_selct);
-						if(res.first != NULL)
+						if(m_viz != NULL)
 						{
-							drilldown(get_selected_view()->get_key()->get_field(m_view_depth), res.second.c_str(), res.first);
+							auto res = m_datatable->get_row_key_name_and_val(m_viz->m_selct);
+							if(res.first != NULL)
+							{
+								spy_selection(get_selected_view()->get_key()->get_field(m_view_depth), res.second.c_str(), res.first);
+							}
+						}
+						else
+						{
+							ASSERT(m_spectro != NULL);
+							drilldown("", "", NULL);							
 						}
 					}
 					return false;

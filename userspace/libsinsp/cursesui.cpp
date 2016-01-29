@@ -1235,6 +1235,7 @@ void sinsp_cursesui::create_complete_filter()
 {
 	if(m_is_filter_sysdig)
 	{
+lo("$2 %s", m_manual_filter.c_str());
 		if(m_complete_filter != "")
 		{
 			m_complete_filter = "(" + m_complete_filter + 
@@ -1252,6 +1253,7 @@ void sinsp_cursesui::create_complete_filter()
 
 		m_complete_filter = combine_filters(m_complete_filter, m_sel_hierarchy.tofilter());
 
+lo("$3 %s", m_sel_hierarchy.tofilter().c_str());
 		//
 		// Note: m_selected_view is smaller than 0 when there's no view, because we're doing
 		//       non-view stuff like spying.
@@ -1392,7 +1394,6 @@ void sinsp_cursesui::spy_selection(string field, string val, bool is_dig)
 	else if(m_spectro)
 	{
 		m_is_filter_sysdig = true;
-		// loris
 		m_manual_filter = m_spectro->m_selection_filter;
 		srtcol = 0;
 		rowkeybak.m_val = NULL;
@@ -1458,7 +1459,7 @@ bool sinsp_cursesui::do_drilldown(string field, string val, uint32_t new_view_nu
 	//
 	//	escape string parameters
 	//
-	if(info->m_type & PT_CHARBUF)
+	if(info != NULL && info->m_type & PT_CHARBUF)
 	{
 		string escape = "\"";
 		val = escape + val + escape;
@@ -1467,10 +1468,13 @@ bool sinsp_cursesui::do_drilldown(string field, string val, uint32_t new_view_nu
 	//
 	// Do the drilldown
 	//
-#ifndef NOCURSESUI
-	sinsp_table_field* rowkey = m_datatable->get_row_key(m_viz->m_selct);
-#else
 	sinsp_table_field* rowkey = NULL;
+
+#ifndef NOCURSESUI
+	if(m_viz != NULL)
+	{
+		rowkey = m_datatable->get_row_key(m_viz->m_selct);
+	}
 #endif
 	sinsp_table_field rowkeybak;
 	if(rowkey != NULL)

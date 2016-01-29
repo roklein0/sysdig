@@ -47,21 +47,21 @@ view_info =
 		{
 			name = "AVG TIME",
 			field = "marker.latency",
-			description = "XXX",
+			description = "average time this marker took to complete",
 			colsize = 10,
 			aggregation = "AVG"
 		},
 		{
 			name = "MIN TIME",
 			field = "marker.latency",
-			description = "XXX",
+			description = "minimum time this marker took to complete",
 			colsize = 10,
 			aggregation = "MIN"
 		},
 		{
 			name = "MAX TIME",
 			field = "marker.latency",
-			description = "XXX",
+			description = "maximum time this marker took to complete",
 			colsize = 10,
 			aggregation = "MAX"
 		},

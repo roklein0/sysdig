@@ -2065,7 +2065,7 @@ const filtercheck_field_info sinsp_filter_check_event_fields[] =
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "evt.buflen.net.in", "the length of the binary data buffer, but only for input network I/O events."},
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "evt.buflen.net.out", "the length of the binary data buffer, but only for output network I/O events."},
 	// Marker related fields. These can be used only as filter fields, not as display fields
-	{PT_INT64, EPF_FILTER_ONLY, PF_DEC, "evt.marker.id", "event ID."},
+	{PT_INT64, EPF_FILTER_ONLY, PF_ID, "evt.marker.id", "event ID."},
 	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evt.marker.ntags", "Number of tags that this marker has."},
 	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evt.marker.nargs", "Number of arguments that this marker has."},
 	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.marker.tags", "comma-separated list of event tags."},
@@ -4158,7 +4158,7 @@ uint8_t* sinsp_filter_check_group::extract(sinsp_evt *evt, OUT uint32_t* len)
 ///////////////////////////////////////////////////////////////////////////////
 const filtercheck_field_info sinsp_filter_check_marker_fields[] =
 {
-	{PT_INT64, EPF_NONE, PF_DEC, "marker.id", "marker ID. This is a unique identifier that is used to match the enter and exit event for this marker. It can also be used to match different markers belonging to a transaction."},
+	{PT_INT64, EPF_NONE, PF_ID, "marker.id", "marker ID. This is a unique identifier that is used to match the enter and exit event for this marker. It can also be used to match different markers belonging to a transaction."},
 	{PT_UINT32, EPF_NONE, PF_DEC, "marker.ntags", "number of tags that this marker has."},
 	{PT_UINT32, EPF_NONE, PF_DEC, "marker.nargs", "number of arguments that this marker has."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.tags", "dot-separated list of event tags."},

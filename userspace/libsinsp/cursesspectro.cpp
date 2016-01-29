@@ -524,7 +524,13 @@ sysdig_table_action curses_spectro::handle_input(int ch)
 								" and evt.rawtime<=" + to_string(end_row->m_ts) + 
 								") and (" + lat_fld_name + ">=" + to_string(start_latency) + 
 								" and " + lat_fld_name + "<" + to_string(end_latency) + ")";
-
+/*
+							if(m_drilldown_target == "dig_app")
+							{
+								m_selection_filter +=
+									" and marker";
+							}
+*/
 							g_logger.format("spectrogram drill down");
 							g_logger.format("filter: %s", m_selection_filter.c_str());
 
@@ -534,6 +540,7 @@ sysdig_table_action curses_spectro::handle_input(int ch)
 							ansi_reset_color();
 
 							return STA_DIG;
+//							return STA_DRILLDOWN;
 						}
 						else
 						{
