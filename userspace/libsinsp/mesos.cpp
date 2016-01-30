@@ -27,34 +27,61 @@ mesos::mesos(const std::string& state_uri,
 	const uri_list_t& marathon_uris,
 	const std::string& groups_api,
 	const std::string& apps_api,
-	const std::string& watch_api)
-#ifdef HAS_CAPTURE
-		: m_state_http(*this, state_uri + state_api),
-		m_collector(false), m_creation_logged(false)
-#endif // HAS_CAPTURE
+	const std::string& /*watch_api*/): m_collector(false), m_creation_logged(false)
 {
 #ifdef HAS_CAPTURE
-	for(const auto& uri : marathon_uris)
+	m_state_http = std::make_shared<mesos_http>(*this, state_uri + state_api);
+	rebuild_mesos_state(true);
+
+	for(const auto& muri : marathon_uris)
 	{
-		int port = (uri.substr(0, 5) == "https") ? 443 : 80;
-		std::string::size_type pos = uri.rfind(':');
+		int port = (muri.substr(0, 5) == "https") ? 443 : 80;
+		std::string::size_type pos = muri.rfind(':');
 		if(pos != std::string::npos)
 		{
-			std::string::size_type ppos = uri.find('/', pos);
+			std::string::size_type ppos = muri.find('/', pos);
 			if(ppos == std::string::npos)
 			{
-				ppos = pos + (uri.length() - pos);
+				ppos = pos + (muri.length() - pos);
 			}
 			ASSERT(ppos - (pos + 1) > 0);
-			port = std::stoi(uri.substr(pos + 1, ppos - (pos + 1)));
+			port = std::stoi(muri.substr(pos + 1, ppos - (pos + 1)));
 		}
-		m_marathon_groups_http[port] = std::make_shared<marathon_http>(*this, uri + groups_api, true);
-		m_marathon_apps_http[port]   = std::make_shared<marathon_http>(*this, uri + apps_api, true);
-		m_marathon_watch_http[port]  = std::make_shared<marathon_http>(*this, uri + watch_api, true);
-		m_dispatch[port]             = std::make_shared<marathon_dispatcher>(m_state, m_marathon_watch_http[port]->get_id());
+		m_marathon_groups_http[port] = std::make_shared<marathon_http>(*this, muri + groups_api);
+		m_marathon_apps_http[port]   = std::make_shared<marathon_http>(*this, muri + apps_api);
+/*
+		TODO: enable marathon state rebuild based on marathon change events; currently, the problem is
+		the design of http_mesos/http_marathon class hierarchy - there is a virtual on_data() member,
+		which can be used by either events or non-blocking full state polling, but not for both
+
+		uri url(muri + watch_api);
+		host_and_port = url.get_host();
+		port = url.get_port();
+		if(port)
+		{
+			host_and_port.append(1, ':').append(std::to_string(port));
+		}
+		request.str("");
+		request << "GET " << url.get_path() << " HTTP/1.1\r\nHost: " << host_and_port << "\r\nAccept: text/event-stream\r\n";
+		std::string creds = url.get_credentials();
+		if(!creds.empty())
+		{
+			std::istringstream is(creds);
+			std::ostringstream os;
+			base64::encoder().encode(is, os);
+			request << "Authorization: Basic " << os.str() << "\r\n";
+		}
+		request << "\r\n";
+		m_marathon_watch_http[port]  = std::make_shared<marathon_http>(*this, muri + watch_api, request.str(), true);
+		m_collector.add(m_marathon_watch_http[port]);
+		m_dispatch[port] = std::make_shared<marathon_dispatcher>(m_state, m_marathon_watch_http[port]->get_id());
+*/
 	}
 
-	refresh(marathon_uris.size());
+	if(has_marathon())
+	{
+		rebuild_marathon_state(true);
+	}
 #endif // HAS_CAPTURE
 }
 
@@ -62,93 +89,156 @@ mesos::~mesos()
 {
 }
 
-void mesos::refresh(bool marathon)
+void mesos::refresh()
 {
-#ifdef HAS_CAPTURE
-	clear(marathon);
+	rebuild_mesos_state();
+	if(has_marathon())
+	{
+		//TODO: optimize - rebuild only if there was marathon change
+		//watch_marathon();
+		//if(m_state.get_marathon_changed())
+		{
+			rebuild_marathon_state();
+		}
+	}
+}
 
-	m_state_http.get_all_data(&mesos::parse_state);
+void mesos::rebuild_mesos_state(bool full)
+{
+	if(full)
+	{
+		clear_mesos();
+		m_state_http->get_all_data(&mesos::parse_state);
+	}
+	else
+	{
+		connect_mesos();
+		send_mesos_data_request();
+		collect_data();
+	}
+}
 
-	if(marathon)
+void mesos::rebuild_marathon_state(bool full)
+{
+	if(has_marathon())
+	{
+		if(full)
+		{
+			clear_marathon();
+
+			for(auto& group_http : m_marathon_groups_http)
+			{
+				group_http.second->get_all_data(&mesos::parse_groups);
+			}
+
+			for(auto& app_http : m_marathon_apps_http)
+			{
+				app_http.second->get_all_data(&mesos::parse_apps);
+			}
+		}
+		else
+		{
+			connect_marathon();
+			send_marathon_data_request();
+			collect_data();
+		}
+
+		m_state.set_marathon_changed(false);
+	}
+}
+
+void mesos::send_marathon_data_request()
+{
+	if(has_marathon())
 	{
 		for(auto& group_http : m_marathon_groups_http)
 		{
-			group_http.second->get_all_data(&mesos::parse_groups);
+			group_http.second->send_request();
 		}
-
 		for(auto& app_http : m_marathon_apps_http)
 		{
-			app_http.second->get_all_data(&mesos::parse_apps);
-		}
-
-		for(auto watch_http : m_marathon_watch_http)
-		{
-			m_collector.add(watch_http.second);
+			app_http.second->send_request();
 		}
 	}
-#endif // HAS_CAPTURE
+}
+
+void mesos::connect_marathon()
+{
+	if(has_marathon())
+	{
+		for(auto& group_http : m_marathon_groups_http)
+		{
+			connect(group_http.second, &mesos::set_marathon_groups_json);
+		}
+		for(auto& app_http : m_marathon_apps_http)
+		{
+			connect(app_http.second, &mesos::set_marathon_apps_json);
+		}
+	}
+}
+
+void mesos::send_mesos_data_request()
+{
+	m_state_http->send_request();
+}
+
+void mesos::connect_mesos()
+{
+	connect(m_state_http, &mesos::set_state_json);
 }
 
 bool mesos::is_alive() const
 {
-	bool connected = true;
 #ifdef HAS_CAPTURE
-	connected &= m_state_http.is_connected();
+	if(!m_state_http->is_connected())
+	{
+		g_logger.log("Mesos state connection loss.", sinsp_logger::SEV_WARNING);
+		return false;
+	}
+
 	for(const auto& group : m_marathon_groups_http)
 	{
-		connected &= group.second->is_connected();
+		if(!group.second->is_connected())
+		{
+			g_logger.log("Marathon groups connection loss.", sinsp_logger::SEV_WARNING);
+			return false;
+		}
 	}
 
 	for(const auto& app : m_marathon_apps_http)
 	{
-		connected &= app.second->is_connected();
+		if(!app.second->is_connected())
+		{
+			g_logger.log("Marathon apps connection loss.", sinsp_logger::SEV_WARNING);
+			return false;
+		}
 	}
-
-	connected &= (m_collector.subscription_count() > 0);
 #endif // HAS_CAPTURE
-
-	return connected;
+	return true;
 }
 
-void mesos::watch()
+void mesos::watch_marathon()
 {
 #ifdef HAS_CAPTURE
-	if(m_marathon_watch_http.size())
+	if(has_marathon())
 	{
-		if(!m_collector.subscription_count())
+		if(m_marathon_watch_http.size())
 		{
-			for(auto watch_http : m_marathon_watch_http)
+			if(!m_collector.subscription_count())
 			{
-				m_collector.add(watch_http.second);
+				for(auto watch_http : m_marathon_watch_http)
+				{
+					m_collector.add(watch_http.second);
+				}
 			}
+			m_collector.get_data();
 		}
-		m_collector.get_data();
+	}
+	else
+	{
+		throw sinsp_exception("Attempt to watch non-existing Marathon framework.");
 	}
 #endif // HAS_CAPTURE
-}
-
-void mesos::determine_node_type(const Json::Value& root)
-{
-	Json::Value flags = root["flags"];
-	if(!flags.isNull())
-	{
-		Json::Value port = flags["port"];
-		if(!port.isNull())
-		{
-			if(port.asString() == "5050")
-			{
-				m_node_type = NODE_MASTER;
-			}
-			else if(port.asString() == "5051")
-			{
-				m_node_type = NODE_SLAVE;
-			}
-			else
-			{
-				throw sinsp_exception("Can not determine node type");
-			}
-		}
-	}
 }
 
 void mesos::add_task_labels(std::string& json)
@@ -166,7 +256,7 @@ void mesos::add_task_labels(std::string& json)
 				{
 					if(!root["taskStatus"].isNull() && root["taskStatus"].isString() && root["taskStatus"].asString() == "TASK_RUNNING")
 					{
-						Json::Value labels = m_state_http.get_task_labels(root["taskId"].asString());
+						Json::Value labels = m_state_http->get_task_labels(root["taskId"].asString());
 						if(!labels.isNull() && labels.isArray())
 						{
 							root["labels"] = labels;
@@ -230,22 +320,6 @@ void mesos::get_groups(marathon_http::ptr_t http, std::string& json)
 
 void mesos::on_watch_data(const std::string& framework_id, mesos_event_data&& msg)
 {
-	// if this is marathon task status update, we need to get the labels
-	// from mesos because the update message does not contain them
-	// TODO (maybe): refactor to keep labels in apps and have tasks labels updated
-	// when tasks are asigned to apps
-	add_task_labels(msg.get_data());
-
-	// if this is group change, replace event data (which does not contain enough
-	// information to rebuild state) with Marathon state API JSON
-	for(auto& http : m_marathon_groups_http)
-	{
-		if(http.second->get_id() == framework_id)
-		{
-			get_groups(http.second, msg.get_data());
-		}
-	}
-
 	for(auto& dispatcher : m_dispatch)
 	{
 		if(framework_id == dispatcher.second->get_id())
@@ -256,26 +330,6 @@ void mesos::on_watch_data(const std::string& framework_id, mesos_event_data&& ms
 	}
 }
 #endif // HAS_CAPTURE
-
-void mesos::parse_state(const std::string& json)
-{
-	Json::Value root;
-	Json::Reader reader;
-	if(reader.parse(json, root, false))
-	{
-		determine_node_type(root);
-		handle_frameworks(root);
-		handle_slaves(root);
-		if(!m_creation_logged)
-		{
-			m_creation_logged = true;
-		}
-	}
-	else
-	{
-		throw sinsp_exception("Invalid JSON (parsing Mesos state failed).");
-	}
-}
 
 void mesos::handle_frameworks(const Json::Value& root)
 {
@@ -326,7 +380,7 @@ void mesos::add_framework(const Json::Value& framework)
 	{
 		std::ostringstream os;
 		os << "Adding Mesos framework: [" << name << ',' << uid << ']';
-		g_logger.log(os.str(), sinsp_logger::SEV_INFO);
+		g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
 	}
 	m_state.emplace_framework(mesos_framework(name, uid));
 	add_tasks(m_state.get_frameworks().back(), framework);
@@ -349,7 +403,7 @@ void mesos::add_slave(const Json::Value& slave)
 	{
 		std::ostringstream os;
 		os << "Adding Mesos slave: [" << name << ',' << uid << ']';
-		g_logger.log(os.str(), sinsp_logger::SEV_INFO);
+		g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
 	}
 	m_state.emplace_slave(mesos_slave(name, uid));
 }
@@ -390,33 +444,76 @@ void mesos::add_tasks_impl(mesos_framework& framework, const Json::Value& tasks)
 
 void mesos::add_tasks(mesos_framework& framework, const Json::Value& f_val)
 {
-	if(is_master())
+	Json::Value tasks = f_val["tasks"];
+	add_tasks_impl(framework, tasks);
+}
+
+void mesos::set_state_json(std::string&& json, const std::string&)
+{
+	if(!json.empty())
 	{
-		Json::Value tasks = f_val["tasks"];
-		add_tasks_impl(framework, tasks);
+		//g_logger.log("Received state JSON " + std::to_string(json.size()), sinsp_logger::SEV_DEBUG);
+		m_mesos_state_json = std::move(json);
 	}
 	else
 	{
-		Json::Value executors = f_val["executors"];
-		if(!executors.isNull())
-		{
-			for(const auto& executor : executors)
-			{
-				Json::Value tasks = executor["tasks"];
-				add_tasks_impl(framework, tasks);
-			}
-		}
+		g_logger.log("Received empty state JSON", sinsp_logger::SEV_WARNING);
 	}
 }
 
-void mesos::parse_groups(const std::string& json)
+void mesos::parse_state(std::string&& json, const std::string&)
 {
-	m_state.parse_groups(json);
+	Json::Value root;
+	Json::Reader reader;
+	if(reader.parse(json, root, false))
+	{
+		clear_mesos();
+		handle_frameworks(root);
+		handle_slaves(root);
+		if(!m_creation_logged)
+		{
+			m_creation_logged = true;
+		}
+	}
+	else
+	{
+		throw sinsp_exception("Invalid JSON (parsing Mesos state failed).");
+	}
 }
 
-void mesos::parse_apps(const std::string& json)
+void mesos::set_marathon_groups_json(std::string&& json, const std::string& framework_id)
 {
-	m_state.parse_apps(json);
+	if(!json.empty())
+	{
+		m_marathon_groups_json[framework_id] = std::move(json);
+	}
+	else
+	{
+		g_logger.log("Received empty groups JSON", sinsp_logger::SEV_WARNING);
+	}
+}
+
+void mesos::parse_groups(std::string&& json, const std::string& framework_id)
+{
+	m_state.parse_groups(std::move(json), framework_id);
+}
+
+void mesos::set_marathon_apps_json(std::string&& json, const std::string& framework_id)
+{
+	if(!json.empty())
+	{
+		g_logger.log("Received apps JSON (" + std::to_string(json.size()) + " bytes) for framework [" + framework_id + ']', sinsp_logger::SEV_DEBUG);
+		m_marathon_apps_json[framework_id] = std::move(json);
+	}
+	else
+	{
+		g_logger.log("Received empty apps JSON", sinsp_logger::SEV_WARNING);
+	}
+}
+
+void mesos::parse_apps(std::string&& json, const std::string& framework_id)
+{
+	m_state.parse_apps(std::move(json), framework_id);
 }
 
 #endif // _WIN32
