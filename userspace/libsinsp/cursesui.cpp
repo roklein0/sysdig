@@ -416,6 +416,7 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 
 		try
 		{
+lo("****");			
 			m_datatable->configure(&wi->m_columns, 
 				m_complete_filter,
 				wi->m_use_defaults,
@@ -1235,7 +1236,6 @@ void sinsp_cursesui::create_complete_filter()
 {
 	if(m_is_filter_sysdig)
 	{
-lo("$2 %s", m_manual_filter.c_str());
 		if(m_complete_filter != "")
 		{
 			m_complete_filter = "(" + m_complete_filter + 

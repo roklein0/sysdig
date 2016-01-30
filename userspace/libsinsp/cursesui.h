@@ -473,7 +473,7 @@ public:
 							auto res = m_datatable->get_row_key_name_and_val(m_viz->m_selct);
 							if(res.first != NULL)
 							{
-								spy_selection(get_selected_view()->get_key()->get_field(m_view_depth), res.second.c_str(), res.first);
+								drilldown(get_selected_view()->get_key()->get_field(m_view_depth), res.second.c_str(), res.first);
 							}
 						}
 						else
