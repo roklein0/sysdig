@@ -23,9 +23,8 @@ view_info =
 	tags = {"Default"},
 	view_type = "table",
 	applies_to = {"", "container.id", "proc.pid", "proc.name", "thread.tid", "fd.directory", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
---	use_defaults = true,
---	filter = "evt.type=marker",
-	filter = "marker.ntags>=%depth",
+	use_defaults = true,
+	filter = "marker.ntags>=%depth+1",
 	drilldown_target = "markers",
 	spectro_type = "markers",
 	drilldown_increase_depth = true,
@@ -33,13 +32,14 @@ view_info =
 	{
 		{
 			name = "NA",
---			field = "marker.tag[%depth]",
 			field = "marker.id",
 			is_key = true
 		},
 		{
 			name = "ID",
 			field = "marker.id",
+			description = "The unique numeric ID of the marker.",
+			colsize = 10,
 		},
 		{
 			is_sorting = true,
@@ -51,21 +51,21 @@ view_info =
 		},
 		{
 			name = "AVG TIME",
-			field = "marker.latency",
+			field = "marker.latency.fortag[%depth]",
 			description = "average time this marker took to complete",
 			colsize = 10,
 			aggregation = "AVG"
 		},
 		{
 			name = "MIN TIME",
-			field = "marker.latency",
+			field = "marker.latency.fortag[%depth]",
 			description = "minimum time this marker took to complete",
 			colsize = 10,
 			aggregation = "MIN"
 		},
 		{
 			name = "MAX TIME",
-			field = "marker.latency",
+			field = "marker.latency.fortag[%depth]",
 			description = "maximum time this marker took to complete",
 			colsize = 10,
 			aggregation = "MAX"

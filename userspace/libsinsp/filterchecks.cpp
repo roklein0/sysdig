@@ -4573,7 +4573,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 			return NULL;
 		}
 	case TYPE_TAGLATENCY:
-		if((int32_t)eparser->m_tags.size() == m_argid)
+		if((int32_t)eparser->m_tags.size() - 1 == m_argid)
 		{
 			return (uint8_t*)extract_latency(etype, eparser);
 		}

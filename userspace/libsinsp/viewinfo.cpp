@@ -30,7 +30,23 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 ///////////////////////////////////////////////////////////////////////////////
 string sinsp_view_column_info::get_field(uint32_t depth)
 {
-	if(m_field.find("%depth") != string::npos)
+	// Trim the string
+	replace_in_place(m_field, " ", "");
+	replace_in_place(m_field, "\t", "");
+
+	if(m_field.find("%depth-1") != string::npos)
+	{
+		string res = m_field;
+		replace_in_place(res, "%depth-1", to_string(depth - 1));
+		return res;
+	}
+	else if(m_field.find("%depth+1") != string::npos)
+	{
+		string res = m_field;
+		replace_in_place(res, "%depth+1", to_string(depth - 1));
+		return res;
+	}
+	else if(m_field.find("%depth") != string::npos)
 	{
 		string res = m_field;
 		replace_in_place(res, "%depth", to_string(depth));
@@ -261,7 +277,22 @@ sinsp_view_column_info* sinsp_view_info::get_key()
 
 string sinsp_view_info::get_filter(uint32_t depth)
 {
-	if(m_filter.find("%depth") != string::npos)
+	replace_in_place(m_filter, " ", "");
+	replace_in_place(m_filter, "\t", "");
+
+	if(m_filter.find("%depth+1") != string::npos)
+	{
+		string res = m_filter;
+		replace_in_place(res, "%depth+1", to_string(depth + 1));
+		return res;
+	}
+	else if(m_filter.find("%depth-1") != string::npos)
+	{
+		string res = m_filter;
+		replace_in_place(res, "%depth-1", to_string(depth - 1));
+		return res;
+	}
+	else if(m_filter.find("%depth") != string::npos)
 	{
 		string res = m_filter;
 		replace_in_place(res, "%depth", to_string(depth));

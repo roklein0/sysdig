@@ -305,8 +305,6 @@ void sinsp_cursesui::configure(sinsp_view_manager* views)
 
 void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 {
-	curses_textbox::sysdig_output_type dig_otype = curses_textbox::OT_NORMAL;
-
 	//
 	// Input validation
 	//
@@ -336,6 +334,8 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 	}
 
 #ifndef NOCURSESUI
+	curses_textbox::sysdig_output_type dig_otype = curses_textbox::OT_NORMAL;
+
 	if(!m_raw_output)
 	{
 		if(m_viz != NULL)
@@ -1253,7 +1253,6 @@ lo("$2 %s", m_manual_filter.c_str());
 
 		m_complete_filter = combine_filters(m_complete_filter, m_sel_hierarchy.tofilter());
 
-lo("$3 %s", m_sel_hierarchy.tofilter().c_str());
 		//
 		// Note: m_selected_view is smaller than 0 when there's no view, because we're doing
 		//       non-view stuff like spying.
