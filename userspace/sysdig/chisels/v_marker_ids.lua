@@ -42,33 +42,11 @@ view_info =
 			colsize = 10,
 		},
 		{
-			is_sorting = true,
-			name = "#HITS",
-			field = "marker.count.fortag[%depth]",
-			description = "Number of calls per second for this system call.",
-			colsize = 10,
-			aggregation = "SUM"
-		},
-		{
-			name = "AVG TIME",
+			name = "TIME",
 			field = "marker.latency.fortag[%depth]",
 			description = "average time this marker took to complete",
 			colsize = 10,
 			aggregation = "AVG"
-		},
-		{
-			name = "MIN TIME",
-			field = "marker.latency.fortag[%depth]",
-			description = "minimum time this marker took to complete",
-			colsize = 10,
-			aggregation = "MIN"
-		},
-		{
-			name = "MAX TIME",
-			field = "marker.latency.fortag[%depth]",
-			description = "maximum time this marker took to complete",
-			colsize = 10,
-			aggregation = "MAX"
 		},
 		{
 			name = "TAG",

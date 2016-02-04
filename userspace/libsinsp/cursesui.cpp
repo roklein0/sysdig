@@ -416,7 +416,6 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 
 		try
 		{
-lo("****");			
 			m_datatable->configure(&wi->m_columns, 
 				m_complete_filter,
 				wi->m_use_defaults,
@@ -1407,6 +1406,12 @@ void sinsp_cursesui::spy_selection(string field, string val, bool is_dig)
 #endif
 
 	ASSERT(m_selected_view < (int32_t)m_views.size());
+
+	if(m_views.at(m_selected_view)->m_drilldown_increase_depth)
+	{
+		m_view_depth++;
+	}
+
 	m_sel_hierarchy.push_back(field, val, m_views.at(m_selected_view)->get_filter(m_view_depth),
 		m_selected_view, m_selected_view_sidemenu_entry, 
 		&rowkeybak, srtcol, m_manual_filter, m_is_filter_sysdig, 
@@ -1445,7 +1450,8 @@ void sinsp_cursesui::spy_selection(string field, string val, bool is_dig)
 }
 
 // returns false if there is no suitable drill down view for this field
-bool sinsp_cursesui::do_drilldown(string field, string val, uint32_t new_view_num, filtercheck_field_info* info)
+bool sinsp_cursesui::do_drilldown(string field, string val, 
+	uint32_t new_view_num, filtercheck_field_info* info)
 {
 	//
 	// unpause the thing if it's paused
@@ -1488,7 +1494,13 @@ bool sinsp_cursesui::do_drilldown(string field, string val, uint32_t new_view_nu
 
 	if(m_views.at(m_selected_view)->m_drilldown_increase_depth)
 	{
-		m_view_depth++;
+		if(m_views.at(new_view_num)->m_id == "spectro_app")
+		{
+		}
+		else
+		{
+			m_view_depth++;
+		}
 	}
 
 	m_sel_hierarchy.push_back(field, val, m_views.at(m_selected_view)->get_filter(m_view_depth),
@@ -1619,6 +1631,7 @@ bool sinsp_cursesui::drillup()
 		//
 		string field;
 		sinsp_ui_selection_info* sinfo = m_sel_hierarchy.at(m_sel_hierarchy.size() - 1);
+		bool is_spctro_app = (m_views.at(m_selected_view)->m_id == "spectro_app");
 
 		m_manual_filter = "";
 
@@ -1633,7 +1646,8 @@ bool sinsp_cursesui::drillup()
 		m_selected_view = sinfo->m_prev_selected_view;
 		m_selected_view_sidemenu_entry = sinfo->m_prev_selected_sidemenu_entry;
 
-		if(m_views.at(m_selected_view)->m_drilldown_increase_depth)
+		if(m_views.at(m_selected_view)->m_drilldown_increase_depth &&
+			!is_spctro_app)
 		{
 			m_view_depth--;
 		}
