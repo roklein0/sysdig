@@ -1647,7 +1647,12 @@ bool sinsp_cursesui::drillup()
 		//
 		string field;
 		sinsp_ui_selection_info* sinfo = m_sel_hierarchy.at(m_sel_hierarchy.size() - 1);
-		bool is_spctro_app = (m_views.at(m_selected_view)->m_id == "spectro_app");
+		bool is_spctro_app = false;
+
+		if(m_selected_view > 0 && m_views.at(m_selected_view)->m_id == "spectro_app")
+		{
+			is_spctro_app = true;
+		}
 
 		m_manual_filter = "";
 

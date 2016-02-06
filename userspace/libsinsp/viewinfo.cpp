@@ -279,19 +279,18 @@ sinsp_view_column_info* sinsp_view_info::get_key()
 
 string sinsp_view_info::get_filter(uint32_t depth)
 {
-	replace_in_place(m_filter, " ", "");
-	replace_in_place(m_filter, "\t", "");
-
 	if(m_filter.find("%depth+1") != string::npos)
 	{
 		string res = m_filter;
 		replace_in_place(res, "%depth+1", to_string(depth + 1));
+		replace_in_place(res, "%depth + 1", to_string(depth + 1));
 		return res;
 	}
 	else if(m_filter.find("%depth-1") != string::npos)
 	{
 		string res = m_filter;
 		replace_in_place(res, "%depth-1", to_string(depth - 1));
+		replace_in_place(res, "%depth - 1", to_string(depth - 1));
 		return res;
 	}
 	else if(m_filter.find("%depth") != string::npos)
@@ -304,7 +303,6 @@ string sinsp_view_info::get_filter(uint32_t depth)
 	{
 		return m_filter;
 	}
-	return m_filter;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
