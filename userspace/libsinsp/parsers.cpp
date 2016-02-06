@@ -399,6 +399,9 @@ void sinsp_parser::process_event(sinsp_evt *evt)
 			parse_k8s_evt(evt);
 		}
 		break;
+	case PPME_SYSCALL_CHROOT_X:
+		parse_chroot_exit(evt);
+		break;
 	default:
 		break;
 	}
@@ -1032,6 +1035,9 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 
 		// Copy the command arguments from the parent
 		tinfo.m_args = ptinfo->m_args;
+
+		// Copy the root from the parent
+		tinfo.m_root = ptinfo->m_root;
 	}
 	else
 	{
@@ -1062,6 +1068,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 			tinfo.m_comm = ptinfo->m_comm;
 			tinfo.m_exe = ptinfo->m_exe;
 			tinfo.m_args = ptinfo->m_args;
+			tinfo.m_root = ptinfo->m_root;
 		}
 		else
 		{
@@ -1311,7 +1318,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 		case PPME_SYSCALL_CLONE_20_X:
 			parinfo = evt->get_param(14);
 			tinfo.set_cgroups(parinfo->m_val, parinfo->m_len);
-			m_inspector->m_container_manager.resolve_container_from_cgroups(tinfo.m_cgroups, m_inspector->m_islive, &tinfo);
+			m_inspector->m_container_manager.resolve_container(&tinfo, m_inspector->m_islive);
 			break;
 	}
 
@@ -1481,7 +1488,7 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 		evt->m_tinfo->set_cgroups(parinfo->m_val, parinfo->m_len);
 		if(evt->m_tinfo->m_container_id.empty())
 		{
-			m_inspector->m_container_manager.resolve_container_from_cgroups(evt->m_tinfo->m_cgroups, m_inspector->m_islive, evt->m_tinfo);
+			m_inspector->m_container_manager.resolve_container(evt->m_tinfo, m_inspector->m_islive);
 		}
 		break;
 	default:
@@ -3803,6 +3810,28 @@ void sinsp_parser::parse_k8s_evt(sinsp_evt *evt)
 	ASSERT(m_inspector);
 	ASSERT(m_inspector->m_k8s_client);
 	m_inspector->m_k8s_client->simulate_watch_event(json);
+}
+
+void sinsp_parser::parse_chroot_exit(sinsp_evt *evt)
+{
+	auto parinfo = evt->get_param(0);
+	auto retval = *(int64_t *)parinfo->m_val;
+	if(retval == 0)
+	{
+		const char* resolved_path;
+		auto path = evt->get_param_as_str(1, &resolved_path);
+		if(resolved_path[0] == 0)
+		{
+			evt->m_tinfo->m_root = path;
+		}
+		else
+		{
+			evt->m_tinfo->m_root = resolved_path;
+		}
+		// Root change, let's detect if we are on a container
+		ASSERT(m_inspector);
+		m_inspector->m_container_manager.resolve_container(evt->m_tinfo, m_inspector->is_live());
+	}
 }
 
 void sinsp_parser::free_event_buffer(uint8_t *ptr)
