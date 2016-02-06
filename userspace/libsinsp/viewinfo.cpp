@@ -80,7 +80,8 @@ sinsp_view_info::sinsp_view_info(viewtype type,
 	bool is_root,
 	vector<sinsp_view_action_info> actions,
 	bool drilldown_increase_depth,
-	string spectro_type)
+	string spectro_type,
+	bool propagate_filter)
 {
 	m_id = id;
 	m_name = name;
@@ -95,6 +96,7 @@ sinsp_view_info::sinsp_view_info(viewtype type,
 	m_applies_to = applies_to;
 	m_drilldown_increase_depth = drilldown_increase_depth;
 	m_spectro_type = spectro_type;
+	m_propagate_filter = propagate_filter;
 
 	m_use_defaults = use_defaults;
 	

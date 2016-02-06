@@ -679,6 +679,7 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 	string spectro_type;
 	bool drilldown_increase_depth = false;
 	bool is_root = false;
+	bool propagate_filter = true;
 
 	while(lua_next(ls, -2) != 0)
 	{
@@ -862,6 +863,17 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 				throw sinsp_exception("error in view " + cd->m_name + ": " + string(lua_tostring(ls, -2)) + " must be a boolean");
 			}
 		}
+		else if(fldname == "propagate_filter")
+		{
+			if(lua_isboolean(ls, -1))
+			{
+				propagate_filter = (lua_toboolean(ls, -1) != 0);
+			}
+			else
+			{
+				throw sinsp_exception("error in view " + cd->m_name + ": " + string(lua_tostring(ls, -2)) + " must be a boolean");
+			}
+		}
 
 		lua_pop(ls, 1);
 	}
@@ -880,7 +892,8 @@ bool sinsp_chisel::parse_view_info(lua_State *ls, OUT chisel_desc* cd)
 		is_root,
 		actions,
 		drilldown_increase_depth,
-		spectro_type);
+		spectro_type,
+		propagate_filter);
 
 	return true;
 }

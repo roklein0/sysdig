@@ -162,25 +162,33 @@ public:
 				res += "(";
 				res += m_hierarchy[j].m_view_filter;
 				res += ")";
-			}
 
-			if(has_filter && m_hierarchy[j].m_field != "")
-			{
-				res += " and " + m_hierarchy[j].m_field;
+				if(m_hierarchy[j].m_field != "")
+				{
+					res += " and " + m_hierarchy[j].m_field;
 
-				res += "=";
-				res += m_hierarchy[j].m_val;
-			}
+					res += "=";
+					res += m_hierarchy[j].m_val;
+				}
 
-			if(has_filter && hs > 1)
-			{
-				res += ")";
-			}
+				if(hs > 1)
+				{
+					res += ")";
+				}
 
-			if(j < m_hierarchy.size() - 1)
-			{
 				res += " and ";
 			}
+		}
+
+		if(res.size() > 5)
+		{
+			string trailer = res.substr(res.size() - 5).c_str();
+			if(trailer == " and ")
+			{
+				res = res.substr(0, res.size() - 5);
+			}
+
+			g_logger.format("%d) %s", j, res.c_str());
 		}
 
 		return res;

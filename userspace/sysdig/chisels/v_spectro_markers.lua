@@ -23,8 +23,9 @@ view_info =
 	applies_to = {"", "container.id", "proc.pid", "thread.tid", "proc.name", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id", "fd.name", "fd.containername", "fd.directory", "fd.containerdirectory"},
 	filter = "marker.ntags=%depth+1",
 	use_defaults = false,
---	drilldown_target = "markers",
-	drilldown_target = "dig_app",
+	drilldown_target = "marker_ids",
+--	drilldown_target = "dig_app",
+	propagate_filter = false,
 	columns = 
 	{
 		{

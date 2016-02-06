@@ -462,7 +462,7 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 			ASSERT(ty == sinsp_table::TT_TABLE);
 			m_spectro = new curses_spectro(this, 
 				m_inspector, 
-				m_views.at(m_selected_view)->m_drilldown_target);
+				m_views.at(m_selected_view)->m_id == "spectro_app");
 			m_viz = NULL;
 			m_chart = m_spectro;
 		}
@@ -1249,7 +1249,6 @@ void sinsp_cursesui::create_complete_filter()
 	else
 	{
 		m_complete_filter = m_cmdline_capture_filter;
-
 		m_complete_filter = combine_filters(m_complete_filter, m_sel_hierarchy.tofilter());
 
 		//
@@ -1494,16 +1493,23 @@ bool sinsp_cursesui::do_drilldown(string field, string val,
 
 	if(m_views.at(m_selected_view)->m_drilldown_increase_depth)
 	{
-		if(m_views.at(new_view_num)->m_id == "spectro_app")
-		{
-		}
-		else
+		if(m_views.at(new_view_num)->m_id != "spectro_app")
 		{
 			m_view_depth++;
 		}
 	}
 
-	m_sel_hierarchy.push_back(field, val, m_views.at(m_selected_view)->get_filter(m_view_depth),
+	string vfilter;
+	if(m_views.at(m_selected_view)->m_propagate_filter)
+	{
+		vfilter = m_views.at(m_selected_view)->get_filter(m_view_depth);
+	}
+	else
+	{
+		vfilter = "";
+	}
+
+	m_sel_hierarchy.push_back(field, val, vfilter,
 		m_selected_view, m_selected_view_sidemenu_entry, 
 		&rowkeybak, srtcol, m_manual_filter, m_is_filter_sysdig,
 		m_datatable->is_sorting_ascending());
@@ -1513,7 +1519,17 @@ bool sinsp_cursesui::do_drilldown(string field, string val,
 	//
 	// Reset the filter
 	//
-	m_manual_filter = "";
+	if(m_viz != NULL)
+	{
+		m_manual_filter = "";
+		m_is_filter_sysdig = false;
+	}
+	else
+	{
+		ASSERT(m_spectro != NULL);
+		m_is_filter_sysdig = true;
+		m_manual_filter = m_spectro->m_selection_filter;
+	}
 
 	if(!m_inspector->is_live())
 	{
@@ -1537,7 +1553,7 @@ bool sinsp_cursesui::do_drilldown(string field, string val,
 	clear();
 	populate_view_sidemenu(field, &m_sidemenu_viewlist);
 	populate_action_sidemenu();
-//	m_selected_sidemenu_entry = 0;
+
 	if(m_viz)
 	{
 		m_viz->render(true);
@@ -1668,6 +1684,9 @@ bool sinsp_cursesui::drillup()
 
 		m_sel_hierarchy.pop_back();
 		//m_views[m_selected_view].m_filter = m_sel_hierarchy.tofilter();
+
+		m_complete_filter = m_cmdline_capture_filter;
+		m_complete_filter = combine_filters(m_complete_filter, m_sel_hierarchy.tofilter());
 
 		if(!m_inspector->is_live())
 		{

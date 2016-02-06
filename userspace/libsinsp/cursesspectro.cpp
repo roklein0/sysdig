@@ -124,7 +124,7 @@ inline void ansi_clearscreen()
 ///////////////////////////////////////////////////////////////////////////////
 // curses_spectro implementation
 ///////////////////////////////////////////////////////////////////////////////
-curses_spectro::curses_spectro(sinsp_cursesui* parent, sinsp* inspector, string drilldown_target)
+curses_spectro::curses_spectro(sinsp_cursesui* parent, sinsp* inspector, bool is_marker)
 {
 	m_tblwin = NULL;
 	m_data = NULL;
@@ -148,7 +148,7 @@ curses_spectro::curses_spectro(sinsp_cursesui* parent, sinsp* inspector, string 
 	m_prev_sel_y1 = -1;
 	m_prev_sel_y2 = -1;
 	m_scroll_paused = false;
-	m_drilldown_target = drilldown_target;
+	m_is_marker = is_marker;
 
 	//
 	// Define the table size
@@ -510,7 +510,7 @@ sysdig_table_action curses_spectro::handle_input(int ch)
 							string lat_fld_name;
 
 
-							if(m_drilldown_target == "dig_app")
+							if(m_is_marker)
 							{
 								lat_fld_name = "marker.latency";
 							}
@@ -524,13 +524,7 @@ sysdig_table_action curses_spectro::handle_input(int ch)
 								" and evt.rawtime<=" + to_string(end_row->m_ts) + 
 								") and (" + lat_fld_name + ">=" + to_string(start_latency) + 
 								" and " + lat_fld_name + "<" + to_string(end_latency) + ")";
-/*
-							if(m_drilldown_target == "dig_app")
-							{
-								m_selection_filter +=
-									" and marker";
-							}
-*/
+
 							g_logger.format("spectrogram drill down");
 							g_logger.format("filter: %s", m_selection_filter.c_str());
 
@@ -539,8 +533,14 @@ sysdig_table_action curses_spectro::handle_input(int ch)
 
 							ansi_reset_color();
 
-							return STA_DIG;
-//							return STA_DRILLDOWN;
+							if(m_is_marker)
+							{
+								return STA_DRILLDOWN;
+							}
+							else
+							{
+								return STA_DIG;
+							}
 						}
 						else
 						{

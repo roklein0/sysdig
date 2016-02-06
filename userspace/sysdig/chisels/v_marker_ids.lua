@@ -46,7 +46,8 @@ view_info =
 			field = "marker.latency.fortag[%depth]",
 			description = "average time this marker took to complete",
 			colsize = 10,
-			aggregation = "AVG"
+			aggregation = "AVG",
+			is_sorting = true,
 		},
 		{
 			name = "TAG",
