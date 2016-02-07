@@ -187,10 +187,12 @@ sinsp_markerparser::parse_result sinsp_markerparser::process_event_data(char *da
 			//
 			list<sinsp_partial_marker*>* partial_markers_list = &m_inspector->m_partial_markers_list;
 			list<sinsp_partial_marker*>::iterator it;
+
 			for(it = partial_markers_list->begin(); it != partial_markers_list->end(); ++it)
 			{
 				m_inspector->m_partial_markers_pool->push(*it);
 			}
+
 			partial_markers_list->clear();
 
 			return sinsp_markerparser::RES_OK;

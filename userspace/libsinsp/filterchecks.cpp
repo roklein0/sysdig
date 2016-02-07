@@ -4549,7 +4549,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 	case TYPE_LATENCY_QUANTIZED:
 		{
 			if(extract_latency(etype, eparser) == NULL)
-			{
+			{				
 				return NULL;
 			}
 			else

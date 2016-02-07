@@ -248,6 +248,14 @@ void sinsp::init()
 	m_fds_to_remove->clear();
 	m_n_proc_lookups = 0;
 	m_n_proc_lookups_duration_ns = 0;
+
+	//
+	// Return the markers to the pool and clear the markers list
+	//
+	for(auto it = m_partial_markers_list.begin(); it != m_partial_markers_list.end(); ++it)
+	{
+		m_partial_markers_pool->push(*it);
+	}
 	m_partial_markers_list.clear();
 
 	//

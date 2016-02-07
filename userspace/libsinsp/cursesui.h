@@ -187,8 +187,6 @@ public:
 			{
 				res = res.substr(0, res.size() - 5);
 			}
-
-			g_logger.format("%d) %s", j, res.c_str());
 		}
 
 		return res;
