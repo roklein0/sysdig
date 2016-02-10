@@ -18,11 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 view_info = 
 {
 	id = "marker_ids",
-	name = "01Markers",
+	name = "Markers List",
 	description = "Show the top system calls in the system based on number of invocations and time spent calling them.",
 	tags = {"Default"},
 	view_type = "table",
-	applies_to = {"", "container.id", "proc.pid", "proc.name", "thread.tid", "fd.directory", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
+	applies_to = {"", "marker.tag", "marker.id", "container.id", "proc.pid", "proc.name", "thread.tid", "fd.directory", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
 	use_defaults = true,
 	filter = "marker.ntags>=%depth+1",
 	drilldown_target = "markers",
