@@ -24,7 +24,6 @@ view_info =
 	filter = "marker.ntags=%depth+1",
 	use_defaults = false,
 	drilldown_target = "marker_ids",
---	drilldown_target = "dig_app",
 	propagate_filter = false,
 	columns = 
 	{

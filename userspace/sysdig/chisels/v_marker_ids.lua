@@ -25,8 +25,7 @@ view_info =
 	applies_to = {"", "marker.tag", "marker.id", "container.id", "proc.pid", "proc.name", "thread.tid", "fd.directory", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
 	use_defaults = true,
 	filter = "marker.ntags>=%depth+1",
-	drilldown_target = "markers",
-	spectro_type = "markers",
+	drilldown_target = "marker_ids",
 	drilldown_increase_depth = true,
 	columns = 
 	{
@@ -53,6 +52,13 @@ view_info =
 			name = "TAG",
 			field = "marker.tag[%depth]",
 			description = "Marker tag.",
+			colsize = 32,
+			aggregation = "SUM"
+		},
+		{
+			name = "ARGS",
+			field = "marker.args",
+			description = "Marker arguments.",
 			colsize = 32,
 			aggregation = "SUM"
 		},
