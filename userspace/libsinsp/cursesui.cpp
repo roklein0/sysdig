@@ -1525,6 +1525,7 @@ bool sinsp_cursesui::do_drilldown(string field, string val,
 	//
 	// Reset the filter
 	//
+#ifndef NOCURSESUI
 	if(m_viz != NULL)
 	{
 		m_manual_filter = "";
@@ -1536,6 +1537,7 @@ bool sinsp_cursesui::do_drilldown(string field, string val,
 		m_is_filter_sysdig = true;
 		m_manual_filter = m_spectro->m_selection_filter;
 	}
+#endif
 
 	if(!m_inspector->is_live())
 	{
