@@ -25,7 +25,7 @@ view_info =
 		"If you are in a marker view like 'Markers' or 'Markers List', you can quickly show this spectrogram for a selection by clicking on F12.",
 	},
 	view_type = "spectrogram",
-	applies_to = {"", "container.id", "proc.pid", "thread.tid", "proc.name", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id", "fd.name", "fd.containername", "fd.directory", "fd.containerdirectory"},
+	applies_to = {"", "marker.tag", "marker.id", "container.id", "proc.pid", "thread.tid", "proc.name", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id", "fd.name", "fd.containername", "fd.directory", "fd.containerdirectory"},
 	filter = "marker.ntags=%depth+1",
 	use_defaults = false,
 	drilldown_target = "marker_ids",
