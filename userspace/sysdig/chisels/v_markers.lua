@@ -19,7 +19,12 @@ view_info =
 {
 	id = "markers",
 	name = "Markers",
-	description = "Show the top system calls in the system based on number of invocations and time spent calling them.",
+	description = "Show a summary of the application markers executing on the system. For each marker tag, the view reports information like how many times it's been called and how long it took to complete.",
+	tips = {
+		"Markers are sysdig's super easy way to delimit portions of your code so that sysdig can measure how long they take and tell you what's happening in them. You can learn about markers at XXX.",
+		"For makers with hierarchical tags (e.g. 'api.loginrequest.processing'), only one level in the hierarch is shown (e.g. 'api'). Drilling down allows you to explore the next level.",
+		"This view collapses multiple calls to a tag into a single line. If you instead want to see each single call, use the 'Markers List' view.",
+	},
 	tags = {"Default"},
 	view_type = "table",
 	applies_to = {"", "marker.tag", "marker.id", "container.id", "proc.pid", "proc.name", "thread.tid", "fd.directory", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
@@ -39,35 +44,35 @@ view_info =
 			is_sorting = true,
 			name = "#HITS",
 			field = "marker.count.fortag[%depth]",
-			description = "Number of calls per second for this system call.",
+			description = "number of times the marker with the given tag has been hit.",
 			colsize = 10,
 			aggregation = "SUM"
 		},
 		{
 			name = "AVG TIME",
 			field = "marker.latency.fortag[%depth]",
-			description = "average time this marker took to complete",
+			description = "the average time this marker took to complete.",
 			colsize = 10,
 			aggregation = "AVG"
 		},
 		{
 			name = "MIN TIME",
 			field = "marker.latency.fortag[%depth]",
-			description = "minimum time this marker took to complete",
+			description = "the minimum time this marker took to complete.",
 			colsize = 10,
 			aggregation = "MIN"
 		},
 		{
 			name = "MAX TIME",
 			field = "marker.latency.fortag[%depth]",
-			description = "maximum time this marker took to complete",
+			description = "the maximum time this marker took to complete.",
 			colsize = 10,
 			aggregation = "MAX"
 		},
 		{
 			name = "TAG",
 			field = "marker.tag[%depth]",
-			description = "Marker tag.",
+			description = "marker tag.",
 			colsize = 32,
 			aggregation = "SUM"
 		},

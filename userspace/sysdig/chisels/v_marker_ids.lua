@@ -19,7 +19,12 @@ view_info =
 {
 	id = "marker_ids",
 	name = "Markers List",
-	description = "Show the top system calls in the system based on number of invocations and time spent calling them.",
+	description = "Show the list of application marker requests. For each request, the view reports information like its arguments and how long it took to complete.",
+	tips = {
+		"Markers are sysdig's super easy way to delimit portions of your code so that sysdig can measure how long they take and tell you what's happening in them. You can learn about markers at XXX.",
+		"For makers with hierarchical tags (e.g. 'api.loginrequest.processing'), only one level in the hierarch is shown (e.g. 'api'). Drilling down allows you to explore the next level.",
+		"Since this view shows every single market call as a separate line, it can easily become crowded. The 'Markers' view offer a more compact representation by collapsing requests with the same tag in a singlew line.",
+	},
 	tags = {"Default"},
 	view_type = "table",
 	applies_to = {"", "marker.tag", "marker.id", "container.id", "proc.pid", "proc.name", "thread.tid", "fd.directory", "evt.res", "k8s.pod.id", "k8s.rc.id", "k8s.svc.id", "k8s.ns.id"},
@@ -37,13 +42,13 @@ view_info =
 		{
 			name = "ID",
 			field = "marker.id",
-			description = "The unique numeric ID of the marker.",
+			description = "the unique numeric ID of the marker.",
 			colsize = 10,
 		},
 		{
 			name = "TIME",
 			field = "marker.latency.fortag[%depth]",
-			description = "average time this marker took to complete",
+			description = "the time this marker call took to complete",
 			colsize = 10,
 			aggregation = "AVG",
 			is_sorting = true,
@@ -51,14 +56,14 @@ view_info =
 		{
 			name = "TAG",
 			field = "marker.tag[%depth]",
-			description = "Marker tag.",
+			description = "marker tag.",
 			colsize = 32,
 			aggregation = "SUM"
 		},
 		{
 			name = "ARGS",
 			field = "marker.args",
-			description = "Marker arguments.",
+			description = "marker arguments.",
 			colsize = 32,
 			aggregation = "SUM"
 		},
