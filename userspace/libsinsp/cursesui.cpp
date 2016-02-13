@@ -2318,7 +2318,6 @@ sysdig_table_action sinsp_cursesui::handle_input(int ch)
 			pause();
 			break;
 		case KEY_F(2):
-lo("$$$$");
 			if(m_action_sidemenu != NULL)
 			{
 				break;
