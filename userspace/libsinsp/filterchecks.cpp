@@ -4170,6 +4170,7 @@ const filtercheck_field_info sinsp_filter_check_marker_fields[] =
 	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.latency.human", "delta between an exit marker event and the correspondent enter event, as a human readable string (e.g. 10.3ms)."},
 	{PT_RELTIME, EPF_TABLE_ONLY, PF_DEC, "marker.latency.fortag", "Latency of the marker if the number of tags matches the field argument, otherwise 0. For example, marker.latency.fortag[1] returns the latency of all the markers with 1 tag, and zero for all the other ones."},
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.count.fortag", "1 if the marker's number of tags matches the field argument, and zero for all the other ones."},
+	{PT_CHARBUF, EPF_TABLE_ONLY, PF_NA, "marker.idtag", "id used by the marker list csysdig view."},
 };
 
 sinsp_filter_check_marker::sinsp_filter_check_marker()
@@ -4227,6 +4228,10 @@ int32_t sinsp_filter_check_marker::extract_arg(string fldname, string val, OUT c
 		{
 			throw sinsp_exception("invalid syntax for marker.tag");
 		}
+		else if(fldname == "marker.idtag")
+		{
+			throw sinsp_exception("invalid syntax for marker.idtag");
+		}
 
 		m_argname = val.substr(fldname.size() + 1);
 		m_cargname = m_argname.c_str();
@@ -4279,6 +4284,13 @@ int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_
 
 		res = extract_arg("marker.count.fortag", val, NULL);
 	}
+	if(string(val, 0, sizeof("marker.idtag") - 1) == "marker.idtag")
+	{
+		m_field_id = TYPE_IDTAG;
+		m_field = &m_info.m_fields[m_field_id];
+
+		res = extract_arg("marker.idtag", val, NULL);
+	}
 	else
 	{
 		res = sinsp_filter_check::parse_field_name(str, alloc_state);
@@ -4289,7 +4301,9 @@ int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_
 		m_field_id == TYPE_LATENCY_HUMAN ||
 		m_field_id == TYPE_TAGLATENCY ||
 		m_field_id == TYPE_ARG ||
-		m_field_id == TYPE_ARGS)
+		m_field_id == TYPE_ARGS ||
+		m_field_id == TYPE_IDTAG
+		)
 	{
 		m_inspector->request_marker_state_tracking();
 	}
@@ -4420,6 +4434,29 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 			}
 
 			return (uint8_t*)res;
+		}
+	case TYPE_IDTAG:
+		{
+			m_strstorage = to_string(eparser->m_id);
+
+			if(m_argid >= 0)
+			{
+				if(m_argid < (int32_t)eparser->m_tags.size())
+				{
+					m_strstorage += eparser->m_tags[m_argid];
+				}
+			}
+			else
+			{
+				int32_t id = (int32_t)eparser->m_tags.size() + m_argid;
+
+				if(id >= 0)
+				{
+					m_strstorage += eparser->m_tags[id];
+				}
+			}
+
+			return (uint8_t*)m_strstorage.c_str();
 		}
 	case TYPE_ARGS:
 		{

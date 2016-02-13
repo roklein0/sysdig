@@ -36,7 +36,7 @@ view_info =
 	{
 		{
 			name = "NA",
-			field = "marker.id",
+			field = "marker.idtag[%depth]",
 			is_key = true
 		},
 		{
