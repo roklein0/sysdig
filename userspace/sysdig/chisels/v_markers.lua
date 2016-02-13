@@ -73,7 +73,7 @@ view_info =
 			name = "TAG",
 			field = "marker.tag[%depth]",
 			description = "marker tag.",
-			colsize = 32,
+			colsize = 256,
 			aggregation = "SUM"
 		},
 	}

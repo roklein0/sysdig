@@ -64,7 +64,7 @@ view_info =
 			name = "ARGS",
 			field = "marker.args",
 			description = "marker arguments.",
-			colsize = 32,
+			colsize = 256,
 			aggregation = "SUM"
 		},
 	}

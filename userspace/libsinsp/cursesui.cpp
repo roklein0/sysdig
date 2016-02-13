@@ -96,7 +96,7 @@ sinsp_cursesui::sinsp_cursesui(sinsp* inspector,
 	m_print_containers = print_containers;
 	m_raw_output = raw_output;
 	m_truncated_input = false;
-	m_view_depth = 1;
+	m_view_depth = 0;
 
 #ifndef NOCURSESUI
 	m_viz = NULL;
