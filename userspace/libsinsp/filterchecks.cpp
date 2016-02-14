@@ -4284,7 +4284,7 @@ int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_
 
 		res = extract_arg("marker.count.fortag", val, NULL);
 	}
-	if(string(val, 0, sizeof("marker.idtag") - 1) == "marker.idtag")
+	else if(string(val, 0, sizeof("marker.idtag") - 1) == "marker.idtag")
 	{
 		m_field_id = TYPE_IDTAG;
 		m_field = &m_info.m_fields[m_field_id];
