@@ -42,7 +42,7 @@ view_info =
 		},
 		{
 			is_sorting = true,
-			name = "#HITS",
+			name = "HITS",
 			field = "marker.count.fortag[%depth]",
 			description = "number of times the marker with the given tag has been hit.",
 			colsize = 10,
@@ -68,6 +68,13 @@ view_info =
 			description = "the maximum time this marker took to complete.",
 			colsize = 10,
 			aggregation = "MAX"
+		},
+		{
+			name = "CHD HITS",
+			field = "marker.childcount.fortag[%depth]",
+			description = "number of times any child of the marker with the given tag has been hit. This is useful to determine if the marker is a leaf or if it has childs nested in it.",
+			colsize = 10,
+			aggregation = "SUM"
 		},
 		{
 			name = "TAG",

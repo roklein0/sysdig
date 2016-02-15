@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 --]]
 view_info = 
 {
-	id = "spectro_app",
+	id = "spectro_markers",
 	name = "Markers Spectrogram",
 	description = "Application markers latency spectrogram.",
 	tips = {

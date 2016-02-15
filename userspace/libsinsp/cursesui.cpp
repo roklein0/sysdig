@@ -462,7 +462,7 @@ void sinsp_cursesui::start(bool is_drilldown, bool is_spy_switch)
 			ASSERT(ty == sinsp_table::TT_TABLE);
 			m_spectro = new curses_spectro(this, 
 				m_inspector, 
-				m_views.at(m_selected_view)->m_id == "spectro_app");
+				m_views.at(m_selected_view)->m_id == "spectro_markers");
 			m_viz = NULL;
 			m_chart = m_spectro;
 		}
@@ -1499,7 +1499,7 @@ bool sinsp_cursesui::do_drilldown(string field, string val,
 
 	if(m_views.at(m_selected_view)->m_drilldown_increase_depth)
 	{
-		if(m_views.at(new_view_num)->m_id != "spectro_app")
+		if(m_views.at(new_view_num)->m_id != "spectro_markers")
 		{
 			m_view_depth++;
 		}
@@ -1613,7 +1613,7 @@ bool sinsp_cursesui::spectro_selection(string field, string val,
 
  	if(m_views.at(m_selected_view)->m_spectro_type == "markers")
  	{
-		spectro_name = "spectro_app";
+		spectro_name = "spectro_markers";
  	}
  	else
  	{
@@ -1657,7 +1657,7 @@ bool sinsp_cursesui::drillup()
 		sinsp_ui_selection_info* sinfo = m_sel_hierarchy.at(m_sel_hierarchy.size() - 1);
 		bool is_spctro_app = false;
 
-		if(m_selected_view > 0 && m_views.at(m_selected_view)->m_id == "spectro_app")
+		if(m_selected_view > 0 && m_views.at(m_selected_view)->m_id == "spectro_markers")
 		{
 			is_spctro_app = true;
 		}
