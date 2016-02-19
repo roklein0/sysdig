@@ -153,6 +153,7 @@ private:
 	char m_lua_fld_storage[1024];
 	chiselinfo* m_lua_cinfo;
 	string m_new_chisel_to_exec;
+	int m_udp_socket;
 
 	friend class lua_cbacks;
 };

@@ -20,7 +20,9 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 #include <fstream>
 #include <cctype>
 #include <locale>
-#ifndef _WIN32
+#ifdef _WIN32
+#include <io.h>
+#else
 #include <limits.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -114,6 +116,8 @@ const static struct luaL_reg ll_sysdig [] =
 	{"run_sysdig", &lua_cbacks::run_sysdig},
 	{"end_capture", &lua_cbacks::end_capture},
 	{"log", &lua_cbacks::log},
+	{"udp_setpeername", &lua_cbacks::udp_setpeername},
+	{"udp_send", &lua_cbacks::udp_send},
 #ifdef HAS_ANALYZER
 	{"push_metric", &lua_cbacks::push_metric},
 #endif
@@ -234,6 +238,7 @@ sinsp_chisel::sinsp_chisel(sinsp* inspector, string filename)
 	m_lua_cinfo = NULL;
 	m_lua_last_interval_sample_time = 0;
 	m_lua_last_interval_ts = 0;
+	m_udp_socket = 0;
 
 	load(filename);
 }
@@ -265,6 +270,12 @@ void sinsp_chisel::free_lua_chisel()
 	}
 
 	m_lua_script_info.reset();
+
+	if(m_udp_socket > 0)
+	{
+		closesocket(m_udp_socket);
+		m_udp_socket = 0;
+	}
 #endif
 }
 
