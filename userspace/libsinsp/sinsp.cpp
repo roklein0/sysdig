@@ -1294,6 +1294,17 @@ void sinsp::start_dropping_mode(uint32_t sampling_ratio)
 }
 
 #ifdef HAS_FILTERING
+void sinsp::set_filter(sinsp_filter* filter)
+{
+	if(m_filter != NULL)
+	{
+		ASSERT(false);
+		throw sinsp_exception("filter can only be set once");
+	}
+
+	m_filter = filter;
+}
+
 void sinsp::set_filter(const string& filter)
 {
 	if(m_filter != NULL)
@@ -1302,7 +1313,8 @@ void sinsp::set_filter(const string& filter)
 		throw sinsp_exception("filter can only be set once");
 	}
 
-	m_filter = new sinsp_filter(this, filter);
+	sinsp_filter_compiler compiler(this, filter);
+	m_filter = compiler.compile();
 	m_filterstring = filter;
 }
 
