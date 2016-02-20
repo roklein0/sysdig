@@ -154,6 +154,7 @@ private:
 	chiselinfo* m_lua_cinfo;
 	string m_new_chisel_to_exec;
 	int m_udp_socket;
+	struct sockaddr_in m_serveraddr;
 
 	friend class lua_cbacks;
 };

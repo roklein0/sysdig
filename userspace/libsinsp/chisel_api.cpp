@@ -1264,9 +1264,6 @@ int lua_cbacks::udp_setpeername(lua_State *ls)
 	string ports(lua_tostring(ls, 2));
 	uint16_t port = htons(sinsp_numparser::parseu16(ports));
 
-	struct sockaddr_in serveraddr;
-	socklen_t serveraddrlen = sizeof(serveraddr);
-
 	ch->m_udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if(ch->m_udp_socket < 0)
 	{
@@ -1275,21 +1272,13 @@ int lua_cbacks::udp_setpeername(lua_State *ls)
 		throw sinsp_exception("chisel error");
 	}
 
-	memset(&serveraddr, 0, sizeof(serveraddr));
-	serveraddr.sin_family = AF_INET;
-	serveraddr.sin_port = port;
-	if(inet_pton(AF_INET, addr.c_str(), &serveraddr.sin_addr) <= 0)
+	memset(&ch->m_serveraddr, 0, sizeof(ch->m_serveraddr));
+	ch->m_serveraddr.sin_family = AF_INET;
+	ch->m_serveraddr.sin_port = port;
+	if(inet_pton(AF_INET, addr.c_str(), &ch->m_serveraddr.sin_addr) <= 0)
 	{
 		string err = "inet_pton error occured";
 		fprintf(stderr, "%s\n", err.c_str());
-		throw sinsp_exception("chisel error");
-	}
-
-	if(connect(ch->m_udp_socket, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
-	{
-		string err = "udp_setpeername error: unable to connect";
-		fprintf(stderr, "%s\n", err.c_str());
-		perror("");
 		throw sinsp_exception("chisel error");
 	}
 
@@ -1303,9 +1292,10 @@ int lua_cbacks::udp_send(lua_State *ls)
 
 	string message(lua_tostring(ls, 1));
 
-	if(sendto(ch->m_udp_socket, message.c_str(), message.size(), 0, NULL, 0) < 0)
+	if(sendto(ch->m_udp_socket, message.c_str(), message.size(), 0, 
+		(struct sockaddr *)&ch->m_serveraddr, sizeof(ch->m_serveraddr)) < 0)
 	{
-		string err = "udp_send error: cannot send the buffer";
+		string err = "udp_send error: cannot send the buffer: ";
 		fprintf(stderr, "%s\n", err.c_str());
 		throw sinsp_exception("chisel error");
 	}

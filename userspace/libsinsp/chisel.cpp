@@ -273,7 +273,11 @@ void sinsp_chisel::free_lua_chisel()
 
 	if(m_udp_socket > 0)
 	{
+#ifdef _WIN32
 		closesocket(m_udp_socket);
+#else
+		close(m_udp_socket);
+#endif
 		m_udp_socket = 0;
 	}
 #endif
