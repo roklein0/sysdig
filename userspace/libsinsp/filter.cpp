@@ -1729,7 +1729,7 @@ sinsp_filter* sinsp_filter_compiler::compile_()
 			}
 			else
 			{
-				parse_check(m_curexpr, m_last_boolop);
+				parse_check();
 				m_state = ST_EXPRESSION_DONE;
 			}
 
@@ -1756,7 +1756,7 @@ sinsp_filter* sinsp_filter_compiler::compile_()
 			}
 			else
 			{
-				parse_check(m_curexpr, m_last_boolop);
+				parse_check();
 				m_state = ST_EXPRESSION_DONE;
 			}
 
