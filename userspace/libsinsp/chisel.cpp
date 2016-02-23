@@ -1611,7 +1611,10 @@ void sinsp_chisel::do_timeout(sinsp_evt* evt)
 			if(m_lua_last_interval_ts != 0)
 			{
 				delta = ts - m_lua_last_interval_ts;
-				ASSERT(delta > 0);
+				if(delta == 0)
+				{
+					return;
+				}
 			}
 
 			lua_getglobal(m_ls, "on_interval");
