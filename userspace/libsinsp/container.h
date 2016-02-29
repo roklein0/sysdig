@@ -30,6 +30,7 @@ enum sinsp_container_type
 class sinsp_container_info
 {
 public:
+
 	class container_port_mapping
 	{
 	public:
@@ -45,7 +46,9 @@ public:
 	};
 
 	sinsp_container_info():
-		m_container_ip(0)
+		m_container_ip(0),
+		m_memory_limit(0),
+		m_cpu_shares(0)
 	{
 	}
 
@@ -57,6 +60,9 @@ public:
 	vector<container_port_mapping> m_port_mappings;
 	map<string, string> m_labels;
 	string m_mesos_task_id;
+	int64_t m_memory_limit;
+	int64_t m_swap_limit;
+	int64_t m_cpu_shares;
 };
 
 class sinsp_container_manager

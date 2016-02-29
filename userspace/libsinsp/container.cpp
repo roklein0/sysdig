@@ -603,6 +603,10 @@ bool sinsp_container_manager::parse_docker(sinsp_container_info* container)
 		g_logger.log("Mesos Docker container: [" + root["Id"].asString() + "], Mesos task ID: [" + container->m_mesos_task_id + ']', sinsp_logger::SEV_DEBUG);
 	}
 
+	const auto& host_config_obj = root["HostConfig"];
+	container->m_memory_limit = host_config_obj["Memory"].asInt64();
+	container->m_swap_limit = host_config_obj["MemorySwap"].asInt64();
+	container->m_cpu_shares = host_config_obj["CpuShares"].asInt64();
 	return true;
 }
 
@@ -658,7 +662,7 @@ bool sinsp_container_manager::parse_rkt(sinsp_container_info *container,
 	ifstream net_info(net_info_path);
 	if(reader.parse(net_info, jroot) && jroot.size() > 0)
 	{
-		auto first_net = jroot[0];
+		const auto& first_net = jroot[0];
 		if(inet_pton(AF_INET, first_net["ip"].asCString(), &container->m_container_ip) == -1)
 		{
 			ASSERT(false);
