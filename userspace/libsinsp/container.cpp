@@ -606,7 +606,11 @@ bool sinsp_container_manager::parse_docker(sinsp_container_info* container)
 	const auto& host_config_obj = root["HostConfig"];
 	container->m_memory_limit = host_config_obj["Memory"].asInt64();
 	container->m_swap_limit = host_config_obj["MemorySwap"].asInt64();
-	container->m_cpu_shares = host_config_obj["CpuShares"].asInt64();
+	const auto cpu_shares = host_config_obj["CpuShares"].asInt64();
+	if(cpu_shares > 0)
+	{
+		container->m_cpu_shares = cpu_shares;
+	}
 	return true;
 }
 
