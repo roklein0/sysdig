@@ -139,16 +139,28 @@ int lua_parser_cbacks::bool_op(lua_State *ls)
 
 	if (!parser->m_have_rel_expr)
 	{
-		string err = "filter.bool_op() called without having called rel_expr() ";
-		fprintf(stderr, "%s\n", err.c_str());
-		throw sinsp_exception(err);
+		if (op == BO_NOT) {
+			op = (boolop)((uint32_t)parser->m_last_boolop | op);
+		}
+		else
+		{
+			string err = "filter.bool_op() called without having called rel_expr() ";
+			fprintf(stderr, "%s\n", err.c_str());
+			throw sinsp_exception(err);
+		}
 	}
 
 	if (parser->m_last_boolop != BO_NONE)
 	{
-		string err = "filter.bool_op() called twice in a row";
-		fprintf(stderr, "%s\n", err.c_str());
-		throw sinsp_exception(err);
+		if (op == BO_NOT) {
+			op = (boolop)((uint32_t)parser->m_last_boolop | op);
+		}
+		else
+		{
+			string err = "filter.bool_op() called twice in a row";
+			fprintf(stderr, "%s\n", err.c_str());
+			throw sinsp_exception(err);
+		}
 	}
 	parser->m_last_boolop = op;
 	return 0;
@@ -186,6 +198,7 @@ int lua_parser_cbacks::rel_expr(lua_State *ls)
 
 	try
 	{
+		int next_index = 3;
 		chk->m_boolop = parser->m_last_boolop;
 		parser->m_last_boolop = BO_NONE;
 
@@ -194,11 +207,16 @@ int lua_parser_cbacks::rel_expr(lua_State *ls)
 		const char* cmpop = luaL_checkstring(ls, 2);
 		chk->m_cmpop = string_to_cmpop(cmpop);
 
+		next_index++;
 		// "exists" is the only unary comparison op
 		if(strcmp(cmpop, "exists"))
 		{
 			const char* value = luaL_checkstring(ls, 3);
 			chk->parse_filter_value(value, strlen(value));
+			next_index = 4;
+		}
+		if (lua_isnumber(ls, next_index)) {
+			chk->set_check_id((int) luaL_checkinteger(ls, next_index));
 		}
 	}
 	catch(sinsp_exception& e)

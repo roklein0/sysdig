@@ -12,6 +12,7 @@
 #include "k8s_state.h"
 #include "k8s_event_data.h"
 #include "k8s_net.h"
+#include "sinsp_curl.h"
 #include <sstream>
 #include <utility>
 
@@ -20,12 +21,16 @@ class k8s_dispatcher;
 class k8s
 {
 public:
+	typedef sinsp_curl::ssl::ptr_t          ssl_ptr_t;
+	typedef sinsp_curl::bearer_token::ptr_t bt_ptr_t;
+
 	k8s(const std::string& uri = "http://localhost:80",
 		bool start_watch = false,
 		bool watch_in_thread = false,
 		bool is_captured = false,
 		const std::string& api = "/api/v1/",
-		const std::string& cert = "");
+		ssl_ptr_t ssl = 0,
+		bt_ptr_t bt = 0);
 
 	~k8s();
 

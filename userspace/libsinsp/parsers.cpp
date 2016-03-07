@@ -98,6 +98,12 @@ sinsp_parser::~sinsp_parser()
 		delete m_protodecoders[j];
 	}
 
+	while(!m_tmp_events_buffer.empty())
+	{
+		auto ptr = m_tmp_events_buffer.top();
+		free(ptr);
+		m_tmp_events_buffer.pop();
+	}
 	m_protodecoders.clear();
 	delete[] m_k8s_metaevents_state.m_piscapevt;
 
@@ -700,7 +706,10 @@ void sinsp_parser::store_event(sinsp_evt *evt)
 	// Copy the data
 	//
 	auto tinfo = evt->m_tinfo;
-	tinfo->m_lastevent_data = reserve_event_buffer();
+	if(tinfo->m_lastevent_data == NULL)
+	{
+		tinfo->m_lastevent_data = reserve_event_buffer();
+	}
 	memcpy(tinfo->m_lastevent_data, evt->m_pevt, elen);
 	tinfo->m_lastevent_cpuid = evt->get_cpuid();
 
@@ -3547,7 +3556,10 @@ void sinsp_parser::parse_select_poll_epollwait_enter(sinsp_evt *evt)
 		return;
 	}
 
-	evt->m_tinfo->m_lastevent_data = reserve_event_buffer();
+	if(evt->m_tinfo->m_lastevent_data == NULL)
+	{
+		evt->m_tinfo->m_lastevent_data = reserve_event_buffer();
+	}
 	*(uint64_t*)evt->m_tinfo->m_lastevent_data = evt->get_ts();
 }
 void sinsp_parser::parse_fcntl_enter(sinsp_evt *evt)

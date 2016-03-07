@@ -242,6 +242,8 @@ bool flt_compare_buffer(cmpop op, char* operand1, char* operand2, uint32_t op1_l
 		return op1_len != op2_len || (memcmp(operand1, operand2, op1_len) != 0);
 	case CO_CONTAINS:
 		return (memmem(operand1, op1_len, operand2, op2_len) != NULL);
+	case CO_ICONTAINS:
+		throw sinsp_exception("'icontains' not supported for buffer filters");
 	case CO_LT:
 		throw sinsp_exception("'<' not supported for buffer filters");
 	case CO_LE:
@@ -1028,6 +1030,16 @@ int32_t sinsp_filter_check::parse_field_name(const char* str, bool alloc_state)
 	return max_fldlen;
 }
 
+void sinsp_filter_check::set_check_id(int32_t id)
+{
+	m_check_id = id;
+}
+
+int32_t sinsp_filter_check::get_check_id()
+{
+	return m_check_id;
+}
+
 void sinsp_filter_check::parse_filter_value(const char* str, uint32_t len)
 {
 	string_to_rawval(str, len, m_field->m_type);
@@ -1074,6 +1086,12 @@ sinsp_filter_expression::~sinsp_filter_expression()
 	}
 }
 
+// Only filter checks get IDs
+int32_t sinsp_filter_expression::get_check_id()
+{
+	return -1;
+}
+
 sinsp_filter_check* sinsp_filter_expression::allocate_new()
 {
 	ASSERT(false);
@@ -1094,10 +1112,11 @@ bool sinsp_filter_expression::compare(sinsp_evt *evt)
 	uint32_t j;
 	uint32_t size = (uint32_t)m_checks.size();
 	bool res = true;
+	sinsp_filter_check* chk = NULL;
 
 	for(j = 0; j < size; j++)
 	{
-		sinsp_filter_check* chk = m_checks[j];
+		chk = m_checks[j];
 		ASSERT(chk != NULL);
 
 		if(j == 0)
@@ -1134,10 +1153,18 @@ bool sinsp_filter_expression::compare(sinsp_evt *evt)
 				res = chk->compare(evt);
 				break;
 			case BO_ORNOT:
-				res = res || !chk->compare(evt);
+				if(res)
+				{
+					goto done;
+				}
+				res = !chk->compare(evt);
 				break;
 			case BO_ANDNOT:
-				res = res && !chk->compare(evt);
+				if(!res)
+				{
+					goto done;
+				}
+				res = !chk->compare(evt);
 				break;
 			default:
 				ASSERT(false);
@@ -1146,6 +1173,15 @@ bool sinsp_filter_expression::compare(sinsp_evt *evt)
 		}
 	}
  done:
+	if(res)
+	{
+		int32_t id = chk->get_check_id();
+		if(id >= 0)
+		{
+			evt->set_check_id(id);
+		}
+	}
+
 	return res;
 }
 
@@ -1174,7 +1210,7 @@ void sinsp_filter::push_expression(boolop op)
 	newexpr->m_boolop = op;
 	newexpr->m_parent = m_curexpr;
 
-	m_curexpr->m_checks.push_back((sinsp_filter_check*)newexpr);
+	add_check((sinsp_filter_check*)newexpr);
 	m_curexpr = newexpr;
 }
 
