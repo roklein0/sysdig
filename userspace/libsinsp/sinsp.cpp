@@ -1554,7 +1554,10 @@ void sinsp::init_k8s_client(string* api_server, string* ssl_cert)
 
 	if(m_k8s_client == NULL)
 	{
+#ifdef HAS_CAPTURE
 		std::shared_ptr<sinsp_curl::ssl> k8s_ssl;
+		std::shared_ptr<sinsp_curl::bearer_token> k8s_bt;
+
 		if(ssl_cert)
 		{
 			std::string cert;
@@ -1562,11 +1565,11 @@ void sinsp::init_k8s_client(string* api_server, string* ssl_cert)
 			std::string key_pwd;
 			std::string ca_cert;
 
-			// -K <cert_file>:<key_file[#password]>[:<ca_cert_file>]
+			// -K <bt_file> | <cert_file>:<key_file[#password]>[:<ca_cert_file>]
 			std::string::size_type pos = ssl_cert->find(':');
-			if(pos == std::string::npos) // deprecated, ca_cert only
+			if(pos == std::string::npos) // ca_cert only obsoleted, single entry is bearer token
 			{
-				ca_cert = *ssl_cert;
+				k8s_bt = std::make_shared<sinsp_curl::bearer_token>(*ssl_cert);
 				ssl_cert->clear();
 			}
 			else
@@ -1611,15 +1614,18 @@ void sinsp::init_k8s_client(string* api_server, string* ssl_cert)
 			k8s_ssl = std::make_shared<sinsp_curl::ssl>(cert, key, key_pwd,
 						ca_cert, ca_cert.empty() ? false : true, "PEM");
 		}
-
+#endif // HAS_CAPTURE
 		g_logger.log("Fetching initial k8s state", sinsp_logger::SEV_INFO);
 		bool is_live = !m_k8s_api_server->empty();
 		m_k8s_client = new k8s(*m_k8s_api_server,
 			is_live ? true : false, // watch
 			false, // don't run watch in thread
 			is_live ? true : false, // capture
-			"/api/v1",
-			k8s_ssl
+			"/api/v1"
+#ifdef HAS_CAPTURE
+			,k8s_ssl
+			,k8s_bt
+#endif // HAS_CAPTURE
 		);
 	}
 
