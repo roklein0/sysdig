@@ -40,7 +40,7 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 #include "filter.h"
 #include "filterchecks.h"
 #include "protodecoder.h"
-#include "markers.h"
+#include "tracers.h"
 #ifdef HAS_ANALYZER
 #include "analyzer_int.h"
 #include "analyzer_thread.h"
@@ -59,9 +59,9 @@ sinsp_parser::sinsp_parser(sinsp *inspector) :
 	m_fd_listener(NULL)
 {
 	m_fake_userevt = (scap_evt*)m_fake_userevt_storage;
-	m_inspector->m_partial_markers_pool = new simple_lifo_queue<sinsp_partial_marker>(128);
+	m_inspector->m_partial_tracers_pool = new simple_lifo_queue<sinsp_partial_tracer>(128);
 
-	sinsp_markerparser p(inspector);
+	sinsp_tracerparser p(inspector);
 	p.test();
 }
 #else
@@ -73,10 +73,10 @@ sinsp_parser::sinsp_parser(sinsp *inspector) :
 	m_fake_userevt = (scap_evt*)m_fake_userevt_storage;
 
 	//
-	// Note: allocated here instead of in the sinsp constructor because sinsp_partial_marker
+	// Note: allocated here instead of in the sinsp constructor because sinsp_partial_tracer
 	//       is not defined in sinsp.cpp
 	//
-	m_inspector->m_partial_markers_pool = new simple_lifo_queue<sinsp_partial_marker>(128);
+	m_inspector->m_partial_tracers_pool = new simple_lifo_queue<sinsp_partial_tracer>(128);
 
 	m_k8s_metaevents_state.m_piscapevt = (scap_evt*)new char[SP_EVT_BUF_SIZE];
 	m_k8s_metaevents_state.m_piscapevt->type = PPME_K8S_E;
@@ -107,9 +107,9 @@ sinsp_parser::~sinsp_parser()
 	m_protodecoders.clear();
 	delete[] m_k8s_metaevents_state.m_piscapevt;
 
-	if(m_inspector->m_partial_markers_pool != NULL)
+	if(m_inspector->m_partial_tracers_pool != NULL)
 	{
-		delete m_inspector->m_partial_markers_pool;
+		delete m_inspector->m_partial_tracers_pool;
 	}
 }
 
@@ -170,7 +170,7 @@ void sinsp_parser::process_event(sinsp_evt *evt)
 				evt->m_fdinfo = fdinfo;
 			}
 
-			if(fdinfo && fdinfo->m_flags & sinsp_fdinfo_t::FLAGS_IS_MARKER_FD)
+			if(fdinfo && fdinfo->m_flags & sinsp_fdinfo_t::FLAGS_IS_TRACER_FD)
 			{
 				eflags = (ppm_event_flags)(((uint64_t)eflags) | EF_MODIFIES_STATE);
 			}
@@ -178,7 +178,7 @@ void sinsp_parser::process_event(sinsp_evt *evt)
 			{
 				if(!m_inspector->m_islive)
 				{
-					if((evt->get_dump_flags() & SCAP_DF_MARKER) != 0)
+					if((evt->get_dump_flags() & SCAP_DF_TRACER) != 0)
 					{
 						evt->m_fdinfo = NULL;
 						eflags = (ppm_event_flags)(((uint64_t)eflags) | EF_MODIFIES_STATE);
@@ -243,7 +243,7 @@ void sinsp_parser::process_event(sinsp_evt *evt)
 			evt->m_fdinfo = evt->m_tinfo->get_fd(evt->m_tinfo->m_lastevent_fd);
 			if(evt->m_fdinfo)
 			{
-				if(evt->m_fdinfo->m_flags & sinsp_fdinfo_t::FLAGS_IS_MARKER_FD)
+				if(evt->m_fdinfo->m_flags & sinsp_fdinfo_t::FLAGS_IS_TRACER_FD)
 				{
 					evt->m_filtered_out = true;
 					return;
@@ -603,7 +603,7 @@ bool sinsp_parser::reset(sinsp_evt *evt)
 		{
 			tinfo->set_lastevent_data_validity(false);
 
-			if(tinfo->m_lastevent_type != PPME_MARKER_E)
+			if(tinfo->m_lastevent_type != PPME_TRACER_E)
 			{
 				return false;
 			}
@@ -1763,7 +1763,7 @@ void sinsp_parser::parse_open_openat_creat_exit(sinsp_evt *evt)
 		//
 		if(fdi.m_name == USER_EVT_DEVICE_NAME)
 		{
-			fdi.m_flags |= sinsp_fdinfo_t::FLAGS_IS_MARKER_FD;
+			fdi.m_flags |= sinsp_fdinfo_t::FLAGS_IS_TRACER_FD;
 		}
 
 		//
@@ -2683,7 +2683,7 @@ void sinsp_parser::swap_ipv4_addresses(sinsp_fdinfo_t* fdinfo)
 	fdinfo->m_sockinfo.m_ipv4info.m_fields.m_dport = tport;
 }
 
-void sinsp_parser::parse_marker(sinsp_evt *evt, int64_t retval)
+void sinsp_parser::parse_tracer(sinsp_evt *evt, int64_t retval)
 {
 	sinsp_threadinfo* tinfo = evt->m_tinfo;
 	ASSERT(tinfo);
@@ -2694,18 +2694,18 @@ void sinsp_parser::parse_marker(sinsp_evt *evt, int64_t retval)
 	sinsp_evt_param *parinfo = evt->get_param(1);
 	char* data = parinfo->m_val;
 	uint32_t datalen = parinfo->m_len;
-	sinsp_markerparser* p = tinfo->m_marker_parser;
+	sinsp_tracerparser* p = tinfo->m_tracer_parser;
 
 	if(p == NULL)
 	{
-		p = tinfo->m_marker_parser = new sinsp_markerparser(m_inspector);
+		p = tinfo->m_tracer_parser = new sinsp_tracerparser(m_inspector);
 	}
 
 	p->m_tinfo = tinfo;
 
 	p->process_event_data(data, datalen, evt->get_ts());
 
-	if(p->m_res == sinsp_markerparser::RES_TRUNCATED)
+	if(p->m_res == sinsp_tracerparser::RES_TRUNCATED)
 	{
 		if(!m_inspector->m_dumper)
 		{
@@ -2724,11 +2724,11 @@ void sinsp_parser::parse_marker(sinsp_evt *evt, int64_t retval)
 	m_fake_userevt->ts = evt->m_pevt->ts;
 	m_fake_userevt->tid = evt->m_pevt->tid;
 
-	if(p->m_res == sinsp_markerparser::RES_OK)
+	if(p->m_res == sinsp_tracerparser::RES_OK)
 	{
 		if(p->m_type_str[0] == '>')
 		{
-			m_fake_userevt->type = PPME_MARKER_E;
+			m_fake_userevt->type = PPME_TRACER_E;
 
 			uint16_t *lens = (uint16_t *)(fakeevt_storage + sizeof(struct ppm_evt_hdr));
 			lens[0] = 8;
@@ -2741,7 +2741,7 @@ void sinsp_parser::parse_marker(sinsp_evt *evt, int64_t retval)
 		}
 		else
 		{
-			m_fake_userevt->type = PPME_MARKER_X;
+			m_fake_userevt->type = PPME_TRACER_X;
 
 			uint16_t *lens = (uint16_t *)(fakeevt_storage + sizeof(struct ppm_evt_hdr));
 			lens[0] = 8;
@@ -2760,7 +2760,7 @@ void sinsp_parser::parse_marker(sinsp_evt *evt, int64_t retval)
 		p->m_argnames.clear();
 		p->m_argvals.clear();
 
-		m_fake_userevt->type = PPME_MARKER_E;
+		m_fake_userevt->type = PPME_TRACER_E;
 
 		uint16_t *lens = (uint16_t *)(fakeevt_storage + sizeof(struct ppm_evt_hdr));
 		lens[0] = 8;
@@ -2768,8 +2768,8 @@ void sinsp_parser::parse_marker(sinsp_evt *evt, int64_t retval)
 		lens[2] = 8;
 
 		p->m_tags.clear();
-		m_marker_error_string = "invalid marker " + string(data, datalen) + ", len" + to_string(datalen);
-		p->m_tags.push_back((char*)m_marker_error_string.c_str());
+		m_tracer_error_string = "invalid tracer " + string(data, datalen) + ", len" + to_string(datalen);
+		p->m_tags.push_back((char*)m_tracer_error_string.c_str());
 		*(uint64_t *)(fakeevt_storage + sizeof(struct ppm_evt_hdr) + 6) = 0;
 		*(uint64_t *)(fakeevt_storage + sizeof(struct ppm_evt_hdr) + 14) = (uint64_t)&p->m_tags;
 		*(uint64_t *)(fakeevt_storage + sizeof(struct ppm_evt_hdr) + 22) = (uint64_t)&p->m_args;
@@ -2779,13 +2779,13 @@ void sinsp_parser::parse_marker(sinsp_evt *evt, int64_t retval)
 	evt->m_pevt = m_fake_userevt;
 	evt->init();
 	evt->m_poriginal_evt = tevt;
-	evt->m_flags |= (uint32_t)sinsp_evt::SINSP_EF_IS_MARKER;
+	evt->m_flags |= (uint32_t)sinsp_evt::SINSP_EF_IS_TRACER;
 
 	//
 	// Update some thread information
 	//
 	tinfo->m_lastevent_fd = -1;
-	tinfo->m_lastevent_type = PPME_MARKER_E;
+	tinfo->m_lastevent_type = PPME_TRACER_E;
 	tinfo->m_latency = 0;
 	tinfo->m_last_latency_entertime = 0;
 
@@ -2811,9 +2811,9 @@ void sinsp_parser::parse_rw_exit(sinsp_evt *evt)
 	{
 		if(!m_inspector->m_islive)
 		{
-			if((evt->get_dump_flags() & SCAP_DF_MARKER) != 0)
+			if((evt->get_dump_flags() & SCAP_DF_TRACER) != 0)
 			{
-				parse_marker(evt, retval);
+				parse_tracer(evt, retval);
 				return;
 			}
 		}
@@ -2825,9 +2825,9 @@ void sinsp_parser::parse_rw_exit(sinsp_evt *evt)
 	// User events get into the engine as normal writes, but the FD has a flag to
 	// quickly recognize them.
 	//
-	if(evt->m_fdinfo->m_flags & sinsp_fdinfo_t::FLAGS_IS_MARKER_FD)
+	if(evt->m_fdinfo->m_flags & sinsp_fdinfo_t::FLAGS_IS_TRACER_FD)
 	{
-		parse_marker(evt, retval);
+		parse_tracer(evt, retval);
 		return;
 	}
 

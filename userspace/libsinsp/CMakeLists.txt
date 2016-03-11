@@ -40,7 +40,7 @@ add_library(sinsp STATIC
 	marathon_component.cpp
 	marathon_http.cpp
 	memmem.cpp
-	markers.cpp
+	tracers.cpp
 	mesos.cpp
 	mesos_collector.cpp
 	mesos_component.cpp

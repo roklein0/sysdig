@@ -25,7 +25,7 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 class sinsp_delays_info;
 class sinsp_threadtable_listener;
 class thread_analyzer_info;
-class sinsp_markerparser;
+class sinsp_tracerparser;
 
 typedef struct erase_fd_params
 {
@@ -227,7 +227,7 @@ public:
 	//
 	// Parser for the user events. Public so that filter fields can access it
 	//
-	sinsp_markerparser* m_marker_parser;
+	sinsp_tracerparser* m_tracer_parser;
 
 	thread_analyzer_info* m_ainfo;
 
@@ -319,7 +319,7 @@ VISIBILITY_PRIVATE
 	friend class sinsp_thread_manager;
 	friend class sinsp_transaction_table;
 	friend class thread_analyzer_info;
-	friend class sinsp_markerparser;
+	friend class sinsp_tracerparser;
 	friend class lua_cbacks;
 };
 

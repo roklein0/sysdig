@@ -19,19 +19,19 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 #include <time.h>
 #include "sinsp.h"
 #include "sinsp_int.h"
-#include "markers.h"
+#include "tracers.h"
 
-sinsp_markerparser::sinsp_markerparser(sinsp *inspector)
+sinsp_tracerparser::sinsp_tracerparser(sinsp *inspector)
 {
 	m_inspector = inspector;
 	m_storage_size = 0;
 	m_storage = NULL;
-	m_res = sinsp_markerparser::RES_OK;
+	m_res = sinsp_tracerparser::RES_OK;
 	m_fragment_size = 0;
 	m_enter_pae = NULL;
 }
 
-sinsp_markerparser::~sinsp_markerparser()
+sinsp_tracerparser::~sinsp_tracerparser()
 {
 	if(m_storage)
 	{
@@ -39,18 +39,18 @@ sinsp_markerparser::~sinsp_markerparser()
 	}
 }
 
-void sinsp_markerparser::set_storage_size(uint32_t newsize)
+void sinsp_tracerparser::set_storage_size(uint32_t newsize)
 {
 	m_storage = (char*)realloc(m_storage, newsize);
 	if(m_storage == NULL)
 	{
-		throw sinsp_exception("memory allocation error in sinsp_markerparser::process_event_data.");
+		throw sinsp_exception("memory allocation error in sinsp_tracerparser::process_event_data.");
 	}
 
 	m_storage_size = newsize;
 }
 
-sinsp_markerparser::parse_result sinsp_markerparser::process_event_data(char *data, uint32_t datalen, uint64_t ts)
+sinsp_tracerparser::parse_result sinsp_tracerparser::process_event_data(char *data, uint32_t datalen, uint64_t ts)
 {
 	ASSERT(data != NULL);
 	uint32_t storlen = m_fragment_size + datalen;
@@ -79,7 +79,7 @@ sinsp_markerparser::parse_result sinsp_markerparser::process_event_data(char *da
 		//
 		// Reset the content
 		//
-		m_res = sinsp_markerparser::RES_OK;
+		m_res = sinsp_tracerparser::RES_OK;
 		m_tags.clear();
 		m_argnames.clear();
 		m_argvals.clear();
@@ -101,10 +101,10 @@ sinsp_markerparser::parse_result sinsp_markerparser::process_event_data(char *da
 	}
 	else
 	{
-		m_res = sinsp_markerparser::RES_FAILED;
+		m_res = sinsp_tracerparser::RES_FAILED;
 	}
 
-	if(m_res == sinsp_markerparser::RES_FAILED)
+	if(m_res == sinsp_tracerparser::RES_FAILED)
 	{
 		//
 		// Invalid syntax
@@ -113,7 +113,7 @@ sinsp_markerparser::parse_result sinsp_markerparser::process_event_data(char *da
 		m_fullfragment_storage_str.clear();
 		return m_res;
 	}
-	else if(m_res == sinsp_markerparser::RES_TRUNCATED)
+	else if(m_res == sinsp_tracerparser::RES_TRUNCATED)
 	{
 		//
 		// Valid syntax, but the message is incomplete. Buffer it and wait for
@@ -159,25 +159,25 @@ sinsp_markerparser::parse_result sinsp_markerparser::process_event_data(char *da
 	//
 	if(m_inspector == NULL)
 	{
-		return sinsp_markerparser::RES_OK;
+		return sinsp_tracerparser::RES_OK;
 	}
 
 	//
 	// Event decoding done. We do state tracking only if explicitly requested
 	// by one or more filters.
 	//
-	if(m_inspector->m_track_markers_state == false)
+	if(m_inspector->m_track_tracers_state == false)
 	{
-		return sinsp_markerparser::RES_OK;
+		return sinsp_tracerparser::RES_OK;
 	}
 
 	//
-	// If this is an enter event, allocate a sinsp_partial_marker object and
+	// If this is an enter event, allocate a sinsp_partial_tracer object and
 	// push it to the list
 	//
 	if(m_type_str[0] == '>')
 	{
-		sinsp_partial_marker* pae = m_inspector->m_partial_markers_pool->pop();
+		sinsp_partial_tracer* pae = m_inspector->m_partial_tracers_pool->pop();
 		if(pae == NULL)
 		{
 			//
@@ -185,32 +185,32 @@ sinsp_markerparser::parse_result sinsp_markerparser::process_event_data(char *da
 			// the entries will be stuck there forever. Better clean the list, miss the 128
 			// events it contains, and start fresh.
 			//
-			list<sinsp_partial_marker*>* partial_markers_list = &m_inspector->m_partial_markers_list;
-			list<sinsp_partial_marker*>::iterator it;
+			list<sinsp_partial_tracer*>* partial_tracers_list = &m_inspector->m_partial_tracers_list;
+			list<sinsp_partial_tracer*>::iterator it;
 
-			for(it = partial_markers_list->begin(); it != partial_markers_list->end(); ++it)
+			for(it = partial_tracers_list->begin(); it != partial_tracers_list->end(); ++it)
 			{
-				m_inspector->m_partial_markers_pool->push(*it);
+				m_inspector->m_partial_tracers_pool->push(*it);
 			}
 
-			partial_markers_list->clear();
+			partial_tracers_list->clear();
 
-			return sinsp_markerparser::RES_OK;
+			return sinsp_tracerparser::RES_OK;
 		}
 
-		init_partial_marker(pae);
+		init_partial_tracer(pae);
 		pae->m_time = ts;
-		m_inspector->m_partial_markers_list.push_front(pae);
+		m_inspector->m_partial_tracers_list.push_front(pae);
 		m_enter_pae = pae;
 	}
 	else
 	{
-		list<sinsp_partial_marker*>* partial_markers_list = &m_inspector->m_partial_markers_list;
-		list<sinsp_partial_marker*>::iterator it;
+		list<sinsp_partial_tracer*>* partial_tracers_list = &m_inspector->m_partial_tracers_list;
+		list<sinsp_partial_tracer*>::iterator it;
 
-		init_partial_marker(&m_exit_pae);
+		init_partial_tracer(&m_exit_pae);
 
-		for(it = partial_markers_list->begin(); it != partial_markers_list->end(); ++it)
+		for(it = partial_tracers_list->begin(); it != partial_tracers_list->end(); ++it)
 		{
 			if(m_exit_pae.compare(*it) == true)
 			{
@@ -227,19 +227,19 @@ sinsp_markerparser::parse_result sinsp_markerparser::process_event_data(char *da
 				//
 				m_enter_pae = *it;
 
-				m_inspector->m_partial_markers_pool->push(*it);
-				partial_markers_list->erase(it);
-				return sinsp_markerparser::RES_OK;
+				m_inspector->m_partial_tracers_pool->push(*it);
+				partial_tracers_list->erase(it);
+				return sinsp_tracerparser::RES_OK;
 			}
 		}
 
 		m_enter_pae = NULL;
 	}
 
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
+inline void sinsp_tracerparser::parse(char* evtstr, uint32_t evtstrlen)
 {
 	char* p = m_storage;
 	uint32_t delta;
@@ -249,7 +249,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 	// Skip the initial braket
 	//
 	m_res = skip_spaces(p, &delta);
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
@@ -257,7 +257,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 
 	if(*(p++) != '[')
 	{
-		m_res = sinsp_markerparser::RES_FAILED;
+		m_res = sinsp_tracerparser::RES_FAILED;
 		return;
 	}
 
@@ -265,7 +265,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 	// type
 	//
 	m_res = parsestr(p, &m_type_str, &delta);
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
@@ -275,20 +275,20 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 	// ID
 	//
 	m_res = skip_spaces_and_commas(p, &delta, 1);
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
 	p += delta;
 
 	m_res = parsenumber(p, &m_id, &delta);
-	if(m_res > sinsp_markerparser::RES_COMMA)
+	if(m_res > sinsp_tracerparser::RES_COMMA)
 	{
 		return;
 	}
 	p += delta;
 
-	if(m_res == sinsp_markerparser::RES_COMMA)
+	if(m_res == sinsp_tracerparser::RES_COMMA)
 	{
 		m_res = skip_spaces(p, &delta);
 	}
@@ -297,7 +297,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 		m_res = skip_spaces_and_commas(p, &delta, 1);
 	}
 
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
@@ -307,14 +307,14 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 	// First tag
 	//
 	m_res = skip_spaces_and_char(p, &delta, '[');
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
 	p += delta;
 
 	m_res = parsestr_not_enforce(p, &tstr, &delta);
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
@@ -332,7 +332,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 		while(true)
 		{
 			m_res = skip_spaces_and_commas(p, &delta, 0);
-			if(m_res != sinsp_markerparser::RES_OK)
+			if(m_res != sinsp_tracerparser::RES_OK)
 			{
 				return;
 			}
@@ -344,7 +344,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 			}
 
 			m_res = parsestr(p, &tstr, &delta);
-			if(m_res != sinsp_markerparser::RES_OK)
+			if(m_res != sinsp_tracerparser::RES_OK)
 			{
 				return;
 			}
@@ -359,14 +359,14 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 	// First argument
 	//
 	m_res = skip_spaces_and_commas_and_all_brakets(p, &delta);
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
 	p += delta;
 
 	m_res = parsestr_not_enforce(p, &tstr, &delta);
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
@@ -379,14 +379,14 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 		m_tot_argnamelens += delta - 2;
 
 		m_res = skip_spaces_and_char(p, &delta, ':');
-		if(m_res != sinsp_markerparser::RES_OK)
+		if(m_res != sinsp_tracerparser::RES_OK)
 		{
 			return;
 		}
 		p += delta;
 
 		m_res = parsestr(p, &tstr, &delta);
-		if(m_res != sinsp_markerparser::RES_OK)
+		if(m_res != sinsp_tracerparser::RES_OK)
 		{
 			return;
 		}
@@ -401,7 +401,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 		while(true)
 		{
 			m_res = skip_spaces_and_commas_and_cr_brakets(p, &delta);
-			if(m_res != sinsp_markerparser::RES_OK)
+			if(m_res != sinsp_tracerparser::RES_OK)
 			{
 				return;
 			}
@@ -414,7 +414,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 			}
 
 			m_res = parsestr(p, &tstr, &delta);
-			if(m_res != sinsp_markerparser::RES_OK)
+			if(m_res != sinsp_tracerparser::RES_OK)
 			{
 				return;
 			}
@@ -424,14 +424,14 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 			m_tot_argnamelens += delta - 2;
 
 			m_res = skip_spaces_and_char(p, &delta, ':');
-			if(m_res != sinsp_markerparser::RES_OK)
+			if(m_res != sinsp_tracerparser::RES_OK)
 			{
 				return;
 			}
 			p += delta;
 
 			m_res = parsestr(p, &tstr, &delta);
-			if(m_res != sinsp_markerparser::RES_OK)
+			if(m_res != sinsp_tracerparser::RES_OK)
 			{
 				return;
 			}
@@ -446,7 +446,7 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 	// Terminating ]
 	//
 	m_res = skip_spaces(p, &delta);
-	if(m_res != sinsp_markerparser::RES_OK)
+	if(m_res != sinsp_tracerparser::RES_OK)
 	{
 		return;
 	}
@@ -456,20 +456,20 @@ inline void sinsp_markerparser::parse(char* evtstr, uint32_t evtstrlen)
 	{
 		if(*p == 0)
 		{
-			m_res = sinsp_markerparser::RES_TRUNCATED;
+			m_res = sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else
 		{
-			m_res = sinsp_markerparser::RES_FAILED;
+			m_res = sinsp_tracerparser::RES_FAILED;
 		}
 		return;
 	}
 
-	m_res = sinsp_markerparser::RES_OK;
+	m_res = sinsp_tracerparser::RES_OK;
 	return;
 }
 
-inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
+inline void sinsp_tracerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 {
 	char* p = evtstr;
 	uint32_t delta;
@@ -486,11 +486,11 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 	{
 		if(*p == 0)
 		{
-			m_res = sinsp_markerparser::RES_TRUNCATED;
+			m_res = sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else
 		{
-			m_res = sinsp_markerparser::RES_FAILED;
+			m_res = sinsp_tracerparser::RES_FAILED;
 		}
 		return;
 	}
@@ -503,7 +503,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 	//
 	if(*p == '0')
 	{
-		m_res = sinsp_markerparser::RES_TRUNCATED;
+		m_res = sinsp_tracerparser::RES_TRUNCATED;
 		return;
 	}
 
@@ -533,7 +533,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 		break;
 	default:
 		m_res = parsenumber_colend(p, &m_id, &delta);
-		if(m_res > sinsp_markerparser::RES_COMMA)
+		if(m_res > sinsp_tracerparser::RES_COMMA)
 		{
 			return;
 		}
@@ -547,7 +547,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 	//
 	if(*p == '0')
 	{
-		m_res = sinsp_markerparser::RES_TRUNCATED;
+		m_res = sinsp_tracerparser::RES_TRUNCATED;
 		return;
 	}
 
@@ -563,7 +563,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 			{
 				if(*p == '\n' || *p == '>' || *p == '<')
 				{
-					m_res = sinsp_markerparser::RES_FAILED;
+					m_res = sinsp_tracerparser::RES_FAILED;
 					return;
 				}
 
@@ -580,7 +580,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 			}
 			else if(*p == 0)
 			{
-				m_res = sinsp_markerparser::RES_TRUNCATED;
+				m_res = sinsp_tracerparser::RES_TRUNCATED;
 				return;
 			}
 			else
@@ -598,7 +598,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 	//
 	if(*p == 0)
 	{
-		m_res = sinsp_markerparser::RES_TRUNCATED;
+		m_res = sinsp_tracerparser::RES_TRUNCATED;
 		return;
 	}
 
@@ -617,7 +617,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 			{
 				if(*p == '\n' || *p == '>' || *p == '<')
 				{
-					m_res = sinsp_markerparser::RES_FAILED;
+					m_res = sinsp_tracerparser::RES_FAILED;
 					return;
 				}
 
@@ -635,11 +635,11 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 					// This means there was an argument without value, 
 					// which we don't support
 					//
-					m_res = sinsp_markerparser::RES_FAILED;
+					m_res = sinsp_tracerparser::RES_FAILED;
 				}
 				else
 				{
-					m_res = sinsp_markerparser::RES_TRUNCATED;
+					m_res = sinsp_tracerparser::RES_TRUNCATED;
 				}
 				break;
 			}
@@ -666,12 +666,12 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 			if(*p == ':')
 			{
 				*p = 0;
-				m_res = sinsp_markerparser::RES_OK;
+				m_res = sinsp_tracerparser::RES_OK;
 				break;
 			}
 			else if(*p == 0)
 			{
-				m_res = sinsp_markerparser::RES_TRUNCATED;
+				m_res = sinsp_tracerparser::RES_TRUNCATED;
 				break;
 			}
 			else
@@ -688,7 +688,7 @@ inline void sinsp_markerparser::parse_simple(char* evtstr, uint32_t evtstrlen)
 	return;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces(char* p, uint32_t* delta)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::skip_spaces(char* p, uint32_t* delta)
 {
 	char* start = p;
 
@@ -696,17 +696,17 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces(char* p,
 	{
 		if(*p == 0)
 		{
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 
 		p++;
 	}
 
 	*delta = (uint32_t)(p - start);
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_commas(char* p, uint32_t* delta, uint32_t n_expected_commas)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::skip_spaces_and_commas(char* p, uint32_t* delta, uint32_t n_expected_commas)
 {
 	char* start = p;
 	uint32_t nc = 0;
@@ -724,7 +724,7 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_comm
 		}
 		else if(*p == 0)
 		{
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else
 		{
@@ -736,14 +736,14 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_comm
 
 	if(nc < n_expected_commas)
 	{
-		return sinsp_markerparser::RES_FAILED;
+		return sinsp_tracerparser::RES_FAILED;
 	}
 
 	*delta = (uint32_t)(p - start);
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_char(char* p, uint32_t* delta, char char_to_skip)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::skip_spaces_and_char(char* p, uint32_t* delta, char char_to_skip)
 {
 	char* start = p;
 	uint32_t nc = 0;
@@ -752,7 +752,7 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_char
 	{
 		if(*p == 0)
 		{
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else if(*p == char_to_skip)
 		{
@@ -764,14 +764,14 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_char
 
 	if(nc != 1)
 	{
-		return sinsp_markerparser::RES_FAILED;
+		return sinsp_tracerparser::RES_FAILED;
 	}
 
 	*delta = (uint32_t)(p - start);
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_commas_and_sq_brakets(char* p, uint32_t* delta)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::skip_spaces_and_commas_and_sq_brakets(char* p, uint32_t* delta)
 {
 	char* start = p;
 	uint32_t nc = 0;
@@ -781,7 +781,7 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_comm
 	{
 		if(*p == 0)
 		{
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else if(*p == ',')
 		{
@@ -804,14 +804,14 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_comm
 
 	if(nc != 1 || nosb != 1)
 	{
-		return sinsp_markerparser::RES_FAILED;
+		return sinsp_tracerparser::RES_FAILED;
 	}
 
 	*delta = (uint32_t)(p - start);
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_commas_and_cr_brakets(char* p, uint32_t* delta)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::skip_spaces_and_commas_and_cr_brakets(char* p, uint32_t* delta)
 {
 	char* start = p;
 	uint32_t nc = 0;
@@ -822,7 +822,7 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_comm
 	{
 		if(*p == 0)
 		{
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else if(*p == ',')
 		{
@@ -842,14 +842,14 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_comm
 
 	if(!((nc == 1 && nocb == 1) || (nc == 1 && nccb == 1) || (nccb == 1 && *p == ']')))
 	{
-		return sinsp_markerparser::RES_FAILED;
+		return sinsp_tracerparser::RES_FAILED;
 	}
 
 	*delta = (uint32_t)(p - start);
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_commas_and_all_brakets(char* p, uint32_t* delta)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::skip_spaces_and_commas_and_all_brakets(char* p, uint32_t* delta)
 {
 	char* start = p;
 	uint32_t nc = 0;
@@ -860,7 +860,7 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_comm
 	{
 		if(*p == 0)
 		{
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else if(*p == ',')
 		{
@@ -887,21 +887,21 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::skip_spaces_and_comm
 
 	if(nc != 1 || nosb != 1)
 	{
-		return sinsp_markerparser::RES_FAILED;
+		return sinsp_tracerparser::RES_FAILED;
 	}
 	else if(nocb != 1)
 	{
 		if(*p != ']')
 		{
-			return sinsp_markerparser::RES_FAILED;
+			return sinsp_tracerparser::RES_FAILED;
 		}
 	}
 
 	*delta = (uint32_t)(p - start);
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::parsestr(char* p, char** res, uint32_t* delta)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::parsestr(char* p, char** res, uint32_t* delta)
 {
 	char* initial = p;
 	*res = NULL;
@@ -914,11 +914,11 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::parsestr(char* p, ch
 		*delta = (uint32_t)(p - initial + 1);
 		if(*p == 0)
 		{
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else
 		{
-			return sinsp_markerparser::RES_FAILED;
+			return sinsp_tracerparser::RES_FAILED;
 		}
 	}
 
@@ -933,7 +933,7 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::parsestr(char* p, ch
 		if(*p == 0)
 		{
 			*delta = (uint32_t)(p - initial + 1);
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 
 		p++;
@@ -942,33 +942,33 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::parsestr(char* p, ch
 	*p = 0;
 
 	*delta = (uint32_t)(p - initial + 1);
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::parsestr_not_enforce(char* p, char** res, uint32_t* delta)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::parsestr_not_enforce(char* p, char** res, uint32_t* delta)
 {
-	sinsp_markerparser::parse_result psres = parsestr(p, res, delta);
+	sinsp_tracerparser::parse_result psres = parsestr(p, res, delta);
 
-	if(psres == sinsp_markerparser::RES_FAILED)
+	if(psres == sinsp_tracerparser::RES_FAILED)
 	{
 		if(*(p + *delta) == ']')
 		{
 			*res = NULL;
-			return sinsp_markerparser::RES_OK;
+			return sinsp_tracerparser::RES_OK;
 		}
 	}
-	else if(psres == sinsp_markerparser::RES_TRUNCATED)
+	else if(psres == sinsp_tracerparser::RES_TRUNCATED)
 	{
 		return psres;
 	}
 
-	return sinsp_markerparser::RES_OK;
+	return sinsp_tracerparser::RES_OK;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::parsenumber(char* p, int64_t* res, uint32_t* delta)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::parsenumber(char* p, int64_t* res, uint32_t* delta)
 {
 	char* start = p;
-	sinsp_markerparser::parse_result retval = sinsp_markerparser::RES_OK;
+	sinsp_tracerparser::parse_result retval = sinsp_tracerparser::RES_OK;
 	int64_t val = 0;
 
 	bool negative = false;
@@ -987,15 +987,15 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::parsenumber(char* p,
 
 	if(*p == ',')
 	{
-		retval = sinsp_markerparser::RES_COMMA;
+		retval = sinsp_tracerparser::RES_COMMA;
 	}
 	else if(*p != 0 && *p != ' ')
 	{
-		return sinsp_markerparser::RES_FAILED;
+		return sinsp_tracerparser::RES_FAILED;
 	}
 	else if(*p == 0)
 	{
-		return sinsp_markerparser::RES_TRUNCATED;
+		return sinsp_tracerparser::RES_TRUNCATED;
 	}
 
 
@@ -1014,7 +1014,7 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::parsenumber(char* p,
 	return retval;
 }
 
-inline sinsp_markerparser::parse_result sinsp_markerparser::parsenumber_colend(char* p, int64_t* res, uint32_t* delta)
+inline sinsp_tracerparser::parse_result sinsp_tracerparser::parsenumber_colend(char* p, int64_t* res, uint32_t* delta)
 {
 	char* start = p;
 	int64_t val = 0;
@@ -1036,11 +1036,11 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::parsenumber_colend(c
 	{
 		if(*p == 0)
 		{
-			return sinsp_markerparser::RES_TRUNCATED;
+			return sinsp_tracerparser::RES_TRUNCATED;
 		}
 		else
 		{
-			return sinsp_markerparser::RES_FAILED;
+			return sinsp_tracerparser::RES_FAILED;
 		}
 	}
 	else
@@ -1055,11 +1055,11 @@ inline sinsp_markerparser::parse_result sinsp_markerparser::parsenumber_colend(c
 			*res = val;
 		}
 
-		return sinsp_markerparser::RES_OK;
+		return sinsp_tracerparser::RES_OK;
 	}
 }
 
-inline void sinsp_markerparser::init_partial_marker(sinsp_partial_marker* pae)
+inline void sinsp_tracerparser::init_partial_tracer(sinsp_partial_tracer* pae)
 {
 	vector<char*>::iterator it;
 	vector<uint32_t>::iterator sit;
@@ -1154,7 +1154,7 @@ inline void sinsp_markerparser::init_partial_marker(sinsp_partial_marker* pae)
 	pae->m_argvals_len = (uint32_t)(p - pae->m_argvals_storage);
 }
 
-void sinsp_markerparser::test()
+void sinsp_tracerparser::test()
 {
 //	char doc[] = "[\">\\\"\", 12435, [\"mysql\", \"query\", \"init\"], [{\"argname1\":\"argval1\"}, {\"argname2\":\"argval2\"}, {\"argname3\":\"argval3\"}]]";
 //	char doc1[] = "[\"<t\", 12435, [\"mysql\", \"query\", \"init\"], []]";
@@ -1176,14 +1176,14 @@ void sinsp_markerparser::test()
 	{
 		process_event_data(doc1, 65, 10);
 
-		if(m_res != sinsp_markerparser::RES_OK)
+		if(m_res != sinsp_tracerparser::RES_OK)
 		{
 			printf("ERROR\n");
 		}
 
 		process_event_data(doc1, sizeof(doc1) - 1, 20);
 
-		if(m_res != sinsp_markerparser::RES_OK)
+		if(m_res != sinsp_tracerparser::RES_OK)
 		{
 			printf("ERROR\n");
 		}

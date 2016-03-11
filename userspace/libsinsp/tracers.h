@@ -19,12 +19,12 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 #define UESTORAGE_INITIAL_BUFSIZE 256
 
 ///////////////////////////////////////////////////////////////////////////////
-// A partial marker
+// A partial tracer
 ///////////////////////////////////////////////////////////////////////////////
-class sinsp_partial_marker
+class sinsp_partial_tracer
 {
 public:
-	sinsp_partial_marker()
+	sinsp_partial_tracer()
 	{
 		m_tags_storage = (char*)malloc(UESTORAGE_INITIAL_BUFSIZE);
 		m_argnames_storage = (char*)malloc(UESTORAGE_INITIAL_BUFSIZE);
@@ -34,7 +34,7 @@ public:
 		m_argvals_storage_size = UESTORAGE_INITIAL_BUFSIZE;
 	}
 
-	~sinsp_partial_marker()
+	~sinsp_partial_tracer()
 	{
 		if(m_tags_storage)
 		{
@@ -52,7 +52,7 @@ public:
 		}
 	}
 
-	inline bool compare(sinsp_partial_marker* other)
+	inline bool compare(sinsp_partial_tracer* other)
 	{
 		if(m_id != other->m_id)
 		{
@@ -92,9 +92,9 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-// Marker parser
+// tracer parser
 ///////////////////////////////////////////////////////////////////////////////
-class sinsp_markerparser
+class sinsp_tracerparser
 {
 public:
 	enum parse_result
@@ -105,8 +105,8 @@ public:
 		RES_TRUNCATED = 3,
 	};
 
-	sinsp_markerparser(sinsp *inspector);
-	~sinsp_markerparser();
+	sinsp_tracerparser(sinsp *inspector);
+	~sinsp_tracerparser();
 	uint32_t get_storage_size()
 	{
 		return m_storage_size;
@@ -129,8 +129,8 @@ public:
 	uint32_t m_tot_taglens;
 	uint32_t m_tot_argnamelens;
 	uint32_t m_tot_argvallens;
-	sinsp_partial_marker* m_enter_pae;
-	sinsp_partial_marker m_exit_pae;
+	sinsp_partial_tracer* m_enter_pae;
+	sinsp_partial_tracer m_exit_pae;
 	sinsp_threadinfo* m_tinfo;
 
 VISIBILITY_PRIVATE
@@ -144,13 +144,13 @@ VISIBILITY_PRIVATE
 	inline parse_result parsestr_not_enforce(char* p, char** res, uint32_t* delta);
 	inline parse_result parsenumber(char* p, int64_t* res, uint32_t* delta);
 	inline parse_result parsenumber_colend(char* p, int64_t* res, uint32_t* delta);
-	inline void init_partial_marker(sinsp_partial_marker* pae);
+	inline void init_partial_tracer(sinsp_partial_tracer* pae);
 
 	sinsp *m_inspector;
 	char* m_storage;
 	uint32_t m_storage_size;
 	uint32_t m_fragment_size;
-	sinsp_markerparser::parse_result m_res;
+	sinsp_tracerparser::parse_result m_res;
 	string m_fullfragment_storage_str;
 
 	friend class sinsp_parser;

@@ -27,7 +27,7 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 #include "filter.h"
 #include "filterchecks.h"
 #include "protodecoder.h"
-#include "markers.h"
+#include "tracers.h"
 
 extern sinsp_evttables g_infotables;
 int32_t g_csysdig_screen_w = -1;
@@ -2064,14 +2064,14 @@ const filtercheck_field_info sinsp_filter_check_event_fields[] =
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "evt.buflen.net", "the length of the binary data buffer, but only for network I/O events."},
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "evt.buflen.net.in", "the length of the binary data buffer, but only for input network I/O events."},
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "evt.buflen.net.out", "the length of the binary data buffer, but only for output network I/O events."},
-	// Marker related fields. These can be used only as filter fields, not as display fields
-	{PT_INT64, EPF_FILTER_ONLY, PF_ID, "evt.marker.id", "event ID."},
-	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evt.marker.ntags", "Number of tags that this marker has."},
-	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evt.marker.nargs", "Number of arguments that this marker has."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.marker.tags", "comma-separated list of event tags."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.marker.tag", "one of the app event tags specified by offset. E.g. 'marker.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'marker.tag[-1]' returns the last tag."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.marker.args", "comma-separated list of event arguments."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.marker.arg", "one of the app event arguments specified by name or by offset. E.g. 'marker.tag.mytag' or 'marker.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'marker.arg[-1]' returns the last argument."},
+	// Tracer related fields. These can be used only as filter fields, not as display fields
+	{PT_INT64, EPF_FILTER_ONLY, PF_ID, "evt.tracer.id", "event ID."},
+	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evt.tracer.ntags", "Number of tags that this tracer has."},
+	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evt.tracer.nargs", "Number of arguments that this tracer has."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.tracer.tags", "comma-separated list of event tags."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.tracer.tag", "one of the app event tags specified by offset. E.g. 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.tag[-1]' returns the last tag."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.tracer.args", "comma-separated list of event arguments."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.tracer.arg", "one of the app event arguments specified by name or by offset. E.g. 'tracer.tag.mytag' or 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.arg[-1]' returns the last argument."},
 };
 
 sinsp_filter_check_event::sinsp_filter_check_event()
@@ -2294,9 +2294,9 @@ int32_t sinsp_filter_check_event::parse_field_name(const char* str, bool alloc_s
 		res = sinsp_filter_check::parse_field_name(str, alloc_state);
 	}
 
-	if(m_field_id >= TYPE_MARKER_ID && m_field_id <= TYPE_MARKER_ARG)
+	if(m_field_id >= TYPE_TRACER_ID && m_field_id <= TYPE_TRACER_ARG)
 	{
-		m_inspector->request_marker_state_tracking();
+		m_inspector->request_tracer_state_tracking();
 	}
 
 	return res;
@@ -3658,13 +3658,13 @@ uint8_t* sinsp_filter_check_event::extract(sinsp_evt *evt, OUT uint32_t* len)
 	return NULL;
 }
 
-inline bool sinsp_filter_check_event::compare_marker(sinsp_evt *evt, sinsp_partial_marker* pae)
+inline bool sinsp_filter_check_event::compare_tracer(sinsp_evt *evt, sinsp_partial_tracer* pae)
 {
 	ASSERT(pae);
 
 	switch(m_field_id)
 	{
-	case TYPE_MARKER_ID:
+	case TYPE_TRACER_ID:
 		if(flt_compare(m_cmpop, PT_UINT64, 
 			&pae->m_id,
 			&m_val_storage[0]) == true)
@@ -3675,7 +3675,7 @@ inline bool sinsp_filter_check_event::compare_marker(sinsp_evt *evt, sinsp_parti
 		{
 			return false;
 		}
-	case TYPE_MARKER_NTAGS:
+	case TYPE_TRACER_NTAGS:
 		m_u32val = (uint32_t)pae->m_tags.size();
 
 		if(flt_compare(m_cmpop, PT_UINT32, 
@@ -3688,7 +3688,7 @@ inline bool sinsp_filter_check_event::compare_marker(sinsp_evt *evt, sinsp_parti
 		{
 			return false;
 		}
-	case TYPE_MARKER_NARGS:
+	case TYPE_TRACER_NARGS:
 		m_u32val = (uint32_t)pae->m_argvals.size();
 
 		if(flt_compare(m_cmpop, PT_UINT32, 
@@ -3701,7 +3701,7 @@ inline bool sinsp_filter_check_event::compare_marker(sinsp_evt *evt, sinsp_parti
 		{
 			return false;
 		}
-	case TYPE_MARKER_TAGS:
+	case TYPE_TRACER_TAGS:
 	{
 		vector<char*>::iterator it;
 		vector<uint32_t>::iterator sit;
@@ -3744,7 +3744,7 @@ inline bool sinsp_filter_check_event::compare_marker(sinsp_evt *evt, sinsp_parti
 			return false;
 		}
 	}
-	case TYPE_MARKER_TAG:
+	case TYPE_TRACER_TAG:
 	{
 		char* val = NULL;
 
@@ -3781,7 +3781,7 @@ inline bool sinsp_filter_check_event::compare_marker(sinsp_evt *evt, sinsp_parti
 			return false;
 		}
 	}
-	case TYPE_MARKER_ARGS:
+	case TYPE_TRACER_ARGS:
 	{
 		vector<char*>::iterator nameit;
 		vector<char*>::iterator valit;
@@ -3834,14 +3834,14 @@ inline bool sinsp_filter_check_event::compare_marker(sinsp_evt *evt, sinsp_parti
 			return false;
 		}
 	}
-	case TYPE_MARKER_ARG:
+	case TYPE_TRACER_ARG:
 	{
 		char* val = NULL;
 
 		if(m_argid == TEXT_ARG_ID)
 		{
 			//
-			// Argument expressed as name, e.g. evt.marker.arg.name.
+			// Argument expressed as name, e.g. evt.tracer.arg.name.
 			// Scan the argname list and find the match.
 			//
 			uint32_t j;
@@ -3858,7 +3858,7 @@ inline bool sinsp_filter_check_event::compare_marker(sinsp_evt *evt, sinsp_parti
 		else
 		{
 			//
-			// Argument expressed as id, e.g. evt.marker.arg[1].
+			// Argument expressed as id, e.g. evt.tracer.arg[1].
 			// Pick the corresponding value.
 			//
 			if(m_argid >= 0)
@@ -3944,10 +3944,10 @@ bool sinsp_filter_check_event::compare(sinsp_evt *evt)
 
 		return res1 && res2;
 	}
-	else if(m_field_id >= TYPE_MARKER_ID && m_field_id <= TYPE_MARKER_ARG)
+	else if(m_field_id >= TYPE_TRACER_ID && m_field_id <= TYPE_TRACER_ARG)
 	{
-		list<sinsp_partial_marker*>* partial_markers_list = &m_inspector->m_partial_markers_list;
-		list<sinsp_partial_marker*>::iterator it;
+		list<sinsp_partial_tracer*>* partial_tracers_list = &m_inspector->m_partial_tracers_list;
+		list<sinsp_partial_tracer*>::iterator it;
 		uint16_t etype = evt->get_type();
 
 		sinsp_threadinfo* tinfo = evt->get_thread_info();
@@ -3960,9 +3960,9 @@ bool sinsp_filter_check_event::compare(sinsp_evt *evt)
 		//
 		// Scan the list and see if there's a match
 		//
-		for(it = partial_markers_list->begin(); it != partial_markers_list->end(); ++it)
+		for(it = partial_tracers_list->begin(); it != partial_tracers_list->end(); ++it)
 		{
-			if(compare_marker(evt, *it) == true)
+			if(compare_tracer(evt, *it) == true)
 			{
 				res = true;
 				goto fcec_end;
@@ -3970,12 +3970,12 @@ bool sinsp_filter_check_event::compare(sinsp_evt *evt)
 		}
 
 		//
-		// For PPME_MARKER_X events, it's possible that the pae is already returned to the pool.
+		// For PPME_TRACER_X events, it's possible that the pae is already returned to the pool.
 		// Get it from the parser.
 		//
-		if(etype == PPME_MARKER_X)
+		if(etype == PPME_TRACER_X)
 		{
-			sinsp_markerparser* eparser = tinfo->m_marker_parser;
+			sinsp_tracerparser* eparser = tinfo->m_tracer_parser;
 
 			if(eparser == NULL)
 			{
@@ -3990,7 +3990,7 @@ bool sinsp_filter_check_event::compare(sinsp_evt *evt)
 				goto fcec_end;
 			}
 
-			if(compare_marker(evt, eparser->m_enter_pae) == true)
+			if(compare_tracer(evt, eparser->m_enter_pae) == true)
 			{
 				res = true;
 				goto fcec_end;
@@ -4154,45 +4154,45 @@ uint8_t* sinsp_filter_check_group::extract(sinsp_evt *evt, OUT uint32_t* len)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// sinsp_filter_check_marker implementation
+// sinsp_filter_check_tracer implementation
 ///////////////////////////////////////////////////////////////////////////////
-const filtercheck_field_info sinsp_filter_check_marker_fields[] =
+const filtercheck_field_info sinsp_filter_check_tracer_fields[] =
 {
-	{PT_INT64, EPF_NONE, PF_ID, "marker.id", "marker ID. This is a unique identifier that is used to match the enter and exit event for this marker. It can also be used to match different markers belonging to a transaction."},
-	{PT_UINT32, EPF_NONE, PF_DEC, "marker.ntags", "number of tags that this marker has."},
-	{PT_UINT32, EPF_NONE, PF_DEC, "marker.nargs", "number of arguments that this marker has."},
-	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.tags", "dot-separated list of event tags."},
-	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.tag", "one of the app event tags specified by offset. E.g. 'marker.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'marker.tag[-1]' returns the last tag."},
-	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.args", "comma-separated list of event arguments."},
-	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.arg", "one of the app event arguments specified by name or by offset. E.g. 'marker.tag.mytag' or 'marker.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'marker.arg[-1]' returns the last argument."},
-	{PT_RELTIME, EPF_NONE, PF_DEC, "marker.latency", "delta between an exit marker event and the correspondent enter event."},
-	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.latency.quantized", "10-base log of the delta between an exit marker event and the correspondent enter event."},
-	{PT_CHARBUF, EPF_NONE, PF_NA, "marker.latency.human", "delta between an exit marker event and the correspondent enter event, as a human readable string (e.g. 10.3ms)."},
-	{PT_RELTIME, EPF_TABLE_ONLY, PF_DEC, "marker.latency.fortag", "Latency of the marker if the number of tags matches the field argument, otherwise 0. For example, marker.latency.fortag[1] returns the latency of all the markers with 1 tag, and zero for all the other ones."},
-	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.count", "1 for marker exit events."},
-	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.count.fortag", "1 if the marker's number of tags matches the field argument, and zero for all the other ones."},
-	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "marker.childcount.fortag", "1 if the marker's number of tags is greater than the field argument, and zero for all the other ones."},
-	{PT_CHARBUF, EPF_TABLE_ONLY, PF_NA, "marker.idtag", "id used by the marker list csysdig view."},
+	{PT_INT64, EPF_NONE, PF_ID, "tracer.id", "tracer ID. This is a unique identifier that is used to match the enter and exit event for this tracer. It can also be used to match different tracers belonging to a transaction."},
+	{PT_UINT32, EPF_NONE, PF_DEC, "tracer.ntags", "number of tags that this tracer has."},
+	{PT_UINT32, EPF_NONE, PF_DEC, "tracer.nargs", "number of arguments that this tracer has."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.tags", "dot-separated list of event tags."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.tag", "one of the app event tags specified by offset. E.g. 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.tag[-1]' returns the last tag."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.args", "comma-separated list of event arguments."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.arg", "one of the app event arguments specified by name or by offset. E.g. 'tracer.tag.mytag' or 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.arg[-1]' returns the last argument."},
+	{PT_RELTIME, EPF_NONE, PF_DEC, "tracer.latency", "delta between an exit tracer event and the correspondent enter event."},
+	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "tracer.latency.quantized", "10-base log of the delta between an exit tracer event and the correspondent enter event."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.latency.human", "delta between an exit tracer event and the correspondent enter event, as a human readable string (e.g. 10.3ms)."},
+	{PT_RELTIME, EPF_TABLE_ONLY, PF_DEC, "tracer.latency.fortag", "Latency of the tracer if the number of tags matches the field argument, otherwise 0. For example, tracer.latency.fortag[1] returns the latency of all the tracers with 1 tag, and zero for all the other ones."},
+	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "tracer.count", "1 for tracer exit events."},
+	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "tracer.count.fortag", "1 if the tracer's number of tags matches the field argument, and zero for all the other ones."},
+	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "tracer.childcount.fortag", "1 if the tracer's number of tags is greater than the field argument, and zero for all the other ones."},
+	{PT_CHARBUF, EPF_TABLE_ONLY, PF_NA, "tracer.idtag", "id used by the tracer list csysdig view."},
 };
 
-sinsp_filter_check_marker::sinsp_filter_check_marker()
+sinsp_filter_check_tracer::sinsp_filter_check_tracer()
 {
-	m_info.m_name = "marker";
-	m_info.m_fields = sinsp_filter_check_marker_fields;
-	m_info.m_nfields = sizeof(sinsp_filter_check_marker_fields) / sizeof(sinsp_filter_check_marker_fields[0]);
+	m_info.m_name = "tracer";
+	m_info.m_fields = sinsp_filter_check_tracer_fields;
+	m_info.m_nfields = sizeof(sinsp_filter_check_tracer_fields) / sizeof(sinsp_filter_check_tracer_fields[0]);
 	m_converter = new sinsp_filter_check_reference();
 
 	m_storage_size = UESTORAGE_INITIAL_BUFSIZE;
 	m_storage = (char*)malloc(m_storage_size);
 	if(m_storage == NULL)
 	{
-		throw sinsp_exception("memory allocation error in sinsp_filter_check_marker::sinsp_filter_check_marker");
+		throw sinsp_exception("memory allocation error in sinsp_filter_check_tracer::sinsp_filter_check_tracer");
 	}
 
 	m_cargname = NULL;
 }
 
-sinsp_filter_check_marker::~sinsp_filter_check_marker()
+sinsp_filter_check_tracer::~sinsp_filter_check_tracer()
 {
 	if(m_converter != NULL)
 	{
@@ -4200,12 +4200,12 @@ sinsp_filter_check_marker::~sinsp_filter_check_marker()
 	}
 }
 
-sinsp_filter_check* sinsp_filter_check_marker::allocate_new()
+sinsp_filter_check* sinsp_filter_check_tracer::allocate_new()
 {
-	return (sinsp_filter_check*) new sinsp_filter_check_marker();
+	return (sinsp_filter_check*) new sinsp_filter_check_tracer();
 }
 
-int32_t sinsp_filter_check_marker::extract_arg(string fldname, string val, OUT const struct ppm_param_info** parinfo)
+int32_t sinsp_filter_check_tracer::extract_arg(string fldname, string val, OUT const struct ppm_param_info** parinfo)
 {
 	uint32_t parsed_len = 0;
 
@@ -4216,7 +4216,7 @@ int32_t sinsp_filter_check_marker::extract_arg(string fldname, string val, OUT c
 	{
 		if(parinfo != NULL)
 		{
-			throw sinsp_exception("marker field must be expressed explicitly");
+			throw sinsp_exception("tracer field must be expressed explicitly");
 		}
 
 		parsed_len = (uint32_t)val.find(']');
@@ -4226,13 +4226,13 @@ int32_t sinsp_filter_check_marker::extract_arg(string fldname, string val, OUT c
 	}
 	else if(val[fldname.size()] == '.')
 	{
-		if(fldname == "marker.tag")
+		if(fldname == "tracer.tag")
 		{
-			throw sinsp_exception("invalid syntax for marker.tag");
+			throw sinsp_exception("invalid syntax for tracer.tag");
 		}
-		else if(fldname == "marker.idtag")
+		else if(fldname == "tracer.idtag")
 		{
-			throw sinsp_exception("invalid syntax for marker.idtag");
+			throw sinsp_exception("invalid syntax for tracer.idtag");
 		}
 
 		m_argname = val.substr(fldname.size() + 1);
@@ -4248,7 +4248,7 @@ int32_t sinsp_filter_check_marker::extract_arg(string fldname, string val, OUT c
 	return parsed_len; 
 }
 
-int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_state)
+int32_t sinsp_filter_check_tracer::parse_field_name(const char* str, bool alloc_state)
 {
 	int32_t res;
 	string val(str);
@@ -4256,49 +4256,49 @@ int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_
 	//
 	// A couple of fields are handled in a custom way
 	//
-	if(string(val, 0, sizeof("marker.tag") - 1) == "marker.tag" &&
-		string(val, 0, sizeof("marker.tags") - 1) != "marker.tags")
+	if(string(val, 0, sizeof("tracer.tag") - 1) == "tracer.tag" &&
+		string(val, 0, sizeof("tracer.tags") - 1) != "tracer.tags")
 	{
 		m_field_id = TYPE_TAG;
 		m_field = &m_info.m_fields[m_field_id];
 
-		res = extract_arg("marker.tag", val, NULL);
+		res = extract_arg("tracer.tag", val, NULL);
 	}
-	else if(string(val, 0, sizeof("marker.arg") - 1) == "marker.arg" &&
-		string(val, 0, sizeof("marker.args") - 1) != "marker.args")
+	else if(string(val, 0, sizeof("tracer.arg") - 1) == "tracer.arg" &&
+		string(val, 0, sizeof("tracer.args") - 1) != "tracer.args")
 	{
 		m_field_id = TYPE_ARG;
 		m_field = &m_info.m_fields[m_field_id];
 
-		res = extract_arg("marker.arg", val, NULL);
+		res = extract_arg("tracer.arg", val, NULL);
 	}
-	else if(string(val, 0, sizeof("marker.latency.fortag") - 1) == "marker.latency.fortag")
+	else if(string(val, 0, sizeof("tracer.latency.fortag") - 1) == "tracer.latency.fortag")
 	{
 		m_field_id = TYPE_TAGLATENCY;
 		m_field = &m_info.m_fields[m_field_id];
 
-		res = extract_arg("marker.latency.fortag", val, NULL);
+		res = extract_arg("tracer.latency.fortag", val, NULL);
 	}
-	else if(string(val, 0, sizeof("marker.count.fortag") - 1) == "marker.count.fortag")
+	else if(string(val, 0, sizeof("tracer.count.fortag") - 1) == "tracer.count.fortag")
 	{
 		m_field_id = TYPE_TAGCOUNT;
 		m_field = &m_info.m_fields[m_field_id];
 
-		res = extract_arg("marker.count.fortag", val, NULL);
+		res = extract_arg("tracer.count.fortag", val, NULL);
 	}
-	else if(string(val, 0, sizeof("marker.childcount.fortag") - 1) == "marker.childcount.fortag")
+	else if(string(val, 0, sizeof("tracer.childcount.fortag") - 1) == "tracer.childcount.fortag")
 	{
 		m_field_id = TYPE_TAGCHILDSCOUNT;
 		m_field = &m_info.m_fields[m_field_id];
 
-		res = extract_arg("marker.childcount.fortag", val, NULL);
+		res = extract_arg("tracer.childcount.fortag", val, NULL);
 	}
-	else if(string(val, 0, sizeof("marker.idtag") - 1) == "marker.idtag")
+	else if(string(val, 0, sizeof("tracer.idtag") - 1) == "tracer.idtag")
 	{
 		m_field_id = TYPE_IDTAG;
 		m_field = &m_info.m_fields[m_field_id];
 
-		res = extract_arg("marker.idtag", val, NULL);
+		res = extract_arg("tracer.idtag", val, NULL);
 	}
 	else
 	{
@@ -4314,17 +4314,17 @@ int32_t sinsp_filter_check_marker::parse_field_name(const char* str, bool alloc_
 		m_field_id == TYPE_IDTAG
 		)
 	{
-		m_inspector->request_marker_state_tracking();
+		m_inspector->request_tracer_state_tracking();
 	}
 
 	return res;
 }
 
-int64_t* sinsp_filter_check_marker::extract_latency(uint16_t etype, sinsp_markerparser* eparser)
+int64_t* sinsp_filter_check_tracer::extract_latency(uint16_t etype, sinsp_tracerparser* eparser)
 {
-	if(etype == PPME_MARKER_X)
+	if(etype == PPME_TRACER_X)
 	{
-		sinsp_partial_marker* pae = eparser->m_enter_pae;
+		sinsp_partial_tracer* pae = eparser->m_enter_pae;
 		if(pae == NULL)
 		{
 			return NULL;
@@ -4345,13 +4345,13 @@ int64_t* sinsp_filter_check_marker::extract_latency(uint16_t etype, sinsp_marker
 	}
 }
 
-uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
+uint8_t* sinsp_filter_check_tracer::extract(sinsp_evt *evt, OUT uint32_t* len)
 {
-	sinsp_markerparser* eparser;
+	sinsp_tracerparser* eparser;
 	sinsp_threadinfo* tinfo = evt->get_thread_info();
 	uint16_t etype = evt->get_type();
 
-	if(etype != PPME_MARKER_E && etype != PPME_MARKER_X)
+	if(etype != PPME_TRACER_E && etype != PPME_TRACER_X)
 	{
 		return NULL;
 	}
@@ -4361,7 +4361,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 		return NULL;
 	}
 
-	eparser = tinfo->m_marker_parser;
+	eparser = tinfo->m_tracer_parser;
 
 	if(eparser == NULL)
 	{
@@ -4377,7 +4377,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 		return (uint8_t*)&m_u32val;
 	case TYPE_NARGS:
 		{
-			sinsp_partial_marker* pae = eparser->m_enter_pae;
+			sinsp_partial_tracer* pae = eparser->m_enter_pae;
 			if(pae == NULL)
 			{
 				return NULL;
@@ -4469,7 +4469,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 		}
 	case TYPE_ARGS:
 		{
-			sinsp_partial_marker* pae;
+			sinsp_partial_tracer* pae;
 			pae = eparser->m_enter_pae;
 
 			if(pae == NULL)
@@ -4522,7 +4522,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 	case TYPE_ARG:
 		{
 			char* res = NULL;
-			sinsp_partial_marker* pae = eparser->m_enter_pae;
+			sinsp_partial_tracer* pae = eparser->m_enter_pae;
 			if(pae == NULL)
 			{
 				return NULL;
@@ -4531,7 +4531,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 			if(m_argid == TEXT_ARG_ID)
 			{
 				//
-				// Argument expressed as name, e.g. marker.arg.name.
+				// Argument expressed as name, e.g. tracer.arg.name.
 				// Scan the argname list and find the match.
 				//
 				uint32_t j;
@@ -4548,7 +4548,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 			else
 			{
 				//
-				// Argument expressed as id, e.g. marker.arg[1].
+				// Argument expressed as id, e.g. tracer.arg[1].
 				// Pick the corresponding value.
 				//
 				if(m_argid >= 0)
@@ -4628,7 +4628,7 @@ uint8_t* sinsp_filter_check_marker::extract(sinsp_evt *evt, OUT uint32_t* len)
 			return NULL;
 		}
 	case TYPE_COUNT:
-		if(evt->get_type() == PPME_MARKER_X)
+		if(evt->get_type() == PPME_TRACER_X)
 		{
 			m_s64val = 1;
 		}

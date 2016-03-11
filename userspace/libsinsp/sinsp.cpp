@@ -96,7 +96,7 @@ sinsp::sinsp() :
 	m_output_time_flag = 'h';
 	m_max_evt_output_len = 0;
 	m_filesize = -1;
-	m_track_markers_state = false;
+	m_track_tracers_state = false;
 	m_import_users = true;
 	m_meta_evt_buf = new char[SP_EVT_BUF_SIZE];
 	m_meta_evt.m_pevt = (scap_evt*) m_meta_evt_buf;
@@ -250,13 +250,13 @@ void sinsp::init()
 	m_n_proc_lookups_duration_ns = 0;
 
 	//
-	// Return the markers to the pool and clear the markers list
+	// Return the tracers to the pool and clear the tracers list
 	//
-	for(auto it = m_partial_markers_list.begin(); it != m_partial_markers_list.end(); ++it)
+	for(auto it = m_partial_tracers_list.begin(); it != m_partial_tracers_list.end(); ++it)
 	{
-		m_partial_markers_pool->push(*it);
+		m_partial_tracers_pool->push(*it);
 	}
-	m_partial_markers_list.clear();
+	m_partial_tracers_list.clear();
 
 	//
 	// If we're reading from file, we try to pre-parse the container events before

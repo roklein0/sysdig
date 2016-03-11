@@ -2444,9 +2444,9 @@ scap_dump_flags sinsp_evt::get_dump_flags(OUT bool* should_drop)
 		}
 	}
 
-	if(m_flags & sinsp_evt::SINSP_EF_IS_MARKER)
+	if(m_flags & sinsp_evt::SINSP_EF_IS_TRACER)
 	{
-		dflags |= SCAP_DF_MARKER;
+		dflags |= SCAP_DF_TRACER;
 	}
 	
 	return (scap_dump_flags)dflags;

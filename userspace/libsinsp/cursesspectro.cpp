@@ -124,7 +124,7 @@ inline void ansi_clearscreen()
 ///////////////////////////////////////////////////////////////////////////////
 // curses_spectro implementation
 ///////////////////////////////////////////////////////////////////////////////
-curses_spectro::curses_spectro(sinsp_cursesui* parent, sinsp* inspector, bool is_marker)
+curses_spectro::curses_spectro(sinsp_cursesui* parent, sinsp* inspector, bool is_tracer)
 {
 	m_tblwin = NULL;
 	m_data = NULL;
@@ -148,7 +148,7 @@ curses_spectro::curses_spectro(sinsp_cursesui* parent, sinsp* inspector, bool is
 	m_prev_sel_y1 = -1;
 	m_prev_sel_y2 = -1;
 	m_scroll_paused = false;
-	m_is_marker = is_marker;
+	m_is_tracer = is_tracer;
 
 	//
 	// Define the table size
@@ -510,9 +510,9 @@ sysdig_table_action curses_spectro::handle_input(int ch)
 							string lat_fld_name;
 
 
-							if(m_is_marker)
+							if(m_is_tracer)
 							{
-								lat_fld_name = "marker.latency";
+								lat_fld_name = "tracer.latency";
 							}
 							else
 							{
@@ -533,7 +533,7 @@ sysdig_table_action curses_spectro::handle_input(int ch)
 
 							ansi_reset_color();
 
-							if(m_is_marker)
+							if(m_is_tracer)
 							{
 								return STA_DRILLDOWN;
 							}

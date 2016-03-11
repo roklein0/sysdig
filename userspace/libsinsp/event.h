@@ -370,7 +370,7 @@ VISIBILITY_PRIVATE
 	{
 		SINSP_EF_NONE = 0,
 		SINSP_EF_PARAMS_LOADED = 1,
-		SINSP_EF_IS_MARKER = (1 << 1),
+		SINSP_EF_IS_TRACER = (1 << 1),
 	};
 
 	sinsp* m_inspector;

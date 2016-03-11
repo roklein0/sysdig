@@ -633,12 +633,12 @@ curses_textbox::curses_textbox(sinsp* inspector, sinsp_cursesui* parent, int32_t
 			if(m_parent->m_print_containers)
 			{
 				m_formatter = new sinsp_evt_formatter(m_inspector, 
-					"*(latency=%marker.latency.human) %evt.num %evt.time %evt.cpu %container.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.info");
+					"*(latency=%tracer.latency.human) %evt.num %evt.time %evt.cpu %container.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.info");
 			}
 			else
 			{
 				m_formatter = new sinsp_evt_formatter(m_inspector, 
-					"*(latency=%marker.latency.human) %evt.num %evt.time %evt.cpu %proc.name %thread.tid %evt.dir %evt.type %evt.info");
+					"*(latency=%tracer.latency.human) %evt.num %evt.time %evt.cpu %proc.name %thread.tid %evt.dir %evt.type %evt.info");
 			}
 		}
 		else

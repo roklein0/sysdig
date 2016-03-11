@@ -437,13 +437,13 @@ public:
 		TYPE_BUFLEN_NET = 57,
 		TYPE_BUFLEN_NET_IN = 58,
 		TYPE_BUFLEN_NET_OUT = 59,
-		TYPE_MARKER_ID = 60,
-		TYPE_MARKER_NTAGS = 61,
-		TYPE_MARKER_NARGS = 62,
-		TYPE_MARKER_TAGS = 63,
-		TYPE_MARKER_TAG = 64,
-		TYPE_MARKER_ARGS = 65,
-		TYPE_MARKER_ARG = 66,
+		TYPE_TRACER_ID = 60,
+		TYPE_TRACER_NTAGS = 61,
+		TYPE_TRACER_NARGS = 62,
+		TYPE_TRACER_TAGS = 63,
+		TYPE_TRACER_TAG = 64,
+		TYPE_TRACER_ARGS = 65,
+		TYPE_TRACER_ARG = 66,
 	};
 
 	sinsp_filter_check_event();
@@ -480,7 +480,7 @@ private:
 	void ts_to_string(uint64_t ts, OUT string* res, bool full, bool ns);
 	uint8_t *extract_abspath(sinsp_evt *evt, OUT uint32_t *len);
 	inline uint8_t* extract_buflen(sinsp_evt *evt);
-	inline bool compare_marker(sinsp_evt *evt, sinsp_partial_marker* pae);
+	inline bool compare_tracer(sinsp_evt *evt, sinsp_partial_tracer* pae);
 
 	bool m_is_compare;
 	char* m_storage;
@@ -536,7 +536,7 @@ public:
 //
 #define TEXT_ARG_ID -1000000
 
-class sinsp_filter_check_marker : public sinsp_filter_check
+class sinsp_filter_check_tracer : public sinsp_filter_check
 {
 public:
 	enum check_type
@@ -558,15 +558,15 @@ public:
 		TYPE_IDTAG,
 	};
 
-	sinsp_filter_check_marker();
-	~sinsp_filter_check_marker();
+	sinsp_filter_check_tracer();
+	~sinsp_filter_check_tracer();
 	sinsp_filter_check* allocate_new();
 	int32_t parse_field_name(const char* str, bool alloc_state);
 	uint8_t* extract(sinsp_evt *evt, OUT uint32_t* len);
 
 private:
 	int32_t extract_arg(string fldname, string val, OUT const struct ppm_param_info** parinfo);
-	inline int64_t* extract_latency(uint16_t etype, sinsp_markerparser* eparser);
+	inline int64_t* extract_latency(uint16_t etype, sinsp_tracerparser* eparser);
 
 	int32_t m_argid;
 	string m_argname;

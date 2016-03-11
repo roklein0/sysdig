@@ -278,15 +278,15 @@ lo("2, %d %s\n", spos, ss.c_str());
 void curses_table::print_wait()
 {
 	string wstr;
-	bool is_marker_view = false;
+	bool is_tracer_view = false;
 
 	sinsp_view_info* vinfo = m_parent->get_selected_view();
 	if(vinfo)
 	{
-		if(vinfo->m_id == "markers" ||
-			vinfo->m_id == "marker_ids")
+		if(vinfo->m_id == "tracers" ||
+			vinfo->m_id == "tracer_ids")
 		{
-			is_marker_view = true;
+			is_tracer_view = true;
 		}
 	}
 	else
@@ -294,10 +294,10 @@ void curses_table::print_wait()
 		ASSERT(false);
 	}
 
-	if(is_marker_view)
+	if(is_tracer_view)
 	{
 		print_line_centered("No data for this view.");
-		print_line_centered("Note: in order to see any data here, you need to push markers to sysdig from your app as described here: XXX.", 2);
+		print_line_centered("Note: in order to see any data here, you need to push tracers to sysdig from your app as described here: XXX.", 2);
 	}
 	else
 	{

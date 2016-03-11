@@ -108,7 +108,7 @@ class sinsp_filter;
 class cycle_writer;
 class sinsp_protodecoder;
 class k8s;
-class sinsp_partial_marker;
+class sinsp_partial_tracer;
 
 vector<string> sinsp_split(const string &s, char delim);
 
@@ -677,9 +677,9 @@ public:
 	// Used by filters to enable app event state tracking, which is disabled
 	// by default for performance reasons
 	//
-	void request_marker_state_tracking()
+	void request_tracer_state_tracking()
 	{
-		m_track_markers_state = true;
+		m_track_tracers_state = true;
 	}
 
 	//
@@ -884,9 +884,9 @@ private:
 	//
 	// App events 
 	//
-	bool m_track_markers_state;
-	list<sinsp_partial_marker*> m_partial_markers_list;
-	simple_lifo_queue<sinsp_partial_marker>* m_partial_markers_pool;
+	bool m_track_tracers_state;
+	list<sinsp_partial_tracer*> m_partial_tracers_list;
+	simple_lifo_queue<sinsp_partial_tracer>* m_partial_tracers_pool;
 
 	//
 	// Protocol decoding state
@@ -927,7 +927,7 @@ private:
 	friend class sinsp_dumper;
 	friend class sinsp_analyzer_fd_listener;
 	friend class sinsp_chisel;
-	friend class sinsp_markerparser;
+	friend class sinsp_tracerparser;
 	friend class sinsp_filter_check_event;
 	friend class sinsp_protodecoder;
 	friend class lua_cbacks;
