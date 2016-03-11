@@ -2065,13 +2065,13 @@ const filtercheck_field_info sinsp_filter_check_event_fields[] =
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "evt.buflen.net.in", "the length of the binary data buffer, but only for input network I/O events."},
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "evt.buflen.net.out", "the length of the binary data buffer, but only for output network I/O events."},
 	// Tracer related fields. These can be used only as filter fields, not as display fields
-	{PT_INT64, EPF_FILTER_ONLY, PF_ID, "evt.tracer.id", "event ID."},
-	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evt.tracer.ntags", "Number of tags that this tracer has."},
-	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evt.tracer.nargs", "Number of arguments that this tracer has."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.tracer.tags", "comma-separated list of event tags."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.tracer.tag", "one of the app event tags specified by offset. E.g. 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.tag[-1]' returns the last tag."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.tracer.args", "comma-separated list of event arguments."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evt.tracer.arg", "one of the app event arguments specified by name or by offset. E.g. 'tracer.tag.mytag' or 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.arg[-1]' returns the last argument."},
+	{PT_INT64, EPF_FILTER_ONLY, PF_ID, "evtin.tracer.id", "event ID."},
+	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evtin.tracer.ntags", "Number of tags that this tracer has."},
+	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evtin.tracer.nargs", "Number of arguments that this tracer has."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.tags", "comma-separated list of event tags."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.tag", "one of the app event tags specified by offset. E.g. 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.tag[-1]' returns the last tag."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.args", "comma-separated list of event arguments."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.arg", "one of the app event arguments specified by name or by offset. E.g. 'tracer.tag.mytag' or 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.arg[-1]' returns the last argument."},
 };
 
 sinsp_filter_check_event::sinsp_filter_check_event()
@@ -3841,7 +3841,7 @@ inline bool sinsp_filter_check_event::compare_tracer(sinsp_evt *evt, sinsp_parti
 		if(m_argid == TEXT_ARG_ID)
 		{
 			//
-			// Argument expressed as name, e.g. evt.tracer.arg.name.
+			// Argument expressed as name, e.g. evtin.tracer.arg.name.
 			// Scan the argname list and find the match.
 			//
 			uint32_t j;
@@ -3858,7 +3858,7 @@ inline bool sinsp_filter_check_event::compare_tracer(sinsp_evt *evt, sinsp_parti
 		else
 		{
 			//
-			// Argument expressed as id, e.g. evt.tracer.arg[1].
+			// Argument expressed as id, e.g. evtin.tracer.arg[1].
 			// Pick the corresponding value.
 			//
 			if(m_argid >= 0)
