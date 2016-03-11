@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -- Chisel description
 description = "Flame graph generator";
-short_description = "Sysdig marker flame graph builder";
+short_description = "Sysdig tracer flame graph builder";
 category = "Performance";
 
 -- Chisel argument list
@@ -29,7 +29,7 @@ json = require ("dkjson")
 
 local CAPTURE_LOGS = true
 
-local markers = {}
+local tracers = {}
 local fid
 local flatency
 local fcontname
@@ -54,13 +54,13 @@ end
 function on_init()
 	-- Request the fields needed for this chisel
 	for j = 0, MAX_DEPTH do
-		local fname = "marker.tag[" .. j .. "]"
+		local fname = "tracer.tag[" .. j .. "]"
 		local minfo = chisel.request_field(fname)
-		markers[j] = minfo
+		tracers[j] = minfo
 	end
 	
-	fid = chisel.request_field("marker.id")
-	flatency = chisel.request_field("marker.latency")
+	fid = chisel.request_field("tracer.id")
+	flatency = chisel.request_field("tracer.latency")
 	fcontname = chisel.request_field("container.name")
 	fexe = chisel.request_field("proc.exeline")
 	fbuf = chisel.request_field("evt.buffer")
@@ -70,9 +70,9 @@ function on_init()
 
 	-- set the filter
 	if CAPTURE_LOGS then
-		chisel.set_filter("(evt.type=marker) or (evt.is_io_write=true and evt.dir=< and (fd.num=1 or fd.num=2 or fd.name contains log))")
+		chisel.set_filter("(evt.type=tracer) or (evt.is_io_write=true and evt.dir=< and (fd.num=1 or fd.num=2 or fd.name contains log))")
 	else
-		chisel.set_filter("evt.type=marker and evt.dir=<")
+		chisel.set_filter("evt.type=tracer and evt.dir=<")
 	end
 
 	return true
@@ -108,8 +108,8 @@ function collect_log(tid_tree)
 	end
 end
 
--- Parse a marker enter event and update the logs_tree table
-function parse_marker_enter(logtable_cur, hr)
+-- Parse a tracer enter event and update the logs_tree table
+function parse_tracer_enter(logtable_cur, hr)
 	for j = 1, #hr do
 		local mv = hr[j]
 		
@@ -129,8 +129,8 @@ function parse_marker_enter(logtable_cur, hr)
 	end
 end
 
--- Parse a marker exit event and update the given transaction entry
-function parse_marker_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id)
+-- Parse a tracer exit event and update the given transaction entry
+function parse_tracer_exit(mrk_cur, logtable_cur, hr, latency, contname, exe, id)
 	local res = false
 	local parent_has_logs = false;
 
@@ -224,7 +224,7 @@ end
 function on_event()
 	local etype = evt.get_type()
 
-	if etype ~= "marker" then
+	if etype ~= "tracer" then
 		local tid = evt.field(ftid)
 
 		if logs_tree[tid] == nil then
@@ -246,7 +246,7 @@ function on_event()
 	local tid = evt.field(ftid)
 
 	for j = 0, MAX_DEPTH do
-		hr[j + 1] = evt.field(markers[j])
+		hr[j + 1] = evt.field(tracers[j])
 	end
 
 	if dir == ">" then
@@ -261,7 +261,7 @@ function on_event()
 			idt = logs_tree[tid][id]			
 		end
 
-		parse_marker_enter(idt, hr)
+		parse_tracer_enter(idt, hr)
 		return true
 	else
 		if latency == nil then
@@ -285,7 +285,7 @@ function on_event()
 			end
 		end
 
-	if parse_marker_exit(full_tree[id], logs, hr, latency, contname, exe, id) then
+	if parse_tracer_exit(full_tree[id], logs, hr, latency, contname, exe, id) then
 --print(st(logs_tree))
 --print("------------ " .. evt.get_num())
 --print(st(full_tree))
@@ -447,7 +447,7 @@ function on_capture_end()
 		calculate_t_in_node(v)
 	end
 
-	-- normalize each root marker tree
+	-- normalize each root tracer tree
 	for i,v in pairs(avg_tree) do
 		normalize(v, v.n)
 	end
