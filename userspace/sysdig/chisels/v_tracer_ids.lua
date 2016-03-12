@@ -62,8 +62,8 @@ view_info =
 		},
 		{
 			name = "ARGS",
-			field = "tracer.args",
-			description = "tracer arguments.",
+			field = "tracer.enterargs",
+			description = "tracer enter arguments.",
 			colsize = 256,
 			aggregation = "SUM"
 		},
