@@ -2069,9 +2069,9 @@ const filtercheck_field_info sinsp_filter_check_event_fields[] =
 	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evtin.tracer.ntags", "Number of tags that this tracer has."},
 	{PT_UINT32, EPF_FILTER_ONLY, PF_DEC, "evtin.tracer.nargs", "Number of arguments that this tracer has."},
 	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.tags", "comma-separated list of event tags."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.tag", "one of the app event tags specified by offset. E.g. 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.tag[-1]' returns the last tag."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.tag", "one of the tracer tags specified by offset. E.g. 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.tag[-1]' returns the last tag."},
 	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.args", "comma-separated list of event arguments."},
-	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.arg", "one of the app event arguments specified by name or by offset. E.g. 'tracer.tag.mytag' or 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.arg[-1]' returns the last argument."},
+	{PT_CHARBUF, EPF_FILTER_ONLY, PF_NA, "evtin.tracer.arg", "one of the tracer arguments specified by name or by offset. E.g. 'tracer.tag.mytag' or 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.arg[-1]' returns the last argument."},
 };
 
 sinsp_filter_check_event::sinsp_filter_check_event()
@@ -4162,9 +4162,11 @@ const filtercheck_field_info sinsp_filter_check_tracer_fields[] =
 	{PT_UINT32, EPF_NONE, PF_DEC, "tracer.ntags", "number of tags that this tracer has."},
 	{PT_UINT32, EPF_NONE, PF_DEC, "tracer.nargs", "number of arguments that this tracer has."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.tags", "dot-separated list of event tags."},
-	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.tag", "one of the app event tags specified by offset. E.g. 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.tag[-1]' returns the last tag."},
-	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.args", "comma-separated list of event arguments."},
-	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.arg", "one of the app event arguments specified by name or by offset. E.g. 'tracer.tag.mytag' or 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.arg[-1]' returns the last argument."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.tag", "one of the tracer tags specified by offset. E.g. 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.tag[-1]' returns the last tag."},
+	{ PT_CHARBUF, EPF_NONE, PF_NA, "tracer.args", "comma-separated list of event arguments." },
+	{ PT_CHARBUF, EPF_NONE, PF_NA, "tracer.arg", "one of the tracer arguments specified by name or by offset. E.g. 'tracer.tag.mytag' or 'tracer.tag[1]'. You can use a negative offset to pick elements from the end of the tag list. For example, 'tracer.arg[-1]' returns the last argument." },
+	{ PT_CHARBUF, EPF_NONE, PF_NA, "tracer.enterargs", "comma-separated list of the tracer enter event arguments. For enter events, this is the same as evt.args. For exit events, this is the evt.args of the corresponding enter event." },
+	{ PT_CHARBUF, EPF_NONE, PF_NA, "tracer.enterarg", "one of the tracer enter arguments specified by name or by offset. For enter events, this is the same as evt.arg. For exit events, this is the evt.arg of the corresponding enter event." },
 	{PT_RELTIME, EPF_NONE, PF_DEC, "tracer.latency", "delta between an exit tracer event and the correspondent enter event."},
 	{PT_UINT64, EPF_TABLE_ONLY, PF_DEC, "tracer.latency.quantized", "10-base log of the delta between an exit tracer event and the correspondent enter event."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "tracer.latency.human", "delta between an exit tracer event and the correspondent enter event, as a human readable string (e.g. 10.3ms)."},
@@ -4264,13 +4266,21 @@ int32_t sinsp_filter_check_tracer::parse_field_name(const char* str, bool alloc_
 
 		res = extract_arg("tracer.tag", val, NULL);
 	}
-	else if(string(val, 0, sizeof("tracer.arg") - 1) == "tracer.arg" &&
+	else if (string(val, 0, sizeof("tracer.arg") - 1) == "tracer.arg" &&
 		string(val, 0, sizeof("tracer.args") - 1) != "tracer.args")
 	{
 		m_field_id = TYPE_ARG;
 		m_field = &m_info.m_fields[m_field_id];
 
 		res = extract_arg("tracer.arg", val, NULL);
+	}
+	else if (string(val, 0, sizeof("tracer.enterarg") - 1) == "tracer.enterarg" &&
+		string(val, 0, sizeof("tracer.enterargs") - 1) != "tracer.enterargs")
+	{
+		m_field_id = TYPE_ENTERARG;
+		m_field = &m_info.m_fields[m_field_id];
+
+		res = extract_arg("tracer.enterarg", val, NULL);
 	}
 	else if(string(val, 0, sizeof("tracer.latency.fortag") - 1) == "tracer.latency.fortag")
 	{
@@ -4311,6 +4321,8 @@ int32_t sinsp_filter_check_tracer::parse_field_name(const char* str, bool alloc_
 		m_field_id == TYPE_TAGLATENCY ||
 		m_field_id == TYPE_ARG ||
 		m_field_id == TYPE_ARGS ||
+		m_field_id == TYPE_ENTERARG ||
+		m_field_id == TYPE_ENTERARGS ||
 		m_field_id == TYPE_IDTAG
 		)
 	{
@@ -4343,6 +4355,109 @@ int64_t* sinsp_filter_check_tracer::extract_latency(uint16_t etype, sinsp_tracer
 	{
 		return NULL;
 	}
+}
+
+uint8_t* sinsp_filter_check_tracer::extract_args(sinsp_partial_tracer* pae)
+{
+	if(pae == NULL)
+	{
+		return NULL;
+	}
+
+	vector<char*>::iterator nameit;
+	vector<char*>::iterator valit;
+	vector<uint32_t>::iterator namesit;
+	vector<uint32_t>::iterator valsit;
+
+	uint32_t nargs = (uint32_t)pae->m_argnames.size();
+	uint32_t encoded_args_len = pae->m_argnames_len + pae->m_argvals_len +
+	nargs + nargs + 2;
+
+	if (m_storage_size < encoded_args_len)
+	{
+		m_storage = (char*)realloc(m_storage, encoded_args_len);
+		m_storage_size = encoded_args_len;
+	}
+
+	char* p = m_storage;
+
+	for (nameit = pae->m_argnames.begin(), valit = pae->m_argvals.begin(),
+		namesit = pae->m_argnamelens.begin(), valsit = pae->m_argvallens.begin();
+		nameit != pae->m_argnames.end();
+		++nameit, ++namesit, ++valit, ++valsit)
+	{
+		strcpy(p, *nameit);
+		p += (*namesit);
+		*p++ = '=';
+
+		memcpy(p, *valit, (*valsit));
+		p += (*valsit);
+		*p++ = ',';
+	}
+
+	if (p != m_storage)
+	{
+		*--p = 0;
+	}
+	else
+	{
+		*p = 0;
+	}
+
+	return (uint8_t*)m_storage;
+}
+
+uint8_t* sinsp_filter_check_tracer::extract_arg(sinsp_partial_tracer* pae)
+{
+	char* res = NULL;
+
+	if (pae == NULL)
+	{
+		return NULL;
+	}
+
+	if (m_argid == TEXT_ARG_ID)
+	{
+		//
+		// Argument expressed as name, e.g. tracer.arg.name.
+		// Scan the argname list and find the match.
+		//
+		uint32_t j;
+
+		for (j = 0; j < pae->m_nargs; j++)
+		{
+			if (strcmp(m_cargname, pae->m_argnames[j]) == 0)
+			{
+				res = pae->m_argvals[j];
+				break;
+			}
+		}
+	}
+	else
+	{
+		//
+		// Argument expressed as id, e.g. tracer.arg[1].
+		// Pick the corresponding value.
+		//
+		if (m_argid >= 0)
+		{
+			if (m_argid < (int32_t)pae->m_nargs)
+			{
+				res = pae->m_argvals[m_argid];
+			}
+		}
+		else
+		{
+			int32_t id = (int32_t)pae->m_nargs + m_argid;
+
+			if (id >= 0)
+			{
+				res = pae->m_argvals[id];
+			}
+		}
+	}
+
+	return (uint8_t*)res;
 }
 
 uint8_t* sinsp_filter_check_tracer::extract(sinsp_evt *evt, OUT uint32_t* len)
@@ -4468,109 +4583,9 @@ uint8_t* sinsp_filter_check_tracer::extract(sinsp_evt *evt, OUT uint32_t* len)
 			return (uint8_t*)m_strstorage.c_str();
 		}
 	case TYPE_ARGS:
-		{
-			sinsp_partial_tracer* pae;
-			pae = eparser->m_enter_pae;
-
-			if(pae == NULL)
-			{
-				return NULL;
-			}
-
-			vector<char*>::iterator nameit;
-			vector<char*>::iterator valit;
-			vector<uint32_t>::iterator namesit;
-			vector<uint32_t>::iterator valsit;
-
-			uint32_t nargs = (uint32_t)pae->m_argnames.size();
-			uint32_t encoded_args_len = pae->m_argnames_len + pae->m_argvals_len +
-				nargs + nargs + 2;
-
-			if(m_storage_size < encoded_args_len)
-			{
-				m_storage = (char*)realloc(m_storage, encoded_args_len);
-				m_storage_size = encoded_args_len;
-			}
-
-			char* p = m_storage;
-
-			for(nameit = pae->m_argnames.begin(), valit = pae->m_argvals.begin(), 
-				namesit = pae->m_argnamelens.begin(), valsit = pae->m_argvallens.begin(); 
-				nameit != pae->m_argnames.end(); 
-				++nameit, ++namesit, ++valit, ++valsit)
-			{
-				strcpy(p, *nameit);
-				p += (*namesit);
-				*p++ = '=';
-
-				memcpy(p, *valit, (*valsit));
-				p += (*valsit);
-				*p++ = ',';
-			}
-
-			if(p != m_storage)
-			{
-				*--p = 0;
-			}
-			else
-			{
-				*p = 0;
-			}
-
-			return (uint8_t*)m_storage;
-		}
+		return extract_args(eparser->m_enter_pae);
 	case TYPE_ARG:
-		{
-			char* res = NULL;
-			sinsp_partial_tracer* pae = eparser->m_enter_pae;
-			if(pae == NULL)
-			{
-				return NULL;
-			}
-
-			if(m_argid == TEXT_ARG_ID)
-			{
-				//
-				// Argument expressed as name, e.g. tracer.arg.name.
-				// Scan the argname list and find the match.
-				//
-				uint32_t j;
-
-				for(j = 0; j < pae->m_nargs; j++)
-				{
-					if(strcmp(m_cargname, pae->m_argnames[j]) == 0)
-					{
-						res = pae->m_argvals[j];
-						break;
-					}
-				}
-			}
-			else
-			{
-				//
-				// Argument expressed as id, e.g. tracer.arg[1].
-				// Pick the corresponding value.
-				//
-				if(m_argid >= 0)
-				{
-					if(m_argid < (int32_t)pae->m_nargs)
-					{
-						res = pae->m_argvals[m_argid];
-					}
-				}
-				else
-				{
-					int32_t id = (int32_t)pae->m_nargs + m_argid;
-
-					if(id >= 0)
-					{
-						res = pae->m_argvals[id];
-					}
-				}
-			}
-
-			return (uint8_t*)res;
-		}
+		return extract_arg(eparser->m_enter_pae);
 	case TYPE_LATENCY:
 		return (uint8_t*)extract_latency(etype, eparser);
 	case TYPE_LATENCY_HUMAN:

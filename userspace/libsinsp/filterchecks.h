@@ -548,6 +548,8 @@ public:
 		TYPE_TAG,
 		TYPE_ARGS,
 		TYPE_ARG,
+		TYPE_ENTERARGS,
+		TYPE_ENTERARG,
 		TYPE_LATENCY,
 		TYPE_LATENCY_QUANTIZED,
 		TYPE_LATENCY_HUMAN,
@@ -567,6 +569,8 @@ public:
 private:
 	int32_t extract_arg(string fldname, string val, OUT const struct ppm_param_info** parinfo);
 	inline int64_t* extract_latency(uint16_t etype, sinsp_tracerparser* eparser);
+	uint8_t* extract_args(sinsp_partial_tracer* pae);
+	uint8_t* extract_arg(sinsp_partial_tracer* pae);
 
 	int32_t m_argid;
 	string m_argname;
