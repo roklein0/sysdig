@@ -4639,7 +4639,6 @@ uint8_t* sinsp_filter_check_tracer::extract(sinsp_evt *evt, OUT uint32_t* len)
 
 		return (uint8_t*)&m_s64val;
 	case TYPE_TAGCOUNT:
-lo("*%d %d", (int)eparser->m_tags.size(), m_argid + 1);
 		if(PPME_IS_EXIT(evt->get_type()) && (int32_t)eparser->m_tags.size() - 1 == m_argid)
 		{
 			m_s64val = 1;
@@ -4651,7 +4650,6 @@ lo("*%d %d", (int)eparser->m_tags.size(), m_argid + 1);
 
 		return (uint8_t*)&m_s64val;
 	case TYPE_TAGCHILDSCOUNT:
-lo("#%d %d", (int)eparser->m_tags.size(), m_argid + 1);
 		if(PPME_IS_EXIT(evt->get_type()) && (int32_t)eparser->m_tags.size() > m_argid + 1)
 		{
 			m_s64val = 1;
