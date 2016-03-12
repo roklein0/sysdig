@@ -4583,8 +4583,26 @@ uint8_t* sinsp_filter_check_tracer::extract(sinsp_evt *evt, OUT uint32_t* len)
 			return (uint8_t*)m_strstorage.c_str();
 		}
 	case TYPE_ARGS:
-		return extract_args(eparser->m_enter_pae);
+		if (PPME_IS_ENTER(etype))
+		{
+			return extract_args(eparser->m_enter_pae);
+		}
+		else
+		{
+			return extract_args(&eparser->m_exit_pae);
+		}
 	case TYPE_ARG:
+		if (PPME_IS_ENTER(etype))
+		{
+			return extract_arg(eparser->m_enter_pae);
+		}
+		else
+		{
+			return extract_arg(&eparser->m_exit_pae);
+		}
+	case TYPE_ENTERARGS:
+		return extract_args(eparser->m_enter_pae);
+	case TYPE_ENTERARG:
 		return extract_arg(eparser->m_enter_pae);
 	case TYPE_LATENCY:
 		return (uint8_t*)extract_latency(etype, eparser);
