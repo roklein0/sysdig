@@ -46,7 +46,7 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 #include "cursestable.h"
 #include "cursesui.h"
 
-#define MOUSE_CAPABLE_TERM "xterm-1002"
+#define MOUSE_CAPABLE_TERM "xterm-1003"
 
 static bool g_terminate = false;
 static void usage();
@@ -80,18 +80,20 @@ static void usage()
 "                    increase sysdig's startup time. Moreover, they contain\n"
 "                    information that could be privacy sensitive.\n"
 " -h, --help         Print this page\n"
-" -k, --k8s-api      Enable Kubernetes support by connecting to the API server\n"
+" -k <url>, --k8s-api=<url>\n"
+"                    Enable Kubernetes support by connecting to the API server\n"
 "                    specified as argument. E.g. \"http://admin:password@127.0.0.1:8080\".\n"
 "                    The API server can also be specified via the environment variable\n"
 "                    SYSDIG_K8S_API.\n"
-" -K <cert_file>:<key_file[#password]>[:<ca_cert_file>], --k8s-api-cert=<cert_file>:<key_file[#password]>[:<ca_cert_file>]\n"
+" -K <bt_file> | <cert_file>:<key_file[#password]>[:<ca_cert_file>], --k8s-api-cert=<bt_file> | <cert_file>:<key_file[#password]>[:<ca_cert_file>]\n"
 "                    Use the provided files names to authenticate user and (optionally) verify the K8S API\n"
 "                    server identity.\n"
 "                    Each entry must specify full (absolute, or relative to the current directory) path\n"
 "                    to the respective file.\n"
 "                    Private key password is optional (needed only if key is password protected).\n"
-"                    CA certificate is optional; specifying CA certificate only is deprecated.\n"
-"                    For all files, only PEM file format is supported.\n"
+"                    CA certificate is optional. For all files, only PEM file format is supported. \n"
+"                    Specifying CA certificate only is obsoleted - when single entry is provided \n"
+"                    for this option, it will be interpreted as the name of a file containing bearer token.\n"
 "                    Note that the format of this command-line option prohibits use of files whose names contain\n"
 "                    ':' or '#' characters in the file name.\n"
 "                    Option can also be provided via the environment variable SYSDIG_K8S_API_CERT.\n"
@@ -126,7 +128,7 @@ static void usage()
 "1. you can either see real time data, or analyze a trace file by using the -r\n"
 "   command line flag.\n"
 "2. you can switch to a different view by using the F2 key.\n"
-"3. You can to drill down into a selection by typing enter.\n"
+"3. You can drill down into a selection by typing enter.\n"
 "   You can navigate back by typing backspace.\n"
 "4. you can observe reads and writes (F5) or see sysdig events (F6) for any\n"
 "   selection.\n"
@@ -440,7 +442,7 @@ sysdig_init_res csysdig_init(int argc, char **argv)
 			//
 			// Check if xterm-1002 is available
 			//
-			xt1002_available =(tgetent(NULL, MOUSE_CAPABLE_TERM) != 0);
+			xt1002_available = (tgetent(NULL, MOUSE_CAPABLE_TERM) != 0);
 
 			if(xt1002_available)
 			{
@@ -533,8 +535,6 @@ sysdig_init_res csysdig_init(int argc, char **argv)
 			//
 			// Launch the capture
 			//
-			bool open_success = true;
-
 			if(infiles.size() != 0)
 			{
 				//
@@ -553,6 +553,8 @@ sysdig_init_res csysdig_init(int argc, char **argv)
 				// No file to open, this is a live capture
 				//
 #if defined(HAS_CAPTURE)
+				bool open_success = true;
+				
 				try
 				{
 					inspector->open("");

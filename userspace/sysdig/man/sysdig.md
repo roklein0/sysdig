@@ -144,8 +144,8 @@ OPTIONS
 **-k**, **--k8s-api**
   Enable Kubernetes support by connecting to the API server specified as argument. E.g. "http://admin:password@127.0.0.1:8080". The API server can also be specified via the environment variable SYSDIG_K8S_API.
 
-**-K** _certfile:keyfile[#password][:cacertfile]_, **--k8s-api-cert=**_certfile:keyfile[#password][:cacertfile]_
-  Use the provided files names to authenticate user and (optionally) verify the K8S API server identity. Each entry must specify full (absolute, or relative to the current directory) path to the respective file. Private key password is optional (needed only if key is password protected). CA certificate is optional; specifying CA certificate only is deprecated. For all files, only PEM file format is supported. Note that the format of this command-line option prohibits use of files whose names contain ':' or '#' characters in the file name. Option can also be provided via the environment variable SYSDIG_K8S_API_CERT.
+**-K** _btfile | certfile:keyfile[#password][:cacertfile]_, **--k8s-api-cert=**_btfile | certfile:keyfile[#password][:cacertfile]_
+  Use the provided files names to authenticate user and (optionally) verify the K8S API server identity. Each entry must specify full (absolute, or relative to the current directory) path to the respective file. Private key password is optional (needed only if key is password protected). CA certificate is optional. For all files, only PEM file format is supported. Specifying CA certificate only is obsoleted - when single entry is provided for this option, it will be interpreted as the name of a file containing bearer token. Note that the format of this command-line option prohibits use of files whose names contain ':' or '#' characters in the file name. Option can also be provided via the environment variable SYSDIG_K8S_API_CERT.
 
 **-L**, **--list-events**
   List the events that the engine supports
@@ -181,7 +181,7 @@ OPTIONS
   Capture the first _len_ bytes of each I/O buffer. By default, the first 80 bytes are captured. Use this option with caution, it can generate huge trace files.
 
 **-t** _timetype_, **--timetype**=_timetype_  
-  Change the way event time is displayed. Accepted values are **h** for human-readable string, **a** for absolute timestamp from epoch, **r** for relative time from the beginning of the capture, **d** for delta between event enter and exit, and **D** for delta from the previous event.
+  Change the way event time is displayed. Accepted values are **h** for human-readable string, **a** for absolute timestamp from epoch, **r** for relative time from the first displayed event, **d** for delta between event enter and exit, and **D** for delta from the previous event.
      
 **--unbuffered**  
   Turn off output buffering. This causes every single line emitted by sysdig to be flushed, which generates higher CPU usage but is useful when piping sysdig's output into another process or into a script. 

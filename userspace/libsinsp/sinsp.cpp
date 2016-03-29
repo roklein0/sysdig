@@ -96,6 +96,7 @@ sinsp::sinsp() :
 	m_output_time_flag = 'h';
 	m_max_evt_output_len = 0;
 	m_filesize = -1;
+	m_track_tracers_state = false;
 	m_import_users = true;
 	m_meta_evt_buf = new char[SP_EVT_BUF_SIZE];
 	m_meta_evt.m_pevt = (scap_evt*) m_meta_evt_buf;
@@ -247,6 +248,15 @@ void sinsp::init()
 	m_fds_to_remove->clear();
 	m_n_proc_lookups = 0;
 	m_n_proc_lookups_duration_ns = 0;
+
+	//
+	// Return the tracers to the pool and clear the tracers list
+	//
+	for(auto it = m_partial_tracers_list.begin(); it != m_partial_tracers_list.end(); ++it)
+	{
+		m_partial_tracers_pool->push(*it);
+	}
+	m_partial_tracers_list.clear();
 
 	//
 	// If we're reading from file, we try to pre-parse the container events before
@@ -652,7 +662,7 @@ void sinsp::import_thread_table()
 
 void sinsp::import_ifaddr_list()
 {
-	m_network_interfaces = new sinsp_network_interfaces;
+	m_network_interfaces = new sinsp_network_interfaces(this);
 	m_network_interfaces->import_interfaces(scap_get_ifaddr_list(m_h));
 }
 
@@ -1030,7 +1040,9 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 			}
 		}
 
-		res = scap_dump(m_h, m_dumper, evt->m_pevt, evt->m_cpuid, dflags);
+		scap_evt* pdevt = (evt->m_poriginal_evt)? evt->m_poriginal_evt : evt->m_pevt;
+
+		res = scap_dump(m_h, m_dumper, pdevt, evt->m_cpuid, dflags);
 
 		if(SCAP_SUCCESS != res)
 		{
@@ -1542,7 +1554,10 @@ void sinsp::init_k8s_client(string* api_server, string* ssl_cert)
 
 	if(m_k8s_client == NULL)
 	{
+#ifdef HAS_CAPTURE
 		std::shared_ptr<sinsp_curl::ssl> k8s_ssl;
+		std::shared_ptr<sinsp_curl::bearer_token> k8s_bt;
+
 		if(ssl_cert)
 		{
 			std::string cert;
@@ -1550,11 +1565,11 @@ void sinsp::init_k8s_client(string* api_server, string* ssl_cert)
 			std::string key_pwd;
 			std::string ca_cert;
 
-			// -K <cert_file>:<key_file[#password]>[:<ca_cert_file>]
+			// -K <bt_file> | <cert_file>:<key_file[#password]>[:<ca_cert_file>]
 			std::string::size_type pos = ssl_cert->find(':');
-			if(pos == std::string::npos) // deprecated, ca_cert only
+			if(pos == std::string::npos) // ca_cert only obsoleted, single entry is bearer token
 			{
-				ca_cert = *ssl_cert;
+				k8s_bt = std::make_shared<sinsp_curl::bearer_token>(*ssl_cert);
 				ssl_cert->clear();
 			}
 			else
@@ -1599,22 +1614,24 @@ void sinsp::init_k8s_client(string* api_server, string* ssl_cert)
 			k8s_ssl = std::make_shared<sinsp_curl::ssl>(cert, key, key_pwd,
 						ca_cert, ca_cert.empty() ? false : true, "PEM");
 		}
-
+#endif // HAS_CAPTURE
 		g_logger.log("Fetching initial k8s state", sinsp_logger::SEV_INFO);
 		bool is_live = !m_k8s_api_server->empty();
 		m_k8s_client = new k8s(*m_k8s_api_server,
 			is_live ? true : false, // watch
 			false, // don't run watch in thread
 			is_live ? true : false, // capture
-			"/api/v1",
-			k8s_ssl
+			"/api/v1"
+#ifdef HAS_CAPTURE
+			,k8s_ssl
+			,k8s_bt
+#endif // HAS_CAPTURE
 		);
 	}
 
 	return;
-
 ssl_err:
-	throw sinsp_exception("Invalid K8S SSL entry: " + *ssl_cert);
+	throw sinsp_exception(string("Invalid K8S SSL entry: ") + (ssl_cert ? *ssl_cert : string("NULL")));
 }
 
 void sinsp::update_kubernetes_state()

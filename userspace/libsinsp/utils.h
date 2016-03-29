@@ -19,6 +19,12 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 class sinsp_evttables;
+typedef union _sinsp_sockinfo sinsp_sockinfo;
+typedef union _ipv4tuple ipv4tuple;
+typedef union _ipv6tuple ipv6tuple;
+typedef struct ipv4serverinfo ipv4serverinfo;
+typedef struct ipv6serverinfo ipv6serverinfo;
+class filter_check_info;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Initializer class.
@@ -157,10 +163,10 @@ void replace_in_place(string& str, string& substr_to_replace, string& new_substr
 class sinsp_numparser
 {
 public:
-	static uint32_t parseu8(const string& str);
-	static int32_t parsed8(const string& str);
-	static uint32_t parseu16(const string& str);
-	static int32_t parsed16(const string& str);
+	static uint8_t parseu8(const string& str);
+	static int8_t parsed8(const string& str);
+	static uint16_t parseu16(const string& str);
+	static int16_t parsed16(const string& str);
 	static uint32_t parseu32(const string& str);
 	static int32_t parsed32(const string& str);
 	static uint64_t parseu64(const string& str);
@@ -184,3 +190,57 @@ namespace Json
 }
 
 std::string get_json_string(const Json::Value& root, const std::string& name);
+
+///////////////////////////////////////////////////////////////////////////////
+// A simple class to manage pre-allocated objects in a LIFO
+// fashion and make sure all of them are deleted upon destruction.
+///////////////////////////////////////////////////////////////////////////////
+template<typename OBJ>
+class simple_lifo_queue
+{
+public:
+	simple_lifo_queue(uint32_t size)
+	{
+		uint32_t j;
+		for(j = 0; j < size; j++)
+		{
+			OBJ* newentry = new OBJ;
+			m_full_list.push_back(newentry);
+			m_avail_list.push_back(newentry);
+		}
+	}
+	~simple_lifo_queue()
+	{
+		while(!m_avail_list.empty())
+		{
+			OBJ* head = m_avail_list.front();
+			delete head;
+			m_avail_list.pop_front();
+		}
+	}
+	void push(OBJ* newentry)
+
+	{
+		m_avail_list.push_front(newentry);
+	}
+
+	OBJ* pop()
+	{
+		if(m_avail_list.empty())
+		{
+			return NULL;
+		}
+		OBJ* head = m_avail_list.front();
+		m_avail_list.pop_front();
+		return head;
+	}
+
+	bool empty()
+	{
+		return m_avail_list.empty();
+	}
+
+private:
+	list<OBJ*> m_avail_list;
+	list<OBJ*> m_full_list;
+};

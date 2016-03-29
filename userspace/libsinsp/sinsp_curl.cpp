@@ -1,5 +1,5 @@
 //
-// sinsp_curl.h
+// sinsp_curl.cpp
 //
 // Curl utility
 //
@@ -16,53 +16,40 @@
 
 sinsp_curl::data sinsp_curl::m_config;
 
-sinsp_curl::sinsp_curl(const std::string& uristr, long timeout_ms):
-	m_curl(curl_easy_init()), m_uri(uristr), m_timeout_ms(timeout_ms)
+sinsp_curl::sinsp_curl(const uri& url, long timeout_ms, bool debug):
+	m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms), m_debug(debug)
 
 {
 	init();
 }
 
-sinsp_curl::sinsp_curl(const uri& url, long timeout_ms):
-	m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms)
+sinsp_curl::sinsp_curl(const uri& url, const std::string& bearer_token_file, long timeout_ms, bool debug):
+	m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms), m_bt(new bearer_token(bearer_token_file)),
+	m_debug(debug)
 {
 	init();
-}
-
-sinsp_curl::sinsp_curl(const std::string& uristr,
-	const std::string& cert, const std::string& key, const std::string& key_passphrase,
-	const std::string& ca_cert, bool verify_peer, const std::string& cert_type,
-	const std::string& bearer_token,
-	long timeout_ms):
-		m_curl(curl_easy_init()), m_uri(uristr), m_timeout_ms(timeout_ms),
-		m_ssl(new ssl(cert, key, key_passphrase, ca_cert, verify_peer, cert_type, bearer_token))
-{
-	init_ssl();
 }
 
 sinsp_curl::sinsp_curl(const uri& url,
 	const std::string& cert, const std::string& key, const std::string& key_passphrase,
 	const std::string& ca_cert, bool verify_peer, const std::string& cert_type,
-	const std::string& bearer_token,
-	long timeout_ms):
+	const std::string& bearer_token_file,
+	long timeout_ms, bool debug):
 		m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms),
-		m_ssl(new ssl(cert, key, key_passphrase, ca_cert, verify_peer, cert_type, bearer_token))
+		m_ssl(new ssl(cert, key, key_passphrase, ca_cert, verify_peer, cert_type)),
+		m_bt(new bearer_token(bearer_token_file)),
+		m_debug(debug)
 {
-	init_ssl();
+	init();
 }
 
-sinsp_curl::sinsp_curl(const std::string& uristr, ssl::ptr_t p_ssl, long timeout_ms):
-		m_curl(curl_easy_init()), m_uri(uristr), m_timeout_ms(timeout_ms),
-		m_ssl(p_ssl)
-{
-	init_ssl();
-}
-
-sinsp_curl::sinsp_curl(const uri& url, ssl::ptr_t p_ssl, long timeout_ms):
+sinsp_curl::sinsp_curl(const uri& url, ssl::ptr_t p_ssl, bearer_token::ptr_t p_bt, long timeout_ms, bool debug):
 		m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms),
-		m_ssl(p_ssl)
+		m_ssl(p_ssl),
+		m_bt(p_bt),
+		m_debug(debug)
 {
-	init_ssl();
+	init();
 }
 
 void sinsp_curl::init()
@@ -73,16 +60,44 @@ void sinsp_curl::init()
 	}
 
 	check_error(curl_easy_setopt(m_curl, CURLOPT_FORBID_REUSE, 1L));
-	curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, &sinsp_curl::trace);
-	curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, &m_config);
-	m_config.trace_ascii = 0; // set to 1 for ascii printout
-	// the DEBUGFUNCTION has no effect without VERBOSE set to 1
-	curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 0L);
+
+	if(m_ssl)
+	{
+		init_ssl(m_curl, m_ssl);
+	}
+
+	if(m_bt)
+	{
+		init_bt(m_curl, m_bt);
+	}
+
+	enable_debug(m_curl, m_debug);
 }
 
 sinsp_curl::~sinsp_curl()
 {
 	curl_easy_cleanup(m_curl);
+}
+
+void sinsp_curl::init_bt(CURL* curl, bearer_token::ptr_t bt)
+{
+	if(bt && bt->bt_auth_header())
+	{
+		check_error(curl_easy_setopt(curl, CURLOPT_HTTPHEADER, bt->bt_auth_header()));
+	}
+}
+
+void sinsp_curl::enable_debug(CURL* curl, bool enable)
+{
+	if(curl)
+	{
+		curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, &sinsp_curl::trace);
+		curl_easy_setopt(curl, CURLOPT_DEBUGDATA, &m_config);
+		long en = 0L;
+		if(enable) { en = 1L; }
+		m_config.trace_ascii = en;
+		curl_easy_setopt(curl, CURLOPT_VERBOSE, en);
+	}
 }
 
 void sinsp_curl::init_ssl(CURL* curl, ssl::ptr_t ssl_data)
@@ -91,40 +106,47 @@ void sinsp_curl::init_ssl(CURL* curl, ssl::ptr_t ssl_data)
 	{
 		if(!ssl_data->cert().empty())
 		{
-			check_error(curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, ssl_data->cert_type().c_str()));
+			if(!ssl_data->cert_type().empty())
+			{
+				check_error(curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, ssl_data->cert_type().c_str()));
+			}
 			check_error(curl_easy_setopt(curl, CURLOPT_SSLCERT, ssl_data->cert().c_str()));
+			g_logger.log("CURL SSL certificate: " + ssl_data->cert(), sinsp_logger::SEV_DEBUG);
 		}
 
 		if(!ssl_data->key_passphrase().empty())
 		{
 			check_error(curl_easy_setopt(curl, CURLOPT_KEYPASSWD, ssl_data->key_passphrase().c_str()));
+			g_logger.log("CURL SSL key password SET. ", sinsp_logger::SEV_DEBUG);
 		}
 
 		if(!ssl_data->key().empty())
 		{
-			check_error(curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, ssl_data->cert_type().c_str()));
+			if(!ssl_data->cert_type().empty())
+			{
+				check_error(curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, ssl_data->cert_type().c_str()));
+			}
 			check_error(curl_easy_setopt(curl, CURLOPT_SSLKEY, ssl_data->key().c_str()));
-		}
-
-		if(!ssl_data->ca_cert().empty())
-		{
-			check_error(curl_easy_setopt(curl, CURLOPT_CAINFO, ssl_data->ca_cert().c_str()));
+			g_logger.log("CURL SSL key: " + ssl_data->key(), sinsp_logger::SEV_DEBUG);
 		}
 
 		if(ssl_data->verify_peer())
 		{
 			check_error(curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L));
-			check_error(curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 1L));
+			check_error(curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L));
+			g_logger.log("CURL SSL peer and host verification ENABLED.", sinsp_logger::SEV_DEBUG);
 		}
 		else
 		{
 			check_error(curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0));
 			check_error(curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0));
+			g_logger.log("CURL SSL peer and host verification DISABLED.", sinsp_logger::SEV_DEBUG);
 		}
 
-		if(ssl_data->bt_auth_header())
+		if(!ssl_data->ca_cert().empty())
 		{
-			check_error(curl_easy_setopt(curl, CURLOPT_HTTPHEADER, ssl_data->bt_auth_header()));
+			check_error(curl_easy_setopt(curl, CURLOPT_CAINFO, ssl_data->ca_cert().c_str()));
+			g_logger.log("CURL SSL CA cert set to: " + ssl_data->ca_cert(), sinsp_logger::SEV_DEBUG);
 		}
 	}
 }
@@ -196,52 +218,59 @@ void sinsp_curl::check_error(unsigned ret)
 	}
 }
 
-void sinsp_curl::dump(const char *text, FILE *stream, unsigned char *ptr, size_t size, char nohex)
+void sinsp_curl::dump(const char *text, unsigned char *ptr, size_t size, char nohex)
 {
+	const std::size_t DBG_BUF_SIZE = 1024;
+	char stream[DBG_BUF_SIZE] = { 0 };
+	std::ostringstream os;
 	size_t i;
 	size_t c;
-	unsigned int width=0x10;
+	unsigned int width = 0x10;
 	if(nohex)
 	{
 		width = 0x40;
 	}
-	fprintf(stream, "%s, %10.10ld bytes (0x%8.8lx)\n", text, (long)size, (long)size);
-
+	snprintf(stream, DBG_BUF_SIZE, "%s, %10.10ld bytes (0x%8.8lx)\n", text, (long)size, (long)size);
+	os << stream;
 	for(i=0; i<size; i+= width)
 	{
-		fprintf(stream, "%4.4lx: ", (long)i);
+		snprintf(stream, DBG_BUF_SIZE, "%4.4lx: ", (long)i);
+		os << stream;
 		if(!nohex)
 		{
 		  for(c = 0; c < width; c++)
 		  {
 			if(i+c < size)
 			{
-				fprintf(stream, "%02x ", ptr[i+c]);
+				snprintf(stream, DBG_BUF_SIZE, "%02x ", ptr[i+c]);
 			}
 			else
 			{
-				fputs("   ", stream);
+				snprintf(stream, DBG_BUF_SIZE, "%s", "   ");
 			}
+			os << stream;
 		  }
 		}
 
-	for(c = 0; (c < width) && (i+c < size); c++)
-	{
-		if(nohex && (i+c+1 < size) && ptr[i+c]==0x0D && ptr[i+c+1]==0x0A)
+		for(c = 0; (c < width) && (i+c < size); c++)
 		{
-			i+=(c+2-width);
-			break;
+			if(nohex && (i+c+1 < size) && ptr[i+c]==0x0D && ptr[i+c+1]==0x0A)
+			{
+				i+=(c+2-width);
+				break;
+			}
+			snprintf(stream, DBG_BUF_SIZE, "%c", (ptr[i+c]>=0x20) && (ptr[i+c]<0x80)?ptr[i+c]:'.');
+			os << stream;
+			if(nohex && (i+c+2 < size) && ptr[i+c+1]==0x0D && ptr[i+c+2]==0x0A)
+			{
+				i+=(c+3-width);
+				break;
+			}
 		}
-		fprintf(stream, "%c", (ptr[i+c]>=0x20) && (ptr[i+c]<0x80)?ptr[i+c]:'.');
-		if(nohex && (i+c+2 < size) && ptr[i+c+1]==0x0D && ptr[i+c+2]==0x0A)
-		{
-			i+=(c+3-width);
-			break;
-		}
+		snprintf(stream, DBG_BUF_SIZE, "%c", '\n');
+		os << stream;
 	}
-	fputc('\n', stream);
-  }
-  fflush(stream);
+	g_logger.log("CURL: " + os .str(), sinsp_logger::SEV_DEBUG);
 }
 
 int sinsp_curl::trace(CURL *handle, curl_infotype type, char *data, size_t size, void *userp)
@@ -274,20 +303,16 @@ int sinsp_curl::trace(CURL *handle, curl_infotype type, char *data, size_t size,
 			text = "<= Recv SSL data";
 			break;
 	}
-	dump(text, stderr, (unsigned char *)data, size, config->trace_ascii);
+	dump(text, (unsigned char *)data, size, config->trace_ascii);
 	return 0;
 }
 
 //
-// sinsp_curl::ssl
+// bearer_token
 //
 
-sinsp_curl::ssl::ssl(const std::string& cert, const std::string& key, const std::string& key_passphrase,
-	const std::string& ca_cert, bool verify_peer, const std::string& cert_type,
-	const std::string& bearer_token):
-		m_cert_type(cert_type), m_cert(cert), m_key(key), m_key_passphrase(key_passphrase),
-		m_ca_cert(ca_cert), m_verify_peer(verify_peer),
-		m_bearer_token(stringize_file(bearer_token)), m_bt_auth_header(0)
+sinsp_curl::bearer_token::bearer_token(const std::string& bearer_token_file):
+	m_bearer_token(stringize_file(bearer_token_file)), m_bt_auth_header(0)
 {
 	std::size_t len = m_bearer_token.length(); // curl does not tolerate newlines in headers
 	while(len && (m_bearer_token[len-1] == '\r' || m_bearer_token[len-1] == '\n'))
@@ -303,7 +328,7 @@ sinsp_curl::ssl::ssl(const std::string& cert, const std::string& key, const std:
 	}
 }
 
-sinsp_curl::ssl::~ssl()
+sinsp_curl::bearer_token::~bearer_token()
 {
 	if(m_bt_auth_header)
 	{
@@ -311,7 +336,7 @@ sinsp_curl::ssl::~ssl()
 	}
 }
 
-std::string sinsp_curl::ssl::stringize_file(const std::string& disk_file)
+std::string sinsp_curl::bearer_token::stringize_file(const std::string& disk_file)
 {
 	std::string tmp, content;
 	std::ifstream ifs(disk_file);
@@ -320,6 +345,21 @@ std::string sinsp_curl::ssl::stringize_file(const std::string& disk_file)
 		content.append(tmp).append(1, '\n');
 	}
 	return content;
+}
+
+//
+// sinsp_curl::ssl
+//
+
+sinsp_curl::ssl::ssl(const std::string& cert, const std::string& key, const std::string& key_passphrase,
+	const std::string& ca_cert, bool verify_peer, const std::string& cert_type):
+		m_cert_type(cert_type), m_cert(cert), m_key(key), m_key_passphrase(key_passphrase),
+		m_ca_cert(ca_cert), m_verify_peer(verify_peer)
+{
+}
+
+sinsp_curl::ssl::~ssl()
+{
 }
 
 std::string sinsp_curl::ssl::memorize_file(const std::string& disk_file)

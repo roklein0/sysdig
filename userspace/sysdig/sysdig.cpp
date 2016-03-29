@@ -138,19 +138,20 @@ static void usage()
 #endif
 " -j, --json         Emit output as json, data buffer encoding will depend from the\n"
 "                    print format selected.\n"
-" -k, --k8s-api <url>\n"
+" -k <url>, --k8s-api=<url>\n"
 "                    Enable Kubernetes support by connecting to the API server\n"
 "                    specified as argument. E.g. \"http://admin:password@127.0.0.1:8080\".\n"
 "                    The API server can also be specified via the environment variable\n"
 "                    SYSDIG_K8S_API.\n"
-" -K <cert_file>:<key_file[#password]>[:<ca_cert_file>], --k8s-api-cert=<cert_file>:<key_file[#password]>[:<ca_cert_file>]\n"
+" -K <bt_file> | <cert_file>:<key_file[#password]>[:<ca_cert_file>], --k8s-api-cert=<bt_file> | <cert_file>:<key_file[#password]>[:<ca_cert_file>]\n"
 "                    Use the provided files names to authenticate user and (optionally) verify the K8S API\n"
 "                    server identity.\n"
 "                    Each entry must specify full (absolute, or relative to the current directory) path\n"
 "                    to the respective file.\n"
 "                    Private key password is optional (needed only if key is password protected).\n"
-"                    CA certificate is optional; specifying CA certificate only is deprecated.\n"
-"                    For all files, only PEM file format is supported.\n"
+"                    CA certificate is optional. For all files, only PEM file format is supported. \n"
+"                    Specifying CA certificate only is obsoleted - when single entry is provided \n"
+"                    for this option, it will be interpreted as the name of a file containing bearer token.\n"
 "                    Note that the format of this command-line option prohibits use of files whose names contain\n"
 "                    ':' or '#' characters in the file name.\n"
 "                    Option can also be provided via the environment variable SYSDIG_K8S_API_CERT.\n"
@@ -1260,8 +1261,6 @@ sysdig_init_res sysdig_init(int argc, char **argv)
 			//
 			// Launch the capture
 			//
-			bool open_success = true;
-
 			if(infiles.size() != 0)
 			{
 				initialize_chisels();
@@ -1284,6 +1283,8 @@ sysdig_init_res sysdig_init(int argc, char **argv)
 				// No file to open, this is a live capture
 				//
 #if defined(HAS_CAPTURE)
+				bool open_success = true;
+				
 				if(print_progress)
 				{
 					fprintf(stderr, "the -P flag cannot be used with live captures.\n");
