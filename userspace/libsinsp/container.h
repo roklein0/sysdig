@@ -49,7 +49,7 @@ public:
 		m_container_ip(0),
 		m_memory_limit(0),
 		m_swap_limit(0),
-		m_cpu_shares(1024)
+		m_cpu_shares(0)
 	{
 	}
 
