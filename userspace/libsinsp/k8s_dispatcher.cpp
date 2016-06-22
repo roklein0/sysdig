@@ -91,7 +91,7 @@ k8s_dispatcher::msg_data k8s_dispatcher::get_msg_data(Json::Value& root)
 {
 	msg_data data;
 	Json::Value evtype = root["type"];
-	if(!evtype.isNull())
+	if(!evtype.isNull() && evtype.isString())
 	{
 		const std::string& et = evtype.asString();
 		if(!et.empty())
@@ -586,9 +586,21 @@ void k8s_dispatcher::extract_data(Json::Value& root, bool enqueue)
 				os << "REPLICATION_CONTROLLER,";
 				handle_rc(root, data);
 				break;
+			case k8s_component::K8S_REPLICASETS:
+				os << "REPLICA_SET,";
+				// TODO handle_rc(root, data);
+				break;
 			case k8s_component::K8S_SERVICES:
 				os << "SERVICE,";
 				handle_service(root, data);
+				break;
+			case k8s_component::K8S_DAEMONSETS:
+				os << "DAEMON_SET,";
+				// TODO handle_service(root, data);
+				break;
+			case k8s_component::K8S_DEPLOYMENTS:
+				os << "DEPLOYMENT,";
+				// TODO handle_service(root, data);
 				break;
 			case k8s_component::K8S_EVENTS:
 				os << "EVENT,";

@@ -19,7 +19,10 @@ const k8s_component::type_map k8s::m_components =
 	{ k8s_component::K8S_NAMESPACES,             "namespaces"             },
 	{ k8s_component::K8S_PODS,                   "pods"                   },
 	{ k8s_component::K8S_REPLICATIONCONTROLLERS, "replicationcontrollers" },
+	{ k8s_component::K8S_REPLICASETS,            "replicasets"            },
 	{ k8s_component::K8S_SERVICES,               "services"               },
+	{ k8s_component::K8S_DAEMONSETS,             "daemonsets"             },
+	{ k8s_component::K8S_DEPLOYMENTS,            "deployments"            },
 	{ k8s_component::K8S_EVENTS,                 "events"                 }
 };
 
@@ -33,7 +36,10 @@ k8s::dispatch_map k8s::make_dispatch_map(k8s_state_t& state)
 			{ k8s_component::K8S_NAMESPACES,             new k8s_dispatcher(k8s_component::K8S_NAMESPACES,             state) },
 			{ k8s_component::K8S_PODS,                   new k8s_dispatcher(k8s_component::K8S_PODS,                   state) },
 			{ k8s_component::K8S_REPLICATIONCONTROLLERS, new k8s_dispatcher(k8s_component::K8S_REPLICATIONCONTROLLERS, state) },
+			{ k8s_component::K8S_REPLICASETS,            new k8s_dispatcher(k8s_component::K8S_REPLICASETS,            state) },
 			{ k8s_component::K8S_SERVICES,               new k8s_dispatcher(k8s_component::K8S_SERVICES,               state) },
+			{ k8s_component::K8S_DAEMONSETS,             new k8s_dispatcher(k8s_component::K8S_DAEMONSETS,             state) },
+			{ k8s_component::K8S_DEPLOYMENTS,            new k8s_dispatcher(k8s_component::K8S_DEPLOYMENTS,            state) },
 			{ k8s_component::K8S_EVENTS,                 new k8s_dispatcher(k8s_component::K8S_EVENTS,                 state, m_event_filter) }
 		};
 	}
@@ -45,7 +51,10 @@ k8s::dispatch_map k8s::make_dispatch_map(k8s_state_t& state)
 			{ k8s_component::K8S_NAMESPACES,             new k8s_dispatcher(k8s_component::K8S_NAMESPACES,             state) },
 			{ k8s_component::K8S_PODS,                   new k8s_dispatcher(k8s_component::K8S_PODS,                   state) },
 			{ k8s_component::K8S_REPLICATIONCONTROLLERS, new k8s_dispatcher(k8s_component::K8S_REPLICATIONCONTROLLERS, state) },
-			{ k8s_component::K8S_SERVICES,               new k8s_dispatcher(k8s_component::K8S_SERVICES,               state) }
+			{ k8s_component::K8S_REPLICASETS,            new k8s_dispatcher(k8s_component::K8S_REPLICASETS,            state) },
+			{ k8s_component::K8S_SERVICES,               new k8s_dispatcher(k8s_component::K8S_SERVICES,               state) },
+			{ k8s_component::K8S_DAEMONSETS,             new k8s_dispatcher(k8s_component::K8S_DAEMONSETS,             state) },
+			{ k8s_component::K8S_DEPLOYMENTS,            new k8s_dispatcher(k8s_component::K8S_DEPLOYMENTS,            state) }
 		};
 	}
 }
@@ -206,7 +215,10 @@ void k8s::simulate_watch_event(const std::string& json)
 			else if(type == "Node")                  { component_type = k8s_component::K8S_NODES;                  }
 			else if(type == "Pod")                   { component_type = k8s_component::K8S_PODS;                   }
 			else if(type == "ReplicationController") { component_type = k8s_component::K8S_REPLICATIONCONTROLLERS; }
+			else if(type == "ReplicaSet")            { component_type = k8s_component::K8S_REPLICASETS;            }
 			else if(type == "Service")               { component_type = k8s_component::K8S_SERVICES;               }
+			else if(type == "DaemonSet")             { component_type = k8s_component::K8S_DAEMONSETS;             }
+			else if(type == "Deployment")            { component_type = k8s_component::K8S_DEPLOYMENTS;            }
 			else if(type == "EventList")             { component_type = k8s_component::K8S_EVENTS;                 }
 			else
 			{
@@ -246,8 +258,17 @@ std::size_t k8s::count(k8s_component::type component) const
 	case k8s_component::K8S_REPLICATIONCONTROLLERS:
 		return m_state.get_rcs().size();
 
+	case k8s_component::K8S_REPLICASETS:
+		return 0; // TODO
+
 	case k8s_component::K8S_SERVICES:
 		return m_state.get_services().size();
+
+	case k8s_component::K8S_DAEMONSETS:
+		return 0; // TODO
+
+	case k8s_component::K8S_DEPLOYMENTS:
+		return 0; // TODO
 
 	case k8s_component::K8S_EVENTS:
 		return m_state.get_events().size();
@@ -382,6 +403,45 @@ void k8s::extract_data(Json::Value& items, k8s_component::type component, const 
 						component_name = rcs.back().get_name();
 						component_uid = rcs.back().get_uid();
 					}
+					break;
+				}
+
+			case k8s_component::K8S_REPLICASETS:
+				{
+					// TODO
+					/*const k8s_controllers& rcs = m_state.get_rcs();
+					if(rcs.size())
+					{
+						component_kind = "ReplicationController";
+						component_name = rcs.back().get_name();
+						component_uid = rcs.back().get_uid();
+					}*/
+					break;
+				}
+
+			case k8s_component::K8S_DAEMONSETS:
+				{
+					// TODO
+					/*const k8s_controllers& rcs = m_state.get_rcs();
+					if(rcs.size())
+					{
+						component_kind = "ReplicationController";
+						component_name = rcs.back().get_name();
+						component_uid = rcs.back().get_uid();
+					}*/
+					break;
+				}
+
+			case k8s_component::K8S_DEPLOYMENTS:
+				{
+					// TODO
+					/*const k8s_controllers& rcs = m_state.get_rcs();
+					if(rcs.size())
+					{
+						component_kind = "ReplicationController";
+						component_name = rcs.back().get_name();
+						component_uid = rcs.back().get_uid();
+					}*/
 					break;
 				}
 

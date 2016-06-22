@@ -93,7 +93,10 @@ public:
 		K8S_NAMESPACES,
 		K8S_PODS,
 		K8S_REPLICATIONCONTROLLERS,
+		K8S_REPLICASETS,
 		K8S_SERVICES,
+		K8S_DAEMONSETS,
+		K8S_DEPLOYMENTS,
 		K8S_EVENTS,
 		K8S_COMPONENT_COUNT
 	};
@@ -314,6 +317,21 @@ private:
 
 
 //
+// replica set
+//
+
+class k8s_rs_t : public k8s_component
+{
+public:
+	static const k8s_component::type COMPONENT_TYPE = K8S_REPLICASETS;
+
+	k8s_rs_t(const std::string& name, const std::string& uid, const std::string& ns = "");
+
+private:
+};
+
+
+//
 // service
 //
 
@@ -351,6 +369,36 @@ private:
 
 
 //
+// daemon set
+//
+
+class k8s_daemonset_t : public k8s_component
+{
+public:
+	static const k8s_component::type COMPONENT_TYPE = K8S_DAEMONSETS;
+
+	k8s_daemonset_t(const std::string& name, const std::string& uid, const std::string& ns = "");
+
+private:
+};
+
+
+//
+// deployment
+//
+
+class k8s_deployment_t : public k8s_component
+{
+public:
+	static const k8s_component::type COMPONENT_TYPE = K8S_DEPLOYMENTS;
+
+	k8s_deployment_t(const std::string& name, const std::string& uid, const std::string& ns = "");
+
+private:
+};
+
+
+//
 // event
 //
 
@@ -376,12 +424,15 @@ private:
 	name_translation_map_t m_name_translation;
 };
 
-typedef std::vector<k8s_ns_t>      k8s_namespaces;
-typedef std::vector<k8s_node_t>    k8s_nodes;
-typedef std::vector<k8s_pod_t>     k8s_pods;
-typedef std::vector<k8s_rc_t>      k8s_controllers;
-typedef std::vector<k8s_service_t> k8s_services;
-typedef std::vector<k8s_event_t>   k8s_events;
+typedef std::vector<k8s_ns_t>         k8s_namespaces;
+typedef std::vector<k8s_node_t>       k8s_nodes;
+typedef std::vector<k8s_pod_t>        k8s_pods;
+typedef std::vector<k8s_rc_t>         k8s_controllers;
+typedef std::vector<k8s_rs_t>         k8s_replicasets;
+typedef std::vector<k8s_service_t>    k8s_services;
+typedef std::vector<k8s_daemonset_t>  k8s_daemonsets;
+typedef std::vector<k8s_deployment_t> k8s_deployments;
+typedef std::vector<k8s_event_t>      k8s_events;
 
 //
 // container

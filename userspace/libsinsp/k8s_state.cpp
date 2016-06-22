@@ -141,8 +141,17 @@ k8s_component& k8s_state_t::add_common_single_value(k8s_component::type componen
 		case k8s_component::K8S_REPLICATIONCONTROLLERS:
 			return get_component<k8s_controllers, k8s_rc_t>(m_controllers, name, uid, ns);
 
+		case k8s_component::K8S_REPLICASETS:
+			return get_component<k8s_replicasets, k8s_rs_t>(m_replicasets, name, uid, ns);
+
 		case k8s_component::K8S_SERVICES:
 			return get_component<k8s_services, k8s_service_t>(m_services, name, uid, ns);
+
+		case k8s_component::K8S_DAEMONSETS:
+			return get_component<k8s_daemonsets, k8s_daemonset_t>(m_daemonsets, name, uid, ns);
+
+		case k8s_component::K8S_DEPLOYMENTS:
+			return get_component<k8s_deployments, k8s_deployment_t>(m_deployments, name, uid, ns);
 
 		case k8s_component::K8S_EVENTS:
 			return get_component<k8s_events, k8s_event_t>(m_events, name, uid, ns);
@@ -196,8 +205,17 @@ void k8s_state_t::clear(k8s_component::type type)
 		case k8s_component::K8S_REPLICATIONCONTROLLERS:
 			m_controllers.clear();
 			break;
+		case k8s_component::K8S_REPLICASETS:
+			m_replicasets.clear();
+			break;
 		case k8s_component::K8S_SERVICES:
 			m_services.clear();
+			break;
+		case k8s_component::K8S_DAEMONSETS:
+			m_daemonsets.clear();
+			break;
+		case k8s_component::K8S_DEPLOYMENTS:
+			m_deployments.clear();
 			break;
 		case k8s_component::K8S_EVENTS:
 			m_events.clear();
@@ -283,6 +301,33 @@ void k8s_state_t::update_cache(const k8s_component::type_map::key_type& componen
 		}
 		break;
 
+		case k8s_component::K8S_REPLICASETS:
+		{
+			// TODO
+			/*
+			const k8s_controllers& rcs = get_rcs();
+			const k8s_pods& pods = get_pods();
+			k8s_state_t::pod_rc_map& pod_ctrl_map = get_pod_rc_map();
+			pod_ctrl_map.clear();
+			for(const auto& rc : rcs)
+			{
+				std::vector<const k8s_pod_t*> pod_subset = rc.get_selected_pods(pods);
+				for(auto& pod : pod_subset)
+				{
+					const std::string& pod_uid = pod->get_uid();
+					if(!is_component_cached(pod_ctrl_map, pod_uid, &rc))
+					{
+						cache_component(pod_ctrl_map, pod_uid, &rc);
+					}
+					else
+					{
+						g_logger.log("Attempt to cache already cached REPLICATION CONTROLLER: " + pod_uid, sinsp_logger::SEV_ERROR);
+					}
+				}
+			}*/
+		}
+		break;
+
 		case k8s_component::K8S_SERVICES:
 		{
 			const k8s_services& services = get_services();
@@ -305,6 +350,58 @@ void k8s_state_t::update_cache(const k8s_component::type_map::key_type& componen
 					}
 				}
 			}
+		}
+		break;
+
+		case k8s_component::K8S_DAEMONSETS:
+		{
+			// TODO
+			/*const k8s_services& services = get_services();
+			const k8s_pods& pods = get_pods();
+			k8s_state_t::pod_service_map& pod_svc_map = get_pod_service_map();
+			pod_svc_map.clear();
+			for(const auto& service : services)
+			{
+				std::vector<const k8s_pod_t*> pod_subset = service.get_selected_pods(pods);
+				for(auto& pod : pod_subset)
+				{
+					const std::string& pod_uid = pod->get_uid();
+					if(!is_component_cached(pod_svc_map, pod_uid, &service))
+					{
+						cache_component(pod_svc_map, pod_uid, &service);
+					}
+					else
+					{
+						g_logger.log("Attempt to cache already cached SERVICE: " + pod_uid, sinsp_logger::SEV_ERROR);
+					}
+				}
+			}*/
+		}
+		break;
+
+		case k8s_component::K8S_DEPLOYMENTS:
+		{
+			// TODO
+			/*const k8s_services& services = get_services();
+			const k8s_pods& pods = get_pods();
+			k8s_state_t::pod_service_map& pod_svc_map = get_pod_service_map();
+			pod_svc_map.clear();
+			for(const auto& service : services)
+			{
+				std::vector<const k8s_pod_t*> pod_subset = service.get_selected_pods(pods);
+				for(auto& pod : pod_subset)
+				{
+					const std::string& pod_uid = pod->get_uid();
+					if(!is_component_cached(pod_svc_map, pod_uid, &service))
+					{
+						cache_component(pod_svc_map, pod_uid, &service);
+					}
+					else
+					{
+						g_logger.log("Attempt to cache already cached SERVICE: " + pod_uid, sinsp_logger::SEV_ERROR);
+					}
+				}
+			}*/
 		}
 		break;
 
@@ -336,9 +433,21 @@ k8s_component::type k8s_state_t::component_from_json(const Json::Value& item)
 	{
 		return k8s_component::K8S_REPLICATIONCONTROLLERS;
 	}
+	else if(comp == "ReplicaSet")
+	{
+		return k8s_component::K8S_REPLICASETS;
+	}
 	else if(comp == "Service")
 	{
 		return k8s_component::K8S_SERVICES;
+	}
+	else if(comp == "DaemonSet")
+	{
+		return k8s_component::K8S_DAEMONSETS;
+	}
+	else if(comp == "Deployment")
+	{
+		return k8s_component::K8S_DEPLOYMENTS;
 	}
 	else if(comp == "Event")
 	{
@@ -559,6 +668,15 @@ Json::Value k8s_state_t::extract_capture_data(const Json::Value& item)
 		break;
 
 	case k8s_component::K8S_REPLICATIONCONTROLLERS:
+		break;
+
+	case k8s_component::K8S_REPLICASETS:
+		break;
+
+	case k8s_component::K8S_DAEMONSETS:
+		break;
+
+	case k8s_component::K8S_DEPLOYMENTS:
 		break;
 
 	case k8s_component::K8S_EVENTS:

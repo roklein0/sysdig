@@ -69,6 +69,15 @@ public:
 	void emplace_rc(k8s_rc_t&& rc);
 
 	//
+	// replica sets
+	//
+
+	const k8s_controllers& get_rss() const;
+	k8s_controllers& get_rss();
+	void push_rc(const k8s_rs_t& rs);
+	void emplace_rc(k8s_rs_t&& rs);
+
+	//
 	// services
 	//
 
@@ -314,7 +323,10 @@ private:
 	k8s_nodes       m_nodes;
 	k8s_pods        m_pods;
 	k8s_controllers m_controllers;
+	k8s_replicasets m_replicasets;
 	k8s_services    m_services;
+	k8s_daemonsets  m_daemonsets;
+	k8s_deployments m_deployments;
 	k8s_events      m_events;
 	// map for uid/type cache for all components
 	// used by to quickly lookup any component by uid

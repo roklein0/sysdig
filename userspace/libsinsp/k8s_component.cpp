@@ -74,7 +74,10 @@ const k8s_component::type_map k8s_component::list =
 	{ k8s_component::K8S_NAMESPACES,             "namespaces"             },
 	{ k8s_component::K8S_PODS,                   "pods"                   },
 	{ k8s_component::K8S_REPLICATIONCONTROLLERS, "replicationcontrollers" },
+	{ k8s_component::K8S_REPLICASETS,            "replicasets"            },
 	{ k8s_component::K8S_SERVICES,               "services"               },
+	{ k8s_component::K8S_DAEMONSETS,             "daemonsets"             },
+	{ k8s_component::K8S_DEPLOYMENTS,            "deloyments"             },
 	{ k8s_component::K8S_EVENTS,                 "events"                 }
 };
 
@@ -348,8 +351,14 @@ std::string k8s_component::get_name(type t)
 		return "pods";
 	case K8S_REPLICATIONCONTROLLERS:
 		return "replicationcontrollers";
+	case K8S_REPLICASETS:
+		return "replicasets";
 	case K8S_SERVICES:
 		return "services";
+	case K8S_DAEMONSETS:
+		return "daemonsets";
+	case K8S_DEPLOYMENTS:
+		return "deployments";
 	case K8S_EVENTS:
 		return "events";
 	case K8S_COMPONENT_COUNT:
@@ -380,9 +389,21 @@ k8s_component::type k8s_component::get_type(const std::string& name)
 	{
 		return K8S_REPLICATIONCONTROLLERS;
 	}
+	else if(name == "replicasets")
+	{
+		return K8S_REPLICASETS;
+	}
 	else if(name == "services")
 	{
 		return K8S_SERVICES;
+	}
+	else if(name == "daemonsets")
+	{
+		return K8S_DAEMONSETS;
+	}
+	else if(name == "deployments")
+	{
+		return K8S_DEPLOYMENTS;
 	}
 	else if(name == "events")
 	{
@@ -589,8 +610,18 @@ int k8s_rc_t::get_replica(const Json::Value& item)
 }
 
 //
+// replica set
+//
+k8s_rs_t::k8s_rs_t(const std::string& name, const std::string& uid, const std::string& ns) : 
+	k8s_component(COMPONENT_TYPE, name, uid, ns)
+{
+}
+
+
+//
 // service
 //
+
 k8s_service_t::k8s_service_t(const std::string& name, const std::string& uid, const std::string& ns) : 
 	k8s_component(COMPONENT_TYPE, name, uid, ns)
 {
@@ -608,6 +639,27 @@ std::vector<const k8s_pod_t*> k8s_service_t::get_selected_pods(const std::vector
 	}
 	return pod_vec;
 }
+
+
+//
+// daemon set
+//
+
+k8s_daemonset_t::k8s_daemonset_t(const std::string& name, const std::string& uid, const std::string& ns) : 
+	k8s_component(COMPONENT_TYPE, name, uid, ns)
+{
+}
+
+
+//
+// deployment
+//
+
+k8s_deployment_t::k8s_deployment_t(const std::string& name, const std::string& uid, const std::string& ns) : 
+	k8s_component(COMPONENT_TYPE, name, uid, ns)
+{
+}
+
 
 //
 // event
