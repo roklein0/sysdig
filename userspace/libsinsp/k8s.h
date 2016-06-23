@@ -32,13 +32,14 @@ public:
 		bool start_watch = false,
 		bool watch_in_thread = false,
 		bool is_captured = false,
-		const std::string& api = "/api/v1/",
+		//const std::string& api = "/api/v1/",
 #ifdef HAS_CAPTURE
 		ssl_ptr_t ssl = 0,
 		bt_ptr_t bt = 0,
 #endif // HAS_CAPTURE
 		bool curl_debug = false,
-		filter_ptr_t event_filter = nullptr);
+		filter_ptr_t event_filter = nullptr,
+		const std::set<std::string>* extensions = nullptr);
 
 	~k8s();
 
@@ -76,7 +77,7 @@ private:
 	// due to deleted default dispatcher constructor, g++ has trouble instantiating map with values,
 	// so we have to go with the forward declaration above and pointers here ...
 	typedef std::map<k8s_component::type, k8s_dispatcher*> dispatch_map;
-	dispatch_map make_dispatch_map(k8s_state_t& state);
+	dispatch_map make_dispatch_map(k8s_state_t& state, const std::set<std::string>* extensions);
 
 	bool         m_watch;
 	k8s_state_t  m_state;
@@ -87,7 +88,7 @@ private:
 	k8s_net*     m_net;
 #endif
 
-	static const k8s_component::type_map m_components;
+	static k8s_component::type_map m_components;
 	friend class k8s_test;
 };
 

@@ -172,6 +172,15 @@ public:
 
 	static type get_type(const std::string& name);
 
+	static std::string get_api(type t,
+							   const std::set<std::string>* extensions = nullptr);
+
+	static std::string get_api(const component_pair& p,
+							   const std::set<std::string>* extensions = nullptr);
+
+	static std::string get_api(const std::string& name,
+							   const std::set<std::string>* extensions = nullptr);
+
 	bool selector_in_labels(const k8s_pair_t& selector, const k8s_pair_list& labels) const;
 
 	bool selectors_in_labels(const k8s_pair_list& labels) const;

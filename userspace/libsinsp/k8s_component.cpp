@@ -77,7 +77,7 @@ const k8s_component::type_map k8s_component::list =
 	{ k8s_component::K8S_REPLICASETS,            "replicasets"            },
 	{ k8s_component::K8S_SERVICES,               "services"               },
 	{ k8s_component::K8S_DAEMONSETS,             "daemonsets"             },
-	{ k8s_component::K8S_DEPLOYMENTS,            "deloyments"             },
+	{ k8s_component::K8S_DEPLOYMENTS,            "deployments"            },
 	{ k8s_component::K8S_EVENTS,                 "events"                 }
 };
 
@@ -411,8 +411,50 @@ k8s_component::type k8s_component::get_type(const std::string& name)
 	}
 
 	std::ostringstream os;
-	os << "Unknown component name " << name;
+	os << "K8s: Unknown component name " << name;
 	throw sinsp_exception(os.str().c_str());
+}
+
+std::string k8s_component::get_api(type t, const std::set<std::string>* extensions)
+{
+	switch (t)
+	{
+	case K8S_NAMESPACES:
+	case K8S_NODES:
+	case K8S_PODS:
+	case K8S_REPLICATIONCONTROLLERS:
+	case K8S_SERVICES:
+	case K8S_EVENTS:
+		return "/api/v1/";
+	case K8S_REPLICASETS:
+	case K8S_DAEMONSETS:
+	case K8S_DEPLOYMENTS:
+		if(extensions && extensions->find("v1beta1") != extensions->end())
+		{
+			return "/apis/extensions/v1beta1/";
+		}
+		else
+		{
+			return "";
+		}
+	case K8S_COMPONENT_COUNT:
+	default:
+		break;
+	}
+
+	std::ostringstream os;
+	os << "K8s: Unknown component type " << static_cast<int>(t);
+	throw sinsp_exception(os.str().c_str());
+}
+
+std::string k8s_component::get_api(const component_pair& p, const std::set<std::string>* extensions)
+{
+	return get_api(p.first, extensions);
+}
+
+std::string k8s_component::get_api(const std::string& name, const std::set<std::string>* extensions)
+{
+	return get_api(get_type(name), extensions);
 }
 
 k8s_pair_t* k8s_component::get_label(const k8s_pair_t& label)

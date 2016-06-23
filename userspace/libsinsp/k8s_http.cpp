@@ -81,7 +81,7 @@ k8s_http::k8s_http(k8s& k8s,
 		url << m_credentials << '@';
 	}
 	url << m_host_and_port;
-	url << m_api << '/' << m_component << std::flush;
+	url << m_api << m_component << std::flush;
 	m_url = url.str();
 }
 

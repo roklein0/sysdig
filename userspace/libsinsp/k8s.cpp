@@ -13,71 +13,71 @@
 #include <algorithm>
 #include <iostream>
 
-const k8s_component::type_map k8s::m_components =
-{
-	{ k8s_component::K8S_NODES,                  "nodes"                  },
-	{ k8s_component::K8S_NAMESPACES,             "namespaces"             },
-	{ k8s_component::K8S_PODS,                   "pods"                   },
-	{ k8s_component::K8S_REPLICATIONCONTROLLERS, "replicationcontrollers" },
-	{ k8s_component::K8S_REPLICASETS,            "replicasets"            },
-	{ k8s_component::K8S_SERVICES,               "services"               },
-	{ k8s_component::K8S_DAEMONSETS,             "daemonsets"             },
-	{ k8s_component::K8S_DEPLOYMENTS,            "deployments"            },
-	{ k8s_component::K8S_EVENTS,                 "events"                 }
-};
+k8s_component::type_map k8s::m_components;
 
-k8s::dispatch_map k8s::make_dispatch_map(k8s_state_t& state)
+k8s::dispatch_map k8s::make_dispatch_map(k8s_state_t& state, const std::set<std::string>* extensions)
 {
+	dispatch_map dm;
+	dm.insert({ k8s_component::K8S_NODES,                  new k8s_dispatcher(k8s_component::K8S_NODES,                  state) });
+	dm.insert({ k8s_component::K8S_NAMESPACES,             new k8s_dispatcher(k8s_component::K8S_NAMESPACES,             state) });
+	dm.insert({ k8s_component::K8S_PODS,                   new k8s_dispatcher(k8s_component::K8S_PODS,                   state) });
+	dm.insert({ k8s_component::K8S_REPLICATIONCONTROLLERS, new k8s_dispatcher(k8s_component::K8S_REPLICATIONCONTROLLERS, state) });
+	dm.insert({ k8s_component::K8S_SERVICES,               new k8s_dispatcher(k8s_component::K8S_SERVICES,               state) });
+
 	if(m_event_filter)
 	{
-		return dispatch_map
-		{
-			{ k8s_component::K8S_NODES,                  new k8s_dispatcher(k8s_component::K8S_NODES,                  state) },
-			{ k8s_component::K8S_NAMESPACES,             new k8s_dispatcher(k8s_component::K8S_NAMESPACES,             state) },
-			{ k8s_component::K8S_PODS,                   new k8s_dispatcher(k8s_component::K8S_PODS,                   state) },
-			{ k8s_component::K8S_REPLICATIONCONTROLLERS, new k8s_dispatcher(k8s_component::K8S_REPLICATIONCONTROLLERS, state) },
-			{ k8s_component::K8S_REPLICASETS,            new k8s_dispatcher(k8s_component::K8S_REPLICASETS,            state) },
-			{ k8s_component::K8S_SERVICES,               new k8s_dispatcher(k8s_component::K8S_SERVICES,               state) },
-			{ k8s_component::K8S_DAEMONSETS,             new k8s_dispatcher(k8s_component::K8S_DAEMONSETS,             state) },
-			{ k8s_component::K8S_DEPLOYMENTS,            new k8s_dispatcher(k8s_component::K8S_DEPLOYMENTS,            state) },
-			{ k8s_component::K8S_EVENTS,                 new k8s_dispatcher(k8s_component::K8S_EVENTS,                 state, m_event_filter) }
-		};
+		dm.insert({ k8s_component::K8S_EVENTS, new k8s_dispatcher(k8s_component::K8S_EVENTS, state, m_event_filter) });
 	}
-	else
+
+	if(extensions)
 	{
-		return dispatch_map
-		{
-			{ k8s_component::K8S_NODES,                  new k8s_dispatcher(k8s_component::K8S_NODES,                  state) },
-			{ k8s_component::K8S_NAMESPACES,             new k8s_dispatcher(k8s_component::K8S_NAMESPACES,             state) },
-			{ k8s_component::K8S_PODS,                   new k8s_dispatcher(k8s_component::K8S_PODS,                   state) },
-			{ k8s_component::K8S_REPLICATIONCONTROLLERS, new k8s_dispatcher(k8s_component::K8S_REPLICATIONCONTROLLERS, state) },
-			{ k8s_component::K8S_REPLICASETS,            new k8s_dispatcher(k8s_component::K8S_REPLICASETS,            state) },
-			{ k8s_component::K8S_SERVICES,               new k8s_dispatcher(k8s_component::K8S_SERVICES,               state) },
-			{ k8s_component::K8S_DAEMONSETS,             new k8s_dispatcher(k8s_component::K8S_DAEMONSETS,             state) },
-			{ k8s_component::K8S_DEPLOYMENTS,            new k8s_dispatcher(k8s_component::K8S_DEPLOYMENTS,            state) }
-		};
+		dm.insert({ k8s_component::K8S_REPLICASETS, new k8s_dispatcher(k8s_component::K8S_REPLICASETS, state) });
+		dm.insert({ k8s_component::K8S_DAEMONSETS,  new k8s_dispatcher(k8s_component::K8S_DAEMONSETS,  state) });
+		dm.insert({ k8s_component::K8S_DEPLOYMENTS, new k8s_dispatcher(k8s_component::K8S_DEPLOYMENTS, state) });
 	}
+
+	return dm;
 }
 
 k8s::k8s(const std::string& uri, bool start_watch, bool watch_in_thread, bool is_captured,
-		const std::string& api,
+		//const std::string& api,
 #ifdef HAS_CAPTURE
 		ssl_ptr_t ssl, bt_ptr_t bt,
 #endif // HAS_CAPTURE
 		bool curl_debug,
-		filter_ptr_t event_filter) :
+		filter_ptr_t event_filter,
+		const std::set<std::string>* extensions) :
 		m_watch(uri.empty() ? false : start_watch),
 		m_state(is_captured),
 		m_event_filter(event_filter),
-		m_dispatch(std::move(make_dispatch_map(m_state))),
+		m_dispatch(std::move(make_dispatch_map(m_state, extensions))),
 		m_watch_in_thread(watch_in_thread)
 #ifdef HAS_CAPTURE
-		,m_net(uri.empty() ? 0 : new k8s_net(*this, uri, api, ssl, bt, curl_debug))
+		,m_net(uri.empty() ? 0 : new k8s_net(*this, uri, ssl, bt, curl_debug, extensions))
 #endif
 {
 	g_logger.log(std::string("Creating K8s object for [" +
 							 (uri.empty() ? std::string("capture replay") : uri) + ']'),
 							 sinsp_logger::SEV_DEBUG);
+	if(m_components.empty())
+	{
+		m_components.insert({ k8s_component::K8S_NODES,                  "nodes"                  });
+		m_components.insert({ k8s_component::K8S_NAMESPACES,             "namespaces"             });
+		m_components.insert({ k8s_component::K8S_PODS,                   "pods"                   });
+		m_components.insert({ k8s_component::K8S_REPLICATIONCONTROLLERS, "replicationcontrollers" });
+		m_components.insert({ k8s_component::K8S_SERVICES,               "services"               });
+		if(event_filter)
+		{
+			m_components.insert({ k8s_component::K8S_EVENTS, "events"});
+		}
+		if(extensions)
+		{
+			m_components.insert({ k8s_component::K8S_DAEMONSETS,  "daemonsets"  });
+			m_components.insert({ k8s_component::K8S_DEPLOYMENTS, "deployments" });
+			m_components.insert({ k8s_component::K8S_REPLICASETS, "replicasets" });
+		}
+	}
+
 	if (!uri.empty())
 	{
 		try

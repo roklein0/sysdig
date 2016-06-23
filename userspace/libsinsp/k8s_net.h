@@ -25,10 +25,10 @@ public:
 	typedef sinsp_curl::bearer_token::ptr_t bt_ptr_t;
 
 	k8s_net(k8s& kube, const std::string& uri = "http://localhost:80",
-		const std::string& api = "/api/v1/",
-		ssl_ptr_t ssl = 0,
-		bt_ptr_t bt = 0,
-		bool curl_debug = false);
+		ssl_ptr_t ssl = nullptr,
+		bt_ptr_t bt = nullptr,
+		bool curl_debug = false,
+		const std::set<std::string>* extensions = nullptr);
 
 	~k8s_net();
 
@@ -61,8 +61,6 @@ private:
 
 	k8s&          m_k8s;
 	uri           m_uri;
-	std::string   m_creds;
-	std::string   m_api;
 	ssl_ptr_t     m_ssl;
 	bt_ptr_t      m_bt;
 	bool          m_stopped;
@@ -72,6 +70,7 @@ private:
 	std::thread* m_thread;
 #endif
 	bool          m_curl_debug;
+	const std::set<std::string>* m_extensions;
 };
 
 inline bool k8s_net::is_secure()
