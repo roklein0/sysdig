@@ -259,7 +259,7 @@ std::size_t k8s::count(k8s_component::type component) const
 		return m_state.get_rcs().size();
 
 	case k8s_component::K8S_REPLICASETS:
-		return 0; // TODO
+		return m_state.get_rss().size();
 
 	case k8s_component::K8S_SERVICES:
 		return m_state.get_services().size();
