@@ -26,7 +26,8 @@ public:
 	typedef sinsp_curl::bearer_token::ptr_t bt_ptr_t;
 #endif // HAS_CAPTURE
 
-	typedef user_event_filter_t::ptr_t filter_ptr_t;
+	typedef k8s_component::ext_list_ptr_t ext_list_ptr_t;
+	typedef user_event_filter_t::ptr_t    filter_ptr_t;
 
 	k8s(const std::string& uri = "http://localhost:80",
 		bool start_watch = false,
@@ -39,7 +40,7 @@ public:
 #endif // HAS_CAPTURE
 		bool curl_debug = false,
 		filter_ptr_t event_filter = nullptr,
-		const std::set<std::string>* extensions = nullptr);
+		ext_list_ptr_t extensions = nullptr);
 
 	~k8s();
 
@@ -77,7 +78,7 @@ private:
 	// due to deleted default dispatcher constructor, g++ has trouble instantiating map with values,
 	// so we have to go with the forward declaration above and pointers here ...
 	typedef std::map<k8s_component::type, k8s_dispatcher*> dispatch_map;
-	dispatch_map make_dispatch_map(k8s_state_t& state, const std::set<std::string>* extensions);
+	dispatch_map make_dispatch_map(k8s_state_t& state, ext_list_ptr_t extensions);
 
 	bool         m_watch;
 	k8s_state_t  m_state;

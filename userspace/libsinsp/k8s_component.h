@@ -24,7 +24,7 @@ class k8s_service_t;
 class k8s_container
 {
 public:
-	typedef std::vector<k8s_container> list;
+	typedef std::vector<k8s_container>  list;
 
 	class port
 	{
@@ -101,8 +101,10 @@ public:
 		K8S_COMPONENT_COUNT
 	};
 
+	typedef std::set<std::string>        ext_list_t;
+	typedef std::shared_ptr<ext_list_t>  ext_list_ptr_t;
 	typedef std::pair<type, std::string> component_pair;
-	typedef std::map<type, std::string> type_map;
+	typedef std::map<type, std::string>  type_map;
 	static const type_map list;
 
 	k8s_component() = delete;
@@ -172,14 +174,11 @@ public:
 
 	static type get_type(const std::string& name);
 
-	static std::string get_api(type t,
-							   const std::set<std::string>* extensions = nullptr);
+	static std::string get_api(type t, ext_list_ptr_t extensions = nullptr);
 
-	static std::string get_api(const component_pair& p,
-							   const std::set<std::string>* extensions = nullptr);
+	static std::string get_api(const component_pair& p, ext_list_ptr_t extensions = nullptr);
 
-	static std::string get_api(const std::string& name,
-							   const std::set<std::string>* extensions = nullptr);
+	static std::string get_api(const std::string& name, ext_list_ptr_t extensions = nullptr);
 
 	bool selector_in_labels(const k8s_pair_t& selector, const k8s_pair_list& labels) const;
 

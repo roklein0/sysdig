@@ -18,17 +18,17 @@ k8s_net::k8s_net(k8s& kube, const std::string& uri,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt,
 	bool curl_debug,
-	const std::set<std::string>* extensions) : m_k8s(kube),
+	ext_list_ptr_t extensions) : m_k8s(kube),
 		m_uri(uri),
 		m_ssl(ssl),
 		m_bt(bt),
 		m_stopped(true),
 		m_collector(kube.watch_in_thread()),
-#ifndef K8S_DISABLE_THREAD
-		m_thread(0),
-#endif
 		m_curl_debug(curl_debug),
 		m_extensions(extensions)
+#ifndef K8S_DISABLE_THREAD
+		,m_thread(0)
+#endif
 {
 }
 

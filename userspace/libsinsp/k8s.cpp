@@ -15,7 +15,7 @@
 
 k8s_component::type_map k8s::m_components;
 
-k8s::dispatch_map k8s::make_dispatch_map(k8s_state_t& state, const std::set<std::string>* extensions)
+k8s::dispatch_map k8s::make_dispatch_map(k8s_state_t& state, ext_list_ptr_t extensions)
 {
 	dispatch_map dm;
 	dm.insert({ k8s_component::K8S_NODES,                  new k8s_dispatcher(k8s_component::K8S_NODES,                  state) });
@@ -46,7 +46,7 @@ k8s::k8s(const std::string& uri, bool start_watch, bool watch_in_thread, bool is
 #endif // HAS_CAPTURE
 		bool curl_debug,
 		filter_ptr_t event_filter,
-		const std::set<std::string>* extensions) :
+		ext_list_ptr_t extensions) :
 		m_watch(uri.empty() ? false : start_watch),
 		m_state(is_captured),
 		m_event_filter(event_filter),

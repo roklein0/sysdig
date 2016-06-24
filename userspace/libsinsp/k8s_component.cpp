@@ -415,7 +415,7 @@ k8s_component::type k8s_component::get_type(const std::string& name)
 	throw sinsp_exception(os.str().c_str());
 }
 
-std::string k8s_component::get_api(type t, const std::set<std::string>* extensions)
+std::string k8s_component::get_api(type t, ext_list_ptr_t extensions)
 {
 	switch (t)
 	{
@@ -447,12 +447,12 @@ std::string k8s_component::get_api(type t, const std::set<std::string>* extensio
 	throw sinsp_exception(os.str().c_str());
 }
 
-std::string k8s_component::get_api(const component_pair& p, const std::set<std::string>* extensions)
+std::string k8s_component::get_api(const component_pair& p, ext_list_ptr_t extensions)
 {
 	return get_api(p.first, extensions);
 }
 
-std::string k8s_component::get_api(const std::string& name, const std::set<std::string>* extensions)
+std::string k8s_component::get_api(const std::string& name, ext_list_ptr_t extensions)
 {
 	return get_api(get_type(name), extensions);
 }
