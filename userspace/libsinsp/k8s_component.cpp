@@ -619,8 +619,8 @@ k8s_container* k8s_pod_t::get_container(const std::string& container_name)
 //
 // replication controller
 //
-k8s_rc_t::k8s_rc_t(const std::string& name, const std::string& uid, const std::string& ns) : 
-	k8s_component(COMPONENT_TYPE, name, uid, ns)
+k8s_rc_t::k8s_rc_t(const std::string& name, const std::string& uid, const std::string& ns, k8s_component::type type) : 
+	k8s_component(type, name, uid, ns)
 {
 }
 
@@ -655,7 +655,7 @@ int k8s_rc_t::get_replica(const Json::Value& item)
 // replica set
 //
 k8s_rs_t::k8s_rs_t(const std::string& name, const std::string& uid, const std::string& ns) : 
-	k8s_component(COMPONENT_TYPE, name, uid, ns)
+	k8s_rc_t(name, uid, ns, COMPONENT_TYPE)
 {
 }
 

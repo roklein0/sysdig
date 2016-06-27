@@ -306,7 +306,10 @@ public:
 	static const int UNKNOWN_REPLICAS = -1;
 	static const k8s_component::type COMPONENT_TYPE = K8S_REPLICATIONCONTROLLERS;
 
-	k8s_rc_t(const std::string& name, const std::string& uid, const std::string& ns = "");
+	k8s_rc_t(const std::string& name,
+			 const std::string& uid,
+			 const std::string& ns = "",
+			 k8s_component::type type = K8S_REPLICATIONCONTROLLERS);
 
 	std::vector<const k8s_pod_t*> get_selected_pods(const std::vector<k8s_pod_t>& pods) const;
 
@@ -316,7 +319,7 @@ public:
 	int get_stat_replicas() const;
 	void set_replicas(const Json::Value& item);
 
-private:
+protected:
 	int get_replica(const Json::Value& item);
 
 	int m_spec_replicas = UNKNOWN_REPLICAS;
@@ -328,7 +331,7 @@ private:
 // replica set
 //
 
-class k8s_rs_t : public k8s_component
+class k8s_rs_t : public k8s_rc_t
 {
 public:
 	static const k8s_component::type COMPONENT_TYPE = K8S_REPLICASETS;

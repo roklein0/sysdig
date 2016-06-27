@@ -374,60 +374,6 @@ void k8s_dispatcher::handle_pod(const Json::Value& root, const msg_data& data)
 	}
 }
 
-void k8s_dispatcher::handle_rc(const Json::Value& root, const msg_data& data)
-{
-	if(data.m_reason == COMPONENT_ADDED)
-	{
-		if(m_state.has(m_state.get_rcs(), data.m_uid))
-		{
-			std::ostringstream os;
-			os << "ADDED message received for existing replication controller [" << data.m_uid << "], updating only.";
-			g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
-		}
-		k8s_rc_t& rc = m_state.get_component<k8s_controllers, k8s_rc_t>(m_state.get_rcs(), data.m_name, data.m_uid, data.m_namespace);
-		const Json::Value& object = root["object"];
-		if(!object.isNull())
-		{
-			handle_labels(rc, object["metadata"], "labels");
-			handle_selectors(rc, object["spec"], "selector");
-			rc.set_replicas(object);
-		}
-	}
-	else if(data.m_reason == COMPONENT_MODIFIED)
-	{
-		if(!m_state.has(m_state.get_rcs(), data.m_uid))
-		{
-			std::ostringstream os;
-			os << "MODIFIED message received for non-existing replication controller [" << data.m_uid << "], giving up.";
-			g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
-			return;
-		}
-		k8s_rc_t& rc = m_state.get_component<k8s_controllers, k8s_rc_t>(m_state.get_rcs(), data.m_name, data.m_uid, data.m_namespace);
-		const Json::Value& object = root["object"];
-		if(!object.isNull())
-		{
-			handle_labels(rc, object["metadata"], "labels");
-			handle_selectors(rc, object["spec"], "selector");
-			rc.set_replicas(object);
-		}
-	}
-	else if(data.m_reason == COMPONENT_DELETED)
-	{
-		if(!m_state.delete_component(m_state.get_rcs(), data.m_uid))
-		{
-			g_logger.log(std::string("CONTROLLER not found: ") + data.m_name, sinsp_logger::SEV_ERROR);
-		}
-	}
-	else if(data.m_reason == COMPONENT_ERROR)
-	{
-		log_error(root, "REPLICATION CONTROLLER");
-	}
-	else
-	{
-		g_logger.log(std::string("Unsupported K8S REPLICATION CONTROLLER event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
-	}
-}
-
 void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& data)
 {
 	if(data.m_reason == COMPONENT_ADDED)
@@ -584,11 +530,11 @@ void k8s_dispatcher::extract_data(Json::Value& root, bool enqueue)
 				break;
 			case k8s_component::K8S_REPLICATIONCONTROLLERS:
 				os << "REPLICATION_CONTROLLER,";
-				handle_rc(root, data);
+				handle_rc(root, data, m_state.get_rcs(), "replication controller");
 				break;
 			case k8s_component::K8S_REPLICASETS:
 				os << "REPLICA_SET,";
-				// TODO handle_rc(root, data);
+				handle_rc(root, data, m_state.get_rcs(), "replica set");
 				break;
 			case k8s_component::K8S_SERVICES:
 				os << "SERVICE,";

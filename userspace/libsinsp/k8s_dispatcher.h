@@ -69,9 +69,66 @@ private:
 	void handle_node(const Json::Value& root, const msg_data& data);
 	void handle_namespace(const Json::Value& root, const msg_data& data);
 	void handle_pod(const Json::Value& root, const msg_data& data);
-	void handle_rc(const Json::Value& root, const msg_data& data);
 	void handle_service(const Json::Value& root, const msg_data& data);
 	void handle_event(const Json::Value& root, const msg_data& data);
+
+	// handler for replcation controllers and replica sets
+	template<typename T>
+	void handle_rc(const Json::Value& root, const msg_data& data, T& cont, const std::string& comp_name)
+	{
+		typedef typename T::value_type comp_t;
+
+		if(data.m_reason == COMPONENT_ADDED)
+		{
+			if(m_state.has(cont, data.m_uid))
+			{
+				std::ostringstream os;
+				os << "ADDED message received for existing " << comp_name << '[' << data.m_uid << "], updating only.";
+				g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
+			}
+			comp_t& rc = m_state.get_component<T, comp_t>(cont, data.m_name, data.m_uid, data.m_namespace);
+			const Json::Value& object = root["object"];
+			if(!object.isNull())
+			{
+				handle_labels(rc, object["metadata"], "labels");
+				handle_selectors(rc, object["spec"], "selector");
+				rc.set_replicas(object);
+			}
+		}
+		else if(data.m_reason == COMPONENT_MODIFIED)
+		{
+			if(!m_state.has(cont, data.m_uid))
+			{
+				std::ostringstream os;
+				os << "MODIFIED message received for non-existing " << comp_name << '[' << data.m_uid << "], giving up.";
+				g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
+				return;
+			}
+			comp_t& rc = m_state.get_component<T, comp_t>(cont, data.m_name, data.m_uid, data.m_namespace);
+			const Json::Value& object = root["object"];
+			if(!object.isNull())
+			{
+				handle_labels(rc, object["metadata"], "labels");
+				handle_selectors(rc, object["spec"], "selector");
+				rc.set_replicas(object);
+			}
+		}
+		else if(data.m_reason == COMPONENT_DELETED)
+		{
+			if(!m_state.delete_component(cont, data.m_uid))
+			{
+				g_logger.log("K8s: " + comp_name + " not found: " + data.m_name, sinsp_logger::SEV_ERROR);
+			}
+		}
+		else if(data.m_reason == COMPONENT_ERROR)
+		{
+			log_error(root, comp_name);
+		}
+		else
+		{
+			g_logger.log(std::string("Unsupported K8S " + comp_name + " event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
+		}
+	}
 
 	// clears the content of labels and fills it with new values, if any
 	template <typename T>

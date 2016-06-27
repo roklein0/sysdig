@@ -265,10 +265,10 @@ std::size_t k8s::count(k8s_component::type component) const
 		return m_state.get_services().size();
 
 	case k8s_component::K8S_DAEMONSETS:
-		return 0; // TODO
+		return m_state.get_daemonsets().size();
 
 	case k8s_component::K8S_DEPLOYMENTS:
-		return 0; // TODO
+		return m_state.get_deployments().size();
 
 	case k8s_component::K8S_EVENTS:
 		return m_state.get_events().size();
@@ -408,40 +408,37 @@ void k8s::extract_data(Json::Value& items, k8s_component::type component, const 
 
 			case k8s_component::K8S_REPLICASETS:
 				{
-					// TODO
-					/*const k8s_controllers& rcs = m_state.get_rcs();
-					if(rcs.size())
+					const k8s_replicasets& rss = m_state.get_rss();
+					if(rss.size())
 					{
-						component_kind = "ReplicationController";
-						component_name = rcs.back().get_name();
-						component_uid = rcs.back().get_uid();
-					}*/
+						component_kind = "ReplicaSet";
+						component_name = rss.back().get_name();
+						component_uid = rss.back().get_uid();
+					}
 					break;
 				}
 
 			case k8s_component::K8S_DAEMONSETS:
 				{
-					// TODO
-					/*const k8s_controllers& rcs = m_state.get_rcs();
-					if(rcs.size())
+					const k8s_daemonsets& daemonsets = m_state.get_daemonsets();
+					if(daemonsets.size())
 					{
-						component_kind = "ReplicationController";
-						component_name = rcs.back().get_name();
-						component_uid = rcs.back().get_uid();
-					}*/
+						component_kind = "DaemonSet";
+						component_name = daemonsets.back().get_name();
+						component_uid = daemonsets.back().get_uid();
+					}
 					break;
 				}
 
 			case k8s_component::K8S_DEPLOYMENTS:
 				{
-					// TODO
-					/*const k8s_controllers& rcs = m_state.get_rcs();
-					if(rcs.size())
+					const k8s_deployments& deployments = m_state.get_deployments();
+					if(deployments.size())
 					{
-						component_kind = "ReplicationController";
-						component_name = rcs.back().get_name();
-						component_uid = rcs.back().get_uid();
-					}*/
+						component_kind = "Deployment";
+						component_name = deployments.back().get_name();
+						component_uid = deployments.back().get_uid();
+					}
 					break;
 				}
 
