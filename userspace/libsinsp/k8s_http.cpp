@@ -185,7 +185,7 @@ int k8s_http::get_watch_socket(long timeout_ms)
 		long sockextr;
 		size_t iolen;
 		std::string url = m_url;
-		url.insert(m_url.find(m_api) + m_api.size(), "/watch");
+		url.insert(m_url.find(m_api) + m_api.size(), "watch/");
 
 		check_error(curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str()));
 		check_error(curl_easy_setopt(m_curl, CURLOPT_CONNECT_ONLY, 1L));

@@ -303,11 +303,27 @@ void k8s::extract_data(Json::Value& items, k8s_component::type component, const 
 			{
 				Json::Value ns = metadata["namespace"];
 				std::string nspace;
-				if(!ns.isNull())
+				if(!ns.isNull() && ns.isString())
 				{
 					nspace = ns.asString();
 				}
-				m_state.add_common_single_value(component, metadata["name"].asString(), metadata["uid"].asString(), nspace);
+				Json::Value name = metadata["name"];
+				if(!name.isNull() && name.isString())
+				{
+					Json::Value uid = metadata["uid"];
+					if(!uid.isNull() && uid.isString())
+					{
+						m_state.add_common_single_value(component, name.asString(), uid.asString(), nspace);
+					}
+					else
+					{
+						throw sinsp_exception("K8s extract_data(): uid is null or not a string.");
+					}
+				}
+				else
+				{
+					throw sinsp_exception("K8s extract_data(): name is null or not a string.");
+				}
 
 				std::vector<k8s_pair_t> entries = k8s_component::extract_object(metadata, "labels");
 				if(entries.size() > 0)
@@ -488,16 +504,14 @@ void k8s::parse_json(const std::string& json, const k8s_component::type_map::val
 	Json::Reader reader;
 	if(reader.parse(json, root, false))
 	{
+		//g_logger.log(root.toStyledString(), sinsp_logger::SEV_TRACE);
 		Json::Value items = root["items"];
 		if(!items.isNull())
 		{
 			Json::Value api_version = root["apiVersion"];
 			std::string api_ver = api_version.isNull() ? std::string() : api_version.asString();
 			extract_data(items, component.first, api_ver);
-			//g_logger.log(root.toStyledString(), sinsp_logger::SEV_DEBUG);
-			{
-				m_state.update_cache(component.first);
-			}
+			m_state.update_cache(component.first);
 		}
 		else
 		{

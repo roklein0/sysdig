@@ -85,10 +85,6 @@ void k8s_state_t::replace_items(k8s_component::type t, const std::string& name, 
 		}
 		break;
 
-	case k8s_component::K8S_EVENTS:
-		break;
-
-	// only controllers and services can have selectors
 	case k8s_component::K8S_REPLICATIONCONTROLLERS:
 		if(name == "labels")
 		{
@@ -98,6 +94,19 @@ void k8s_state_t::replace_items(k8s_component::type t, const std::string& name, 
 		else if(name == "selector")
 		{
 			m_controllers.back().m_selectors = std::move(items);
+			return;
+		}
+		break;
+
+	case k8s_component::K8S_REPLICASETS:
+		if(name == "labels")
+		{
+			m_replicasets.back().m_labels = std::move(items);
+			return;
+		}
+		else if(name == "selector")
+		{
+			m_replicasets.back().m_selectors = std::move(items);
 			return;
 		}
 		break;
@@ -114,6 +123,36 @@ void k8s_state_t::replace_items(k8s_component::type t, const std::string& name, 
 			return;
 		}
 		break;
+
+	case k8s_component::K8S_DEPLOYMENTS:
+		if(name == "labels")
+		{
+			m_deployments.back().m_labels = std::move(items);
+			return;
+		}
+		else if(name == "selector")
+		{
+			m_deployments.back().m_selectors = std::move(items);
+			return;
+		}
+		break;
+
+	case k8s_component::K8S_DAEMONSETS:
+		if(name == "labels")
+		{
+			m_daemonsets.back().m_labels = std::move(items);
+			return;
+		}
+		else if(name == "selector")
+		{
+			m_daemonsets.back().m_selectors = std::move(items);
+			return;
+		}
+		break;
+
+	case k8s_component::K8S_EVENTS:
+		return;
+
 	case k8s_component::K8S_COMPONENT_COUNT:
 	default:
 		break;
@@ -480,9 +519,21 @@ const k8s_component* k8s_state_t::get_component(const std::string& uid, std::str
 			if(t) { *t = "replicationController"; }
 			return get_component<k8s_controllers, k8s_rc_t>(m_controllers, uid);
 			break;
+		case k8s_component::K8S_REPLICASETS:
+			if(t) { *t = "replicaSet"; }
+			return get_component<k8s_replicasets, k8s_rs_t>(m_replicasets, uid);
+			break;
 		case k8s_component::K8S_SERVICES:
 			if(t) { *t = "service"; }
 			return get_component<k8s_services, k8s_service_t>(m_services, uid);
+			break;
+		case k8s_component::K8S_DAEMONSETS:
+			if(t) { *t = "daemonSet"; }
+			return get_component<k8s_daemonsets, k8s_daemonset_t>(m_daemonsets, uid);
+			break;
+		case k8s_component::K8S_DEPLOYMENTS:
+			if(t) { *t = "deployment"; }
+			return get_component<k8s_deployments, k8s_deployment_t>(m_deployments, uid);
 			break;
 		case k8s_component::K8S_EVENTS:
 			if(t) { *t = "event"; }

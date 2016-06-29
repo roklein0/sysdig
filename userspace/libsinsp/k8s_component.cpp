@@ -98,7 +98,7 @@ k8s_pair_list k8s_component::extract_object(const Json::Value& object, const std
 			for (auto& member : members)
 			{
 				Json::Value val = entries[member];
-				if(!val.isNull())
+				if(!val.isNull() && val.isString())
 				{
 					entry_list.emplace_back(k8s_pair_t(member, val.asString()));
 				}

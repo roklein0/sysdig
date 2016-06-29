@@ -426,6 +426,110 @@ void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& dat
 	}
 }
 
+void k8s_dispatcher::handle_deployment(const Json::Value& root, const msg_data& data)
+{
+	if(data.m_reason == COMPONENT_ADDED)
+	{
+		const Json::Value& object = root["object"];
+		if(!object.isNull())
+		{
+			if(m_state.has(m_state.get_deployments(), data.m_uid))
+			{
+				std::ostringstream os;
+				os << "ADDED message received for existing deployment [" << data.m_uid << "], updating only.";
+				g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
+			}
+			k8s_deployment_t& deployment = m_state.get_component<k8s_deployments, k8s_deployment_t>(m_state.get_deployments(), data.m_name, data.m_uid, data.m_namespace);
+			handle_labels(deployment, object["metadata"], "labels");
+			//k8s_component::extract_deployments_data(object, deployment, m_state.get_pods());
+		}
+	}
+	else if(data.m_reason == COMPONENT_MODIFIED)
+	{
+		const Json::Value& object = root["object"];
+		if(!object.isNull())
+		{
+			if(!m_state.has(m_state.get_deployments(), data.m_uid))
+			{
+				std::ostringstream os;
+				os << "MODIFIED message received for non-existing deployment [" << data.m_uid << "], giving up.";
+				g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
+				return;
+			}
+			k8s_deployment_t& deployment = m_state.get_component<k8s_deployments, k8s_deployment_t>(m_state.get_deployments(), data.m_name, data.m_uid, data.m_namespace);
+			handle_labels(deployment, object["metadata"], "labels");
+			//k8s_component::extract_deployments_data(object, deployment, m_state.get_pods());
+		}
+	}
+	else if(data.m_reason == COMPONENT_DELETED)
+	{
+		if(!m_state.delete_component(m_state.get_deployments(), data.m_uid))
+		{
+			g_logger.log(std::string("DEPLOYMENT not found: ") + data.m_name, sinsp_logger::SEV_ERROR);
+		}
+	}
+	else if(data.m_reason == COMPONENT_ERROR)
+	{
+		log_error(root, "DEPLOYMENT");
+	}
+	else
+	{
+		g_logger.log(std::string("Unsupported K8S DEPLOYMENT event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
+	}
+}
+
+void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& data)
+{
+	if(data.m_reason == COMPONENT_ADDED)
+	{
+		const Json::Value& object = root["object"];
+		if(!object.isNull())
+		{
+			if(m_state.has(m_state.get_daemonsets(), data.m_uid))
+			{
+				std::ostringstream os;
+				os << "ADDED message received for existing daemonset [" << data.m_uid << "], updating only.";
+				g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
+			}
+			k8s_daemonset_t& daemonset = m_state.get_component<k8s_daemonsets, k8s_daemonset_t>(m_state.get_daemonsets(), data.m_name, data.m_uid, data.m_namespace);
+			handle_labels(daemonset, object["metadata"], "labels");
+			//k8s_component::extract_daemonsets_data(object, daemonset, m_state.get_pods());
+		}
+	}
+	else if(data.m_reason == COMPONENT_MODIFIED)
+	{
+		const Json::Value& object = root["object"];
+		if(!object.isNull())
+		{
+			if(!m_state.has(m_state.get_daemonsets(), data.m_uid))
+			{
+				std::ostringstream os;
+				os << "MODIFIED message received for non-existing daemonset [" << data.m_uid << "], giving up.";
+				g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
+				return;
+			}
+			k8s_daemonset_t& daemonset = m_state.get_component<k8s_daemonsets, k8s_daemonset_t>(m_state.get_daemonsets(), data.m_name, data.m_uid, data.m_namespace);
+			handle_labels(daemonset, object["metadata"], "labels");
+			//k8s_component::extract_daemonsets_data(object, daemonset, m_state.get_pods());
+		}
+	}
+	else if(data.m_reason == COMPONENT_DELETED)
+	{
+		if(!m_state.delete_component(m_state.get_daemonsets(), data.m_uid))
+		{
+			g_logger.log(std::string("DAEMONSET not found: ") + data.m_name, sinsp_logger::SEV_ERROR);
+		}
+	}
+	else if(data.m_reason == COMPONENT_ERROR)
+	{
+		log_error(root, "DAEMONSET");
+	}
+	else
+	{
+		g_logger.log(std::string("Unsupported K8S DAEMONSET event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
+	}
+}
+
 void k8s_dispatcher::handle_event(const Json::Value& root, const msg_data& data)
 {
 	if(m_event_filter)
@@ -542,11 +646,11 @@ void k8s_dispatcher::extract_data(Json::Value& root, bool enqueue)
 				break;
 			case k8s_component::K8S_DAEMONSETS:
 				os << "DAEMON_SET,";
-				// TODO handle_service(root, data);
+				handle_daemonset(root, data);
 				break;
 			case k8s_component::K8S_DEPLOYMENTS:
 				os << "DEPLOYMENT,";
-				// TODO handle_service(root, data);
+				handle_deployment(root, data);
 				break;
 			case k8s_component::K8S_EVENTS:
 				os << "EVENT,";

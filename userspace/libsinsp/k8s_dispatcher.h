@@ -70,9 +70,11 @@ private:
 	void handle_namespace(const Json::Value& root, const msg_data& data);
 	void handle_pod(const Json::Value& root, const msg_data& data);
 	void handle_service(const Json::Value& root, const msg_data& data);
+	void handle_deployment(const Json::Value& root, const msg_data& data);
+	void handle_daemonset(const Json::Value& root, const msg_data& data);
 	void handle_event(const Json::Value& root, const msg_data& data);
 
-	// handler for replcation controllers and replica sets
+	// handler for replication controllers and replica sets
 	template<typename T>
 	void handle_rc(const Json::Value& root, const msg_data& data, T& cont, const std::string& comp_name)
 	{
