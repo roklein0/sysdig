@@ -96,6 +96,11 @@ private:
 				handle_selectors(rc, object["spec"], "selector");
 				rc.set_replicas(object);
 			}
+			else
+			{
+				g_logger.log("K8s: object is null for " + comp_name + ' ' + data.m_name + '[' + data.m_uid + ']',
+							 sinsp_logger::SEV_ERROR);
+			}
 		}
 		else if(data.m_reason == COMPONENT_MODIFIED)
 		{
@@ -113,6 +118,11 @@ private:
 				handle_labels(rc, object["metadata"], "labels");
 				handle_selectors(rc, object["spec"], "selector");
 				rc.set_replicas(object);
+			}
+			else
+			{
+				g_logger.log("K8s: object is null for " + comp_name + ' ' + data.m_name + '[' + data.m_uid + ']',
+							 sinsp_logger::SEV_ERROR);
 			}
 		}
 		else if(data.m_reason == COMPONENT_DELETED)
@@ -158,7 +168,24 @@ private:
 		}
 		else
 		{
-			g_logger.log("Null spec object received", sinsp_logger::SEV_ERROR);
+			g_logger.log("K8s: Null spec object received", sinsp_logger::SEV_ERROR);
+		}
+	}
+
+	template <typename T>
+	void handle_match_selectors(T& component, const Json::Value& spec, const std::string& name)
+	{
+		if(!spec.isNull())
+		{
+			const Json::Value& selector = spec["selector"];
+			if(!selector.isNull())
+			{
+				handle_selectors(component, selector, name);
+			}
+		}
+		else
+		{
+			g_logger.log("K8s: Null spec object received", sinsp_logger::SEV_ERROR);
 		}
 	}
 

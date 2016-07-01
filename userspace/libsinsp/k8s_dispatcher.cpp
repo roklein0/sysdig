@@ -391,6 +391,10 @@ void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& dat
 			handle_labels(service, object["metadata"], "labels");
 			k8s_component::extract_services_data(object, service, m_state.get_pods());
 		}
+		else
+		{
+			g_logger.log("K8s: object is null for service " + data.m_name + '[' + data.m_uid + ']', sinsp_logger::SEV_ERROR);
+		}
 	}
 	else if(data.m_reason == COMPONENT_MODIFIED)
 	{
@@ -407,6 +411,10 @@ void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& dat
 			k8s_service_t& service = m_state.get_component<k8s_services, k8s_service_t>(m_state.get_services(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(service, object["metadata"], "labels");
 			k8s_component::extract_services_data(object, service, m_state.get_pods());
+		}
+		else
+		{
+			g_logger.log("K8s: object is null for service " + data.m_name + '[' + data.m_uid + ']', sinsp_logger::SEV_ERROR);
 		}
 	}
 	else if(data.m_reason == COMPONENT_DELETED)
@@ -441,7 +449,12 @@ void k8s_dispatcher::handle_deployment(const Json::Value& root, const msg_data& 
 			}
 			k8s_deployment_t& deployment = m_state.get_component<k8s_deployments, k8s_deployment_t>(m_state.get_deployments(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(deployment, object["metadata"], "labels");
-			//k8s_component::extract_deployments_data(object, deployment, m_state.get_pods());
+			handle_match_selectors(deployment, object["spec"], "matchLabels");
+			deployment.set_replicas(object);
+		}
+		else
+		{
+			g_logger.log("K8s: object is null for deployment "+ data.m_name + '[' + data.m_uid + ']', sinsp_logger::SEV_ERROR);
 		}
 	}
 	else if(data.m_reason == COMPONENT_MODIFIED)
@@ -456,9 +469,15 @@ void k8s_dispatcher::handle_deployment(const Json::Value& root, const msg_data& 
 				g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
 				return;
 			}
-			k8s_deployment_t& deployment = m_state.get_component<k8s_deployments, k8s_deployment_t>(m_state.get_deployments(), data.m_name, data.m_uid, data.m_namespace);
+			k8s_deployment_t& deployment =
+			m_state.get_component<k8s_deployments, k8s_deployment_t>(m_state.get_deployments(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(deployment, object["metadata"], "labels");
-			//k8s_component::extract_deployments_data(object, deployment, m_state.get_pods());
+			handle_match_selectors(deployment, object["spec"], "matchLabels");
+			deployment.set_replicas(object);
+		}
+		else
+		{
+			g_logger.log("K8s: object is null for deployment " + data.m_name + '[' + data.m_uid + ']', sinsp_logger::SEV_ERROR);
 		}
 	}
 	else if(data.m_reason == COMPONENT_DELETED)
@@ -493,7 +512,14 @@ void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& d
 			}
 			k8s_daemonset_t& daemonset = m_state.get_component<k8s_daemonsets, k8s_daemonset_t>(m_state.get_daemonsets(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(daemonset, object["metadata"], "labels");
-			//k8s_component::extract_daemonsets_data(object, daemonset, m_state.get_pods());
+			handle_match_selectors(daemonset, object["spec"], "matchLabels");
+			//TODO
+			/*status:
+			{
+				currentNumberScheduled: 3,
+				numberMisscheduled: 0,
+				desiredNumberScheduled: 3
+			}*/
 		}
 	}
 	else if(data.m_reason == COMPONENT_MODIFIED)
@@ -510,7 +536,14 @@ void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& d
 			}
 			k8s_daemonset_t& daemonset = m_state.get_component<k8s_daemonsets, k8s_daemonset_t>(m_state.get_daemonsets(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(daemonset, object["metadata"], "labels");
-			//k8s_component::extract_daemonsets_data(object, daemonset, m_state.get_pods());
+			handle_match_selectors(daemonset, object["spec"], "matchLabels");
+			//TODO
+			/*status:
+			{
+				currentNumberScheduled: 3,
+				numberMisscheduled: 0,
+				desiredNumberScheduled: 3
+			}*/
 		}
 	}
 	else if(data.m_reason == COMPONENT_DELETED)

@@ -297,13 +297,81 @@ private:
 
 
 //
+// replicas
+//
+
+class k8s_replicas_t
+{
+public:
+	static const int UNKNOWN_REPLICAS = -1;
+	k8s_replicas_t(int spec_replicas = UNKNOWN_REPLICAS, int stat_replicas = UNKNOWN_REPLICAS):
+		m_spec_replicas(spec_replicas),
+		m_stat_replicas(stat_replicas)
+	{
+	}
+
+	void set_spec_replicas(int replicas)
+	{
+		m_spec_replicas = replicas;
+	}
+	int get_spec_replicas() const
+	{
+		return m_spec_replicas;
+	}
+	void set_stat_replicas(int replicas)
+	{
+		m_stat_replicas = replicas;
+	}
+	int get_stat_replicas() const
+	{
+		return m_stat_replicas;
+	}
+
+	static int get_count(const Json::Value& item)
+	{
+		if(!item.isNull())
+		{
+			const Json::Value& replicas = item["replicas"];
+			if(!replicas.isNull() && replicas.isConvertibleTo(Json::intValue))
+			{
+				return replicas.asInt();
+			}
+		}
+		std::string name;
+		const Json::Value& tpl = item["template"];
+		if(!tpl.isNull())
+		{
+			const Json::Value& md = tpl["metadata"];
+			if(!md.isNull())
+			{
+				const Json::Value& lbl = md["labels"];
+				if(!lbl.isNull())
+				{
+					const Json::Value& n = lbl["name"];
+					if(!n.isNull() && n.isString())
+					{
+						name = n.asString();
+					}
+				}
+			}
+		}
+		g_logger.log("Can not determine number of replicas for K8s replication controller " + name, sinsp_logger::SEV_ERROR);
+		return k8s_replicas_t::UNKNOWN_REPLICAS;
+	}
+
+protected:
+	int m_spec_replicas = UNKNOWN_REPLICAS;
+	int m_stat_replicas = UNKNOWN_REPLICAS;
+};
+
+
+//
 // replication controller
 //
 
 class k8s_rc_t : public k8s_component
 {
 public:
-	static const int UNKNOWN_REPLICAS = -1;
 	static const k8s_component::type COMPONENT_TYPE = K8S_REPLICATIONCONTROLLERS;
 
 	k8s_rc_t(const std::string& name,
@@ -320,10 +388,7 @@ public:
 	void set_replicas(const Json::Value& item);
 
 protected:
-	int get_replica(const Json::Value& item);
-
-	int m_spec_replicas = UNKNOWN_REPLICAS;
-	int m_stat_replicas = UNKNOWN_REPLICAS;
+	k8s_replicas_t m_replicas;
 };
 
 
@@ -405,7 +470,14 @@ public:
 
 	k8s_deployment_t(const std::string& name, const std::string& uid, const std::string& ns = "");
 
-private:
+	void set_spec_replicas(int replicas);
+	int get_spec_replicas() const;
+	void set_stat_replicas(int replicas);
+	int get_stat_replicas() const;
+	void set_replicas(const Json::Value& item);
+
+protected:
+	k8s_replicas_t m_replicas;
 };
 
 
@@ -799,28 +871,28 @@ inline void k8s_pod_t::set_internal_ip(const std::string& internal_ip)
 
 inline void k8s_rc_t::set_spec_replicas(int replicas)
 {
-	m_spec_replicas = replicas;
+	m_replicas.set_spec_replicas(replicas);
 }
 
 inline int k8s_rc_t::get_spec_replicas() const
 {
-	return m_spec_replicas;
+	return m_replicas.get_spec_replicas();
 }
 
 inline void k8s_rc_t::set_stat_replicas(int replicas)
 {
-	m_stat_replicas = replicas;
+	m_replicas.set_stat_replicas(replicas);
 }
 
 inline int k8s_rc_t::get_stat_replicas() const
 {
-	return m_stat_replicas;
+	return m_replicas.get_stat_replicas();
 }
 
 inline void k8s_rc_t::set_replicas(const Json::Value& item)
 {
-	m_spec_replicas = get_replica(item["spec"]);
-	m_stat_replicas = get_replica(item["status"]);
+	m_replicas.set_spec_replicas(k8s_replicas_t::get_count(item["spec"]));
+	m_replicas.set_stat_replicas(k8s_replicas_t::get_count(item["status"]));
 }
 
 //
@@ -845,4 +917,34 @@ inline const k8s_service_t::port_list& k8s_service_t::get_port_list() const
 inline void k8s_service_t::set_port_list(port_list&& ports)
 {
 	m_ports = std::move(ports);
+}
+
+//
+// deployment
+//
+
+inline void k8s_deployment_t::set_spec_replicas(int replicas)
+{
+	m_replicas.set_spec_replicas(replicas);
+}
+
+inline int k8s_deployment_t::get_spec_replicas() const
+{
+	return m_replicas.get_spec_replicas();
+}
+
+inline void k8s_deployment_t::set_stat_replicas(int replicas)
+{
+	m_replicas.set_stat_replicas(replicas);
+}
+
+inline int k8s_deployment_t::get_stat_replicas() const
+{
+	return m_replicas.get_stat_replicas();
+}
+
+inline void k8s_deployment_t::set_replicas(const Json::Value& item)
+{
+	m_replicas.set_spec_replicas(k8s_replicas_t::get_count(item["spec"]));
+	m_replicas.set_stat_replicas(k8s_replicas_t::get_count(item["status"]));
 }
