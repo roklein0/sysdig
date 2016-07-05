@@ -298,16 +298,16 @@ void k8s::extract_data(Json::Value& items, k8s_component::type component, const 
 	{
 		for (auto& item : items)
 		{
-			Json::Value metadata = item["metadata"];
+			const Json::Value& metadata = item["metadata"];
 			if(!metadata.isNull())
 			{
-				Json::Value ns = metadata["namespace"];
+				const Json::Value& ns = metadata["namespace"];
 				std::string nspace;
 				if(!ns.isNull() && ns.isString())
 				{
 					nspace = ns.asString();
 				}
-				Json::Value name = metadata["name"];
+				const Json::Value& name = metadata["name"];
 				if(!name.isNull() && name.isString())
 				{
 					Json::Value uid = metadata["uid"];
@@ -332,7 +332,7 @@ void k8s::extract_data(Json::Value& items, k8s_component::type component, const 
 				}
 			}
 
-			Json::Value spec = item["spec"];
+			const Json::Value& spec = item["spec"];
 			if(!spec.isNull())
 			{
 				std::vector<k8s_pair_t> entries = k8s_component::extract_object(spec, "selector");
@@ -401,59 +401,76 @@ void k8s::extract_data(Json::Value& items, k8s_component::type component, const 
 					k8s_services& svcs = m_state.get_services();
 					if(svcs.size())
 					{
+						k8s_service_t& svc = svcs.back();
 						component_kind = "Service";
-						component_name = svcs.back().get_name();
-						component_uid = svcs.back().get_uid();
-						component_ns = svcs.back().get_namespace();
-						k8s_component::extract_services_data(spec, svcs.back(), m_state.get_pods());
+						component_name = svc.get_name();
+						component_uid = svc.get_uid();
+						component_ns = svc.get_namespace();
+						k8s_component::extract_services_data(spec, svc, m_state.get_pods());
 					}
 				}
 				break;
 
 			case k8s_component::K8S_REPLICATIONCONTROLLERS:
 				{
-					const k8s_controllers& rcs = m_state.get_rcs();
+					k8s_controllers& rcs = m_state.get_rcs();
 					if(rcs.size())
 					{
+						k8s_rc_t& rc = rcs.back();
 						component_kind = "ReplicationController";
-						component_name = rcs.back().get_name();
-						component_uid = rcs.back().get_uid();
+						component_name = rc.get_name();
+						component_uid = rc.get_uid();
+						k8s_dispatcher::handle_labels(rc, metadata, "labels");
+						k8s_dispatcher::handle_selectors(rc, spec);
+						rc.set_replicas(item);
 					}
 					break;
 				}
 
 			case k8s_component::K8S_REPLICASETS:
 				{
-					const k8s_replicasets& rss = m_state.get_rss();
+					k8s_replicasets& rss = m_state.get_rss();
 					if(rss.size())
 					{
+						k8s_rs_t& rs = rss.back();
 						component_kind = "ReplicaSet";
-						component_name = rss.back().get_name();
-						component_uid = rss.back().get_uid();
+						component_name = rs.get_name();
+						component_uid = rs.get_uid();
+						k8s_dispatcher::handle_labels(rs, metadata, "labels");
+						k8s_dispatcher::handle_selectors(rs, spec);
+						rs.set_replicas(item);
 					}
 					break;
 				}
 
 			case k8s_component::K8S_DAEMONSETS:
 				{
-					const k8s_daemonsets& daemonsets = m_state.get_daemonsets();
+					k8s_daemonsets& daemonsets = m_state.get_daemonsets();
 					if(daemonsets.size())
 					{
+						k8s_daemonset_t& daemonset = daemonsets.back();
 						component_kind = "DaemonSet";
-						component_name = daemonsets.back().get_name();
-						component_uid = daemonsets.back().get_uid();
+						component_name = daemonset.get_name();
+						component_uid = daemonset.get_uid();
+						k8s_dispatcher::handle_labels(daemonset, metadata, "labels");
+						k8s_dispatcher::handle_selectors(daemonset, spec);
+						daemonset.set_scheduled(item);
 					}
 					break;
 				}
 
 			case k8s_component::K8S_DEPLOYMENTS:
 				{
-					const k8s_deployments& deployments = m_state.get_deployments();
+					k8s_deployments& deployments = m_state.get_deployments();
 					if(deployments.size())
 					{
+						k8s_deployment_t& deployment = deployments.back();
 						component_kind = "Deployment";
-						component_name = deployments.back().get_name();
-						component_uid = deployments.back().get_uid();
+						component_name = deployment.get_name();
+						component_uid = deployment.get_uid();
+						k8s_dispatcher::handle_labels(deployment, metadata, "labels");
+						k8s_dispatcher::handle_selectors(deployment, spec);
+						deployment.set_replicas(item);
 					}
 					break;
 				}

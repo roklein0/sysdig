@@ -410,11 +410,11 @@ public:
 
 	k8s_daemonset_t(const std::string& name, const std::string& uid, const std::string& ns = "");
 
-	void set_spec_replicas(int replicas);
-	int get_spec_replicas() const;
-	void set_stat_replicas(int replicas);
-	int get_stat_replicas() const;
-	void set_replicas(const Json::Value& item);
+	void set_desired_scheduled(int replicas);
+	int get_desired_scheduled() const;
+	void set_current_scheduled(int replicas);
+	int get_current_scheduled() const;
+	void set_scheduled(const Json::Value& item);
 
 private:
 	k8s_replicas_t m_replicas;
@@ -942,27 +942,27 @@ inline void k8s_deployment_t::set_replicas(const Json::Value& item)
 // daemon set
 //
 
-inline void k8s_daemonset_t::set_spec_replicas(int replicas)
+inline void k8s_daemonset_t::set_desired_scheduled(int scheduled)
 {
-	m_replicas.set_spec_replicas(replicas);
+	m_replicas.set_spec_replicas(scheduled);
 }
 
-inline int k8s_daemonset_t::get_spec_replicas() const
+inline int k8s_daemonset_t::get_desired_scheduled() const
 {
 	return m_replicas.get_spec_replicas();
 }
 
-inline void k8s_daemonset_t::set_stat_replicas(int replicas)
+inline void k8s_daemonset_t::set_current_scheduled(int scheduled)
 {
-	m_replicas.set_stat_replicas(replicas);
+	m_replicas.set_stat_replicas(scheduled);
 }
 
-inline int k8s_daemonset_t::get_stat_replicas() const
+inline int k8s_daemonset_t::get_current_scheduled() const
 {
 	return m_replicas.get_stat_replicas();
 }
 
-inline void k8s_daemonset_t::set_replicas(const Json::Value& item)
+inline void k8s_daemonset_t::set_scheduled(const Json::Value& item)
 {
 	m_replicas.set_spec_replicas(k8s_replicas_t::get_count(item["status"], "currentNumberScheduled"));
 	m_replicas.set_stat_replicas(k8s_replicas_t::get_count(item["status"], "desiredNumberScheduled"));

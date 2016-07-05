@@ -53,6 +53,48 @@ public:
 	void extract_data(const std::string& json, bool enqueue = false);
 	void extract_data(Json::Value& root, bool enqueue = false);
 
+	// clears the content of labels and fills it with new values, if any
+	template <typename T>
+	static void handle_labels(T& component, const Json::Value& metadata, const std::string& name)
+	{
+		if(!metadata.isNull())
+		{
+			k8s_pair_list entries = k8s_component::extract_object(metadata, name);
+			component.set_labels(std::move(entries));
+		}
+		else
+		{
+			g_logger.log("Null metadata object received", sinsp_logger::SEV_ERROR);
+		}
+	}
+
+	// clears the content of selectors and fills it with new values, if any;
+	// the selector location depth in JSON tree is detected and handled accordingly
+	template <typename T>
+	static void handle_selectors(T& component, const Json::Value& spec)
+	{
+		if(!spec.isNull())
+		{
+			const Json::Value& selector = spec["selector"];
+			if(!selector.isNull())
+			{
+				const Json::Value& match_labels = selector["matchLabels"];
+				k8s_pair_list selectors = match_labels.isNull() ?
+										  k8s_component::extract_object(spec, "selector") :
+										  k8s_component::extract_object(selector, "matchLabels");
+				component.set_selectors(std::move(selectors));
+			}
+			else
+			{
+				g_logger.log("K8s: Null selector object.", sinsp_logger::SEV_ERROR);
+			}
+		}
+		else
+		{
+			g_logger.log("K8s: Null spec object.", sinsp_logger::SEV_ERROR);
+		}
+	}
+
 private:
 	const std::string& next_msg();
 	
@@ -93,7 +135,8 @@ private:
 			if(!object.isNull())
 			{
 				handle_labels(rc, object["metadata"], "labels");
-				handle_selectors(rc, object["spec"], "selector");
+				const Json::Value& spec = object["spec"];
+				handle_selectors(rc, spec);
 				rc.set_replicas(object);
 			}
 			else
@@ -116,7 +159,7 @@ private:
 			if(!object.isNull())
 			{
 				handle_labels(rc, object["metadata"], "labels");
-				handle_selectors(rc, object["spec"], "selector");
+				handle_selectors(rc, object["spec"]);
 				rc.set_replicas(object);
 			}
 			else
@@ -139,53 +182,6 @@ private:
 		else
 		{
 			g_logger.log(std::string("Unsupported K8S " + comp_name + " event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
-		}
-	}
-
-	// clears the content of labels and fills it with new values, if any
-	template <typename T>
-	void handle_labels(T& component, const Json::Value& metadata, const std::string& name)
-	{
-		if(!metadata.isNull())
-		{
-			k8s_pair_list entries = k8s_component::extract_object(metadata, name);
-			component.set_labels(std::move(entries));
-		}
-		else
-		{
-			g_logger.log("Null metadata object received", sinsp_logger::SEV_ERROR);
-		}
-	}
-
-	// clears the content of selectors and fills it with new values, if any
-	template <typename T>
-	void handle_selectors(T& component, const Json::Value& spec, const std::string& name)
-	{
-		if(!spec.isNull())
-		{
-			k8s_pair_list selectors = k8s_component::extract_object(spec, name);
-			component.set_selectors(std::move(selectors));
-		}
-		else
-		{
-			g_logger.log("K8s: Null spec object received", sinsp_logger::SEV_ERROR);
-		}
-	}
-
-	template <typename T>
-	void handle_match_selectors(T& component, const Json::Value& spec, const std::string& name)
-	{
-		if(!spec.isNull())
-		{
-			const Json::Value& selector = spec["selector"];
-			if(!selector.isNull())
-			{
-				handle_selectors(component, selector, name);
-			}
-		}
-		else
-		{
-			g_logger.log("K8s: Null spec object received", sinsp_logger::SEV_ERROR);
 		}
 	}
 

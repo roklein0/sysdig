@@ -449,7 +449,7 @@ void k8s_dispatcher::handle_deployment(const Json::Value& root, const msg_data& 
 			}
 			k8s_deployment_t& deployment = m_state.get_component<k8s_deployments, k8s_deployment_t>(m_state.get_deployments(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(deployment, object["metadata"], "labels");
-			handle_match_selectors(deployment, object["spec"], "matchLabels");
+			handle_selectors(deployment, object["spec"]);
 			deployment.set_replicas(object);
 		}
 		else
@@ -472,7 +472,7 @@ void k8s_dispatcher::handle_deployment(const Json::Value& root, const msg_data& 
 			k8s_deployment_t& deployment =
 			m_state.get_component<k8s_deployments, k8s_deployment_t>(m_state.get_deployments(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(deployment, object["metadata"], "labels");
-			handle_match_selectors(deployment, object["spec"], "matchLabels");
+			handle_selectors(deployment, object["spec"]);
 			deployment.set_replicas(object);
 		}
 		else
@@ -512,8 +512,8 @@ void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& d
 			}
 			k8s_daemonset_t& daemonset = m_state.get_component<k8s_daemonsets, k8s_daemonset_t>(m_state.get_daemonsets(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(daemonset, object["metadata"], "labels");
-			handle_match_selectors(daemonset, object["spec"], "matchLabels");
-			daemonset.set_replicas(object);
+			handle_selectors(daemonset, object["spec"]);
+			daemonset.set_scheduled(object);
 		}
 	}
 	else if(data.m_reason == COMPONENT_MODIFIED)
@@ -530,8 +530,8 @@ void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& d
 			}
 			k8s_daemonset_t& daemonset = m_state.get_component<k8s_daemonsets, k8s_daemonset_t>(m_state.get_daemonsets(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(daemonset, object["metadata"], "labels");
-			handle_match_selectors(daemonset, object["spec"], "matchLabels");
-			daemonset.set_replicas(object);
+			handle_selectors(daemonset, object["spec"]);
+			daemonset.set_scheduled(object);
 		}
 	}
 	else if(data.m_reason == COMPONENT_DELETED)
