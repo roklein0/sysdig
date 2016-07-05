@@ -513,13 +513,7 @@ void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& d
 			k8s_daemonset_t& daemonset = m_state.get_component<k8s_daemonsets, k8s_daemonset_t>(m_state.get_daemonsets(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(daemonset, object["metadata"], "labels");
 			handle_match_selectors(daemonset, object["spec"], "matchLabels");
-			//TODO
-			/*status:
-			{
-				currentNumberScheduled: 3,
-				numberMisscheduled: 0,
-				desiredNumberScheduled: 3
-			}*/
+			daemonset.set_replicas(object);
 		}
 	}
 	else if(data.m_reason == COMPONENT_MODIFIED)
@@ -537,13 +531,7 @@ void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& d
 			k8s_daemonset_t& daemonset = m_state.get_component<k8s_daemonsets, k8s_daemonset_t>(m_state.get_daemonsets(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(daemonset, object["metadata"], "labels");
 			handle_match_selectors(daemonset, object["spec"], "matchLabels");
-			//TODO
-			/*status:
-			{
-				currentNumberScheduled: 3,
-				numberMisscheduled: 0,
-				desiredNumberScheduled: 3
-			}*/
+			daemonset.set_replicas(object);
 		}
 	}
 	else if(data.m_reason == COMPONENT_DELETED)

@@ -615,9 +615,59 @@ k8s_container* k8s_pod_t::get_container(const std::string& container_name)
 	return 0;
 }
 
+
+//
+// replicas
+//
+
+k8s_replicas_t::k8s_replicas_t(int spec_replicas, int stat_replicas):
+	m_spec_replicas(spec_replicas),
+	m_stat_replicas(stat_replicas)
+{
+}
+
+int k8s_replicas_t::get_count(const Json::Value& item, const std::string& replica_name)
+{
+	if(!item.isNull())
+	{
+		const Json::Value& replicas = item[replica_name];
+		if(!replicas.isNull() && replicas.isConvertibleTo(Json::intValue))
+		{
+			return replicas.asInt();
+		}
+	}
+
+	std::string name;
+	const Json::Value& tpl = item["template"];
+	if(!tpl.isNull())
+	{
+		const Json::Value& md = tpl["metadata"];
+		if(!md.isNull())
+		{
+			const Json::Value& lbl = md["labels"];
+			if(!lbl.isNull())
+			{
+				const Json::Value& n = lbl["name"];
+				if(!n.isNull() && n.isString())
+				{
+					name = n.asString();
+				}
+			}
+		}
+	}
+
+	g_logger.log("K8s: Can not determine number of replicas" +
+				 (name.empty() ? std::string() : std::string(" for ").append(name)),
+				 sinsp_logger::SEV_ERROR);
+
+	return k8s_replicas_t::UNKNOWN_REPLICAS;
+}
+
+
 //
 // replication controller
 //
+
 k8s_rc_t::k8s_rc_t(const std::string& name, const std::string& uid, const std::string& ns, k8s_component::type type) : 
 	k8s_component(type, name, uid, ns)
 {
