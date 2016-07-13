@@ -49,26 +49,20 @@ public:
 						const std::string& url,
 						const std::string& path = "",
 						const std::string& http_version = HTTP_VERSION_11,
-						int timeout_ms = 5000L,
+						int timeout_ms = 1000L,
 						ssl_ptr_t ssl = 0,
 						bt_ptr_t bt = 0):
 		m_obj(obj),
 		m_id(id),
 		m_url(url),
 		m_path(path.empty() ? m_url.get_path() : path),
-		m_connected(true),
-		m_watch_socket(-1),
 		m_ssl(ssl),
 		m_bt(bt),
 		m_timeout_ms(timeout_ms),
-		m_json_callback(0),
 		m_request(make_request(m_url, http_version)),
 		m_http_version(http_version),
 		m_json_begin("\r\n{"),
-		m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0"),
-		m_ssl_context(0),
-		m_ssl_connection(0),
-		m_content_length(std::string::npos)
+		m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0")
 	{
 		g_logger.log(std::string("Creating Socket handler object for (" + id + ") [" + url + ']'), sinsp_logger::SEV_DEBUG);
 	}
@@ -76,7 +70,6 @@ public:
 	virtual ~socket_data_handler()
 	{
 		cleanup();
-		SSL_CTX_free(m_ssl_context);
 	}
 
 	virtual int get_socket(long timeout_ms = -1)
@@ -86,18 +79,26 @@ public:
 			m_timeout_ms = timeout_ms;
 		}
 
-		if(m_watch_socket < 0 || !m_connected)
+		if(m_socket < 0 || !m_connected)
 		{
 			connect_socket();
 		}
 
-		m_connected = true;
-		return m_watch_socket;
+		return m_socket;
 	}
 
 	virtual bool is_connected() const
 	{
 		return m_connected;
+	}
+
+	bool is_connecting()
+	{
+		if(!m_connected)
+		{
+			try_connect();
+		}
+		return m_connecting;
 	}
 
 	const uri& get_url() const
@@ -169,7 +170,7 @@ public:
 			throw sinsp_exception("Socket handler (" + m_id + ") send: request (empty).");
 		}
 
-		if(m_watch_socket < 0)
+		if(m_socket < 0)
 		{
 			throw sinsp_exception("Socket handler (" + m_id + ") send: invalid socket.");
 		}
@@ -187,7 +188,7 @@ public:
 				}
 				else
 				{
-					iolen = send(m_watch_socket, m_request.c_str(), m_request.size(), 0);
+					iolen = send(m_socket, m_request.c_str(), m_request.size(), 0);
 				}
 				if(iolen == static_cast<int>(req.size())) { break; }
 				else if(iolen == 0 || errno == ENOTCONN || errno == EPIPE)
@@ -268,7 +269,7 @@ public:
 				size_t iolen = 0;
 				int count = 0;
 				int ioret = 0;
-				ioret = ioctl(m_watch_socket, FIONREAD, &count);
+				ioret = ioctl(m_socket, FIONREAD, &count);
 				if(ioret >= 0 && count > 0)
 				{
 					if(count > static_cast<int>(buf.size()))
@@ -281,7 +282,7 @@ public:
 					}
 					else
 					{
-						iolen = recv(m_watch_socket, &buf[0], count, 0);
+						iolen = recv(m_socket, &buf[0], count, 0);
 					}
 					if(iolen > 0)
 					{
@@ -554,17 +555,41 @@ private:
 		FD_ZERO(&infd);
 		FD_ZERO(&outfd);
 		FD_ZERO(&errfd);
-		FD_SET(m_watch_socket, &errfd);
+		FD_SET(m_socket, &errfd);
 		if(for_recv)
 		{
-			FD_SET(m_watch_socket, &infd);
+			FD_SET(m_socket, &infd);
 		}
 		else
 		{
-			FD_SET(m_watch_socket, &outfd);
+			FD_SET(m_socket, &outfd);
 		}
 
-		return select(m_watch_socket + 1, &infd, &outfd, &errfd, &tv);
+		return select(m_socket + 1, &infd, &outfd, &errfd, &tv);
+	}
+
+	bool send_ready()
+	{
+		fd_set outfd;
+		FD_ZERO(&outfd);
+		FD_SET(m_socket, &outfd);
+		return select(m_socket + 1, 0, &outfd, 0, 0) == 1;
+	}
+
+	bool recv_ready()
+	{
+		fd_set infd;
+		FD_ZERO(&infd);
+		FD_SET(m_socket, &infd);
+		return select(m_socket + 1, &infd, 0, 0, 0) == 1;
+	}
+
+	bool socket_error()
+	{
+		fd_set errfd;
+		FD_ZERO(&errfd);
+		FD_SET(m_socket, &errfd);
+		return select(m_socket + 1, 0, 0, &errfd, 0) == 1;
 	}
 
 	static int ssl_verify_callback(int preverify_ok, X509_STORE_CTX* ctx)
@@ -669,10 +694,12 @@ private:
 											  "Invalid SSL CA certificate configuration (Verify Peer enabled but no CA certificate specified).");
 					}
 					SSL_CTX_set_verify(m_ssl_context, SSL_VERIFY_PEER, ssl_verify_callback);
+					g_logger.log("Socket handler (" + m_id + "): CA verify set to PEER", sinsp_logger::SEV_TRACE);
 				}
 				else
 				{
 					SSL_CTX_set_verify(m_ssl_context, SSL_VERIFY_NONE, ssl_verify_callback_ignore);
+					g_logger.log("Socket handler (" + m_id + "): CA verify set to NONE", sinsp_logger::SEV_TRACE);
 				}
 
 				const std::string& cert = m_ssl->cert();
@@ -720,7 +747,7 @@ private:
 
 	void init_ssl_socket()
 	{
-		if(m_watch_socket != -1)
+		if(m_socket != -1 && !m_ssl_init_complete)
 		{
 			if(m_url.is_secure())
 			{
@@ -730,7 +757,7 @@ private:
 					m_ssl_connection = SSL_new(m_ssl_context);
 					if(m_ssl_connection)
 					{
-						if(0 == SSL_set_fd(m_ssl_connection, m_watch_socket))
+						if(0 == SSL_set_fd(m_ssl_connection, m_socket))
 						{
 							throw sinsp_exception("Socket handler " + m_id + " (" + m_url.to_string(false) + ") "
 							  "error assigning socket to SSL connection: " + ssl_errors());
@@ -749,21 +776,22 @@ private:
 				}
 			}
 		}
+		m_ssl_init_complete = true;
 	}
 
 	void create_socket()
 	{
-		if(m_watch_socket < 0)
+		if(m_socket < 0)
 		{
 			if(m_url.is_file())
 			{
-				m_watch_socket = socket(PF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+				m_socket = socket(PF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
 			}
 			else
 			{
-				m_watch_socket = socket(PF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+				m_socket = socket(PF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 			}
-			if(m_watch_socket < 0)
+			if(m_socket < 0)
 			{
 				throw sinsp_exception("Socket handler " + m_id + " (" + m_url.to_string(false) + ") "
 									  "error obtaining socket: " + strerror(errno));
@@ -771,35 +799,96 @@ private:
 		}
 	}
 
-	void connect_socket()
+	bool try_connect()
 	{
-		struct sockaddr_un file_addr = {0};
-		struct sockaddr_in serv_addr = {0};
-		struct sockaddr*   sa = 0;
-		socklen_t          sa_len = 0;
-		if(m_url.is_file())
+		if(m_socket == -1)
 		{
-			if(m_url.get_path().length() > sizeof(file_addr.sun_path) - 1)
-			{
-				throw sinsp_exception("Invalid address (too long): [" + m_url.get_path() + ']');
-			}
-
-			file_addr.sun_family = AF_UNIX;
-			strncpy(file_addr.sun_path, m_url.get_path().c_str(), m_url.get_path().length());
-			file_addr.sun_path[sizeof(file_addr.sun_path) - 1]= '\0';
-			sa = (sockaddr*)&file_addr;
-			sa_len = sizeof(struct sockaddr_un);
+			create_socket();
 		}
-		else if(m_url.is("https") || m_url.is("http"))
+
+		int ret = -1;
+		if(m_connected || m_connecting)
 		{
-			if(!inet_aton(m_url.get_host().c_str(), &serv_addr.sin_addr))
+			if(!send_ready()) { return false; }
+		}
+		else
+		{
+			g_logger.log("Socket handler (" + m_id + ") connecting to " + m_address, sinsp_logger::SEV_INFO);
+			ret = connect(m_socket, m_sa, m_sa_len);
+			if(ret != 0 && errno != EINPROGRESS)
 			{
-				// not IP address, try hostname
+				throw sinsp_exception("Error during conection attempt to " + m_address + ": " + strerror(errno));
+			}
+			else if(errno == EINPROGRESS)
+			{
+				m_connecting = true;
+				return false;
+			}
+		}
+		if(m_url.is_secure())
+		{
+			if(!m_ssl_init_complete)
+			{
+				init_ssl_socket();
+			}
+			if(m_ssl_connection)
+			{
+				ret = SSL_connect(m_ssl_connection);
+				if(ret != 1)
+				{
+					int err = SSL_get_error(m_ssl_connection, ret);
+					if(err != SSL_ERROR_WANT_WRITE && err != SSL_ERROR_WANT_READ)
+					{
+						std::string ssl_err = ssl_errors();
+						ssl_err = "Socket handler (" + m_id + ") SSL error : " + ssl_err;
+						throw sinsp_exception(ssl_err);
+					}
+					else
+					{
+						return false;
+					}
+				}
+				g_logger.log("Socket handler (" + m_id + "): "
+							 "SSL connected to " + m_url.get_host() + ", "
+							 "socket=" + std::to_string(m_socket),
+							 sinsp_logger::SEV_INFO);
+			}
+			else
+			{
+				throw sinsp_exception("Socket handler (" + m_id + "): " + m_address +
+									" SSL connection is null (" + strerror(errno) + ')');
+			}
+		}
+
+		g_logger.log("Socket handler (" + m_id + "): Connected: socket=" + std::to_string(m_socket) +
+					 ", collecting data from " + m_url.to_string(false), sinsp_logger::SEV_INFO);
+
+		if(m_url.is_secure() && m_ssl && m_ssl->verify_peer())
+		{
+			if(SSL_get_peer_certificate(m_ssl_connection))
+			{
+				if(SSL_get_verify_result(m_ssl_connection) != X509_V_OK)
+				{
+					throw sinsp_exception("Socket handler (" + m_id + "): " + m_address +
+										  " server certificate verification failed.");
+				}
+			}
+		}
+		m_connecting = false;
+		m_connected = true;
+		return true;
+	}
+/*
+	void resolve_address()
+	{
+		if(!m_resolving)
+		{
+			if(!inet_aton(m_url.get_host().c_str(), &m_serv_addr.sin_addr))
+			{
 				struct addrinfo *result = 0;
-				//TODO: getaddrinfo blocks, use getaddrinfo_a ?
 				if (0 == getaddrinfo(m_url.get_host().c_str(), NULL, NULL, &result))
 				{
-					create_socket();
+					//create_socket();
 					for (struct addrinfo* ai = result; ai; ai = ai->ai_next)
 					{
 						if (ai->ai_addrlen && ai->ai_addr && ai->ai_addr->sa_family == AF_INET)
@@ -807,12 +896,12 @@ private:
 							struct sockaddr_in* saddr = (struct sockaddr_in*)ai->ai_addr;
 							if(saddr->sin_addr.s_addr)
 							{
-								serv_addr.sin_addr.s_addr = saddr->sin_addr.s_addr;
+								m_serv_addr.sin_addr.s_addr = saddr->sin_addr.s_addr;
 								break;
 							}
 						}
 					}
-					if(!serv_addr.sin_addr.s_addr)
+					if(!m_serv_addr.sin_addr.s_addr)
 					{
 						throw sinsp_exception("Socket handler (" + m_id + "): " + m_url.get_host() + " address not found.");
 					}
@@ -824,80 +913,109 @@ private:
 				}
 				freeaddrinfo(result);
 			}
-			serv_addr.sin_family = AF_INET;
-			serv_addr.sin_port = htons(m_url.get_port());
-			sa = (sockaddr*)&serv_addr;
-			sa_len = sizeof(struct sockaddr_in);
 		}
-		if(sa && sa_len)
+	}
+*/
+	void connect_socket()
+	{
+		if(!m_sa || !m_sa_len)
 		{
-			create_socket();
-			std::string addr_str = (m_url.is_file() ? m_url.get_path().c_str() : inet_ntoa(serv_addr.sin_addr));
-			g_logger.log("Socket handler (" + m_id + ") connecting to " + addr_str, sinsp_logger::SEV_INFO);
-			connect(m_watch_socket, sa, sa_len);
-			if(m_url.is_secure())
+			if(m_url.is_file())
 			{
-				init_ssl_socket();
-				if(m_ssl_connection)
+				if(m_url.get_path().length() > sizeof(m_file_addr.sun_path) - 1)
 				{
-					SSL_connect(m_ssl_connection);
+					throw sinsp_exception("Invalid address (too long): [" + m_url.get_path() + ']');
 				}
-				else
-				{
-					throw sinsp_exception("Socket handler (" + m_id + "): " + addr_str +
-									  " SSL connection is null (" + strerror(errno) + ')');
-				}
+				m_file_addr.sun_family = AF_UNIX;
+				strncpy(m_file_addr.sun_path, m_url.get_path().c_str(), m_url.get_path().length());
+				m_file_addr.sun_path[sizeof(m_file_addr.sun_path) - 1]= '\0';
+				m_sa = (sockaddr*)&m_file_addr;
+				m_sa_len = sizeof(struct sockaddr_un);
+				m_address = m_url.get_path();
 			}
-			time_t then; time(&then);
-			while(wait(false, 10L) == -1)
+			else if(m_url.is("https") || m_url.is("http"))
 			{
-				g_logger.log("Socket handler (" + m_id + "): waiting for connection to " + addr_str, sinsp_logger::SEV_DEBUG);
-				time_t now; time(&now);
-				if(difftime(now, then) > m_timeout_ms * 1000)
+				if(m_address.empty() && inet_aton(m_url.get_host().c_str(), &m_serv_addr.sin_addr))
 				{
-					throw sinsp_exception("Socket handler (" + m_id + "): " + addr_str +
-									  " timed out waiting for connection.");
+					m_address = m_url.get_host();
 				}
+				else if(m_address.empty())
+				{
+					throw sinsp_exception("Host name to IPaddress resolution not supported.");
+					/*TODO
+					if(!m_resolving)
+					{
+						// not IP address, try hostname
+						struct addrinfo *result = 0;
+						//TODO: getaddrinfo blocks, use getaddrinfo_a ?
+						if (0 == getaddrinfo(m_url.get_host().c_str(), NULL, NULL, &result))
+						{
+							create_socket();
+							for (struct addrinfo* ai = result; ai; ai = ai->ai_next)
+							{
+								if (ai->ai_addrlen && ai->ai_addr && ai->ai_addr->sa_family == AF_INET)
+								{
+									struct sockaddr_in* saddr = (struct sockaddr_in*)ai->ai_addr;
+									if(saddr->sin_addr.s_addr)
+									{
+										serv_addr.sin_addr.s_addr = saddr->sin_addr.s_addr;
+										break;
+									}
+								}
+							}
+							if(!serv_addr.sin_addr.s_addr)
+							{
+								throw sinsp_exception("Socket handler (" + m_id + "): " + m_url.get_host() + " address not found.");
+							}
+						}
+						else
+						{
+							freeaddrinfo(result);
+							throw sinsp_exception("Socket handler error: can not resolve host " + m_url.get_host() + ", error: " + strerror(errno));
+						}
+						freeaddrinfo(result);
+					}
+					*/
+				}
+				m_serv_addr.sin_family = AF_INET;
+				m_serv_addr.sin_port = htons(m_url.get_port());
+				m_sa = (sockaddr*)&m_serv_addr;
+				m_sa_len = sizeof(struct sockaddr_in);
 			}
-			g_logger.log("Socket handler (" + m_id + "): Connected: socket=" + std::to_string(m_watch_socket) +
-						 ", collecting data from " + m_url.to_string(false), sinsp_logger::SEV_INFO);
-
-			if(SSL_get_peer_certificate(m_ssl_connection))
+			else
 			{
-				if(SSL_get_verify_result(m_ssl_connection) != X509_V_OK)
-				{
-					throw sinsp_exception("Socket handler (" + m_id + "): " + addr_str +
-										  " server certificate verification failed.");
-				}
+				throw sinsp_exception("Socket handler (" + m_id + "): " +
+									  m_url.get_scheme() + " protocol not supported.");
 			}
 		}
-		else
-		{
-			throw sinsp_exception("Socket handler (" + m_id + "): " + m_url.get_scheme() + " protocol not supported.");
-		}
+		try_connect();
 	}
 
 	void cleanup()
 	{
-		if(m_watch_socket)
+		if(m_socket != -1)
 		{
-			close(m_watch_socket);
-			m_watch_socket = -1;
-			SSL_free(m_ssl_connection);
-			m_ssl_connection = 0;
+			close(m_socket);
+			m_socket = -1;
 		}
+		SSL_free(m_ssl_connection);
+		m_ssl_connection = 0;
+		SSL_CTX_free(m_ssl_context);
+		m_ssl_context = 0;
 	}
 
 	T&                     m_obj;
 	std::string            m_id;
 	uri                    m_url;
 	std::string            m_path;
-	bool                   m_connected;
-	int                    m_watch_socket;
+	std::string            m_address;
+	bool                   m_connecting = false;
+	bool                   m_connected = false;
+	int                    m_socket = -1;
 	ssl_ptr_t              m_ssl;
 	bt_ptr_t               m_bt;
 	long                   m_timeout_ms;
-	json_callback_func_t   m_json_callback;
+	json_callback_func_t   m_json_callback = nullptr;
 	std::string            m_data_buf;
 	std::string            m_request;
 	std::string            m_http_version;
@@ -905,10 +1023,15 @@ private:
 	std::string            m_json_end;
 	std::string            m_json_filter;
 	json_query             m_jq;
-	SSL_CTX*               m_ssl_context;
-	SSL*                   m_ssl_connection;
+	bool                   m_ssl_init_complete = false;
+	SSL_CTX*               m_ssl_context = nullptr;
+	SSL*                   m_ssl_connection = nullptr;
 	password_vec_t         m_ssl_key_pass;
-	std::string::size_type m_content_length;
+	struct sockaddr_un     m_file_addr = {0};
+	struct sockaddr_in     m_serv_addr = {0};
+	struct sockaddr*       m_sa = 0;
+	socklen_t              m_sa_len = 0;
+	std::string::size_type m_content_length = std::string::npos;
 };
 
 template <typename T>

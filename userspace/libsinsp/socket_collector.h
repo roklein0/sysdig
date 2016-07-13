@@ -104,8 +104,19 @@ public:
 						if(res < 0) // error
 						{
 							std::string err = strerror(errno);
-							g_logger.log("Socket collector select error, removing all sockets (" + err + ')', sinsp_logger::SEV_ERROR);
-							remove_all();
+							g_logger.log("Socket collector: select error (" + err + ')', sinsp_logger::SEV_ERROR);
+							for(typename socket_map_t::iterator it = m_sockets.begin(); it != m_sockets.end();)
+							{
+								g_logger.log("Socket collector: examining socket " + std::to_string(it->first) +
+												 " (" + it->second->get_id() + ')', sinsp_logger::SEV_TRACE);
+								if(FD_ISSET(it->first, &m_errfd))
+								{
+									g_logger.log("Socket collector: removing socket " + std::to_string(it->first) +
+												 " (" + it->second->get_id() + ')', sinsp_logger::SEV_WARNING);
+									remove(it);
+									continue;
+								}
+							}
 						}
 						else // data or idle
 						{
