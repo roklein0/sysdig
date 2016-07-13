@@ -597,20 +597,22 @@ private:
 		SSL* ssl = (SSL*)X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
 		if(ssl)
 		{
-			char      buf[256] = {0};
-			X509*     err_cert = X509_STORE_CTX_get_current_cert(ctx);
+			std::string* id = (std::string*)SSL_get_ex_data(ssl, m_ssl_data_index);
+			char         buf[256] = {0};
+			X509*        err_cert = X509_STORE_CTX_get_current_cert(ctx);
 			X509_NAME_oneline(X509_get_subject_name(err_cert), buf, 256);
 
 			if(preverify_ok && SSL_get_verify_result(ssl) == X509_V_OK)
 			{
-				g_logger.log("Socket handler SSL CA verified: " + std::string(buf), sinsp_logger::SEV_INFO);
+				g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") SSL CA verified: " + std::string(buf), sinsp_logger::SEV_INFO);
 				return 1;
 			}
 			else
 			{
 				int err = X509_STORE_CTX_get_error(ctx);
 				int depth = X509_STORE_CTX_get_error_depth(ctx);
-				g_logger.log("SSL CA verify error:num=" + std::to_string(err) +
+				g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") "
+							 "SSL CA verify error:num=" + std::to_string(err) +
 							 ':' + X509_verify_cert_error_string(err) +
 							 ":depth=" + std::to_string(depth) +
 							 ':' + std::string(buf), sinsp_logger::SEV_ERROR);
@@ -620,9 +622,12 @@ private:
 		return 0;
 	}
 
-	static int ssl_verify_callback_ignore(int, X509_STORE_CTX*)
+	static int ssl_verify_callback_ignore(int, X509_STORE_CTX* ctx)
 	{
-		g_logger.log("Socket handler SSL CA verification disabled.", sinsp_logger::SEV_INFO);
+		SSL* ssl = (SSL*)X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
+		std::string* id = (std::string*)SSL_get_ex_data(ssl, m_ssl_data_index);
+		g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") "
+					 "SSL CA verification disabled, certificate accepted.", sinsp_logger::SEV_INFO);
 		return 1;
 	}
 
@@ -665,7 +670,7 @@ private:
 			SSL_library_init();
 			SSL_load_error_strings();
 			OpenSSL_add_all_algorithms();
-			const SSL_METHOD* method = TLSv1_2_client_method(); // SSLv23_method();
+			const SSL_METHOD* method = TLSv1_2_client_method();
 			if(!method)
 			{
 				g_logger.log("Socket handler (" + m_id + "): Can't initalize SSL method\n" + ssl_errors(), sinsp_logger::SEV_ERROR);
@@ -762,6 +767,8 @@ private:
 							throw sinsp_exception("Socket handler " + m_id + " (" + m_url.to_string(false) + ") "
 							  "error assigning socket to SSL connection: " + ssl_errors());
 						}
+						m_ssl_data_index = SSL_get_ex_new_index(0, (void*)"data index", NULL, NULL, NULL);
+						SSL_set_ex_data(m_ssl_connection, m_ssl_data_index, &m_id);
 					}
 					else
 					{
@@ -1032,11 +1039,14 @@ private:
 	struct sockaddr*       m_sa = 0;
 	socklen_t              m_sa_len = 0;
 	std::string::size_type m_content_length = std::string::npos;
+	static int             m_ssl_data_index; // !!! not thread-safe
 };
 
 template <typename T>
 const std::string socket_data_handler<T>::HTTP_VERSION_10 = "1.0";
 template <typename T>
 const std::string socket_data_handler<T>::HTTP_VERSION_11 = "1.1";
+template <typename T>
+int socket_data_handler<T>::m_ssl_data_index = -1;
 
 #endif // HAS_CAPTURE
