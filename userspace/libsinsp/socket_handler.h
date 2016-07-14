@@ -12,6 +12,7 @@
 #include "b64/encode.h"
 #include "sinsp.h"
 #include "sinsp_int.h"
+#include "sinsp_auth.h"
 #include "json_query.h"
 #include <unistd.h>
 #include <sys/socket.h>
@@ -37,8 +38,8 @@ class socket_data_handler
 public:
 	typedef std::shared_ptr<socket_data_handler> ptr_t;
 	typedef std::shared_ptr<Json::Value>         json_ptr_t;
-	typedef sinsp_curl::ssl::ptr_t               ssl_ptr_t;
-	typedef sinsp_curl::bearer_token::ptr_t      bt_ptr_t;
+	typedef sinsp_ssl::ptr_t                     ssl_ptr_t;
+	typedef sinsp_bearer_token::ptr_t            bt_ptr_t;
 	typedef void (T::*json_callback_func_t)(json_ptr_t, const std::string&);
 
 	static const std::string HTTP_VERSION_10;
@@ -570,26 +571,29 @@ private:
 
 	bool send_ready()
 	{
+		struct timeval tv = {0};
 		fd_set outfd;
 		FD_ZERO(&outfd);
 		FD_SET(m_socket, &outfd);
-		return select(m_socket + 1, 0, &outfd, 0, 0) == 1;
+		return select(m_socket + 1, 0, &outfd, 0, &tv) == 1;
 	}
 
 	bool recv_ready()
 	{
+		struct timeval tv = {0};
 		fd_set infd;
 		FD_ZERO(&infd);
 		FD_SET(m_socket, &infd);
-		return select(m_socket + 1, &infd, 0, 0, 0) == 1;
+		return select(m_socket + 1, &infd, 0, 0, &tv) == 1;
 	}
 
 	bool socket_error()
 	{
+		struct timeval tv = {0};
 		fd_set errfd;
 		FD_ZERO(&errfd);
 		FD_SET(m_socket, &errfd);
-		return select(m_socket + 1, 0, 0, &errfd, 0) == 1;
+		return select(m_socket + 1, 0, 0, &errfd, &tv) == 1;
 	}
 
 	static int ssl_verify_callback(int preverify_ok, X509_STORE_CTX* ctx)
@@ -604,7 +608,7 @@ private:
 
 			if(preverify_ok && SSL_get_verify_result(ssl) == X509_V_OK)
 			{
-				g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") SSL CA verified: " + std::string(buf), sinsp_logger::SEV_INFO);
+				g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") SSL CA verified: " + std::string(buf), sinsp_logger::SEV_DEBUG);
 				return 1;
 			}
 			else
@@ -622,12 +626,12 @@ private:
 		return 0;
 	}
 
-	static int ssl_verify_callback_ignore(int, X509_STORE_CTX* ctx)
+	static int ssl_no_verify_callback(int, X509_STORE_CTX* ctx)
 	{
 		SSL* ssl = (SSL*)X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
 		std::string* id = (std::string*)SSL_get_ex_data(ssl, m_ssl_data_index);
 		g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") "
-					 "SSL CA verification disabled, certificate accepted.", sinsp_logger::SEV_INFO);
+					 "SSL CA verification disabled, certificate accepted.", sinsp_logger::SEV_DEBUG);
 		return 1;
 	}
 
@@ -703,7 +707,7 @@ private:
 				}
 				else
 				{
-					SSL_CTX_set_verify(m_ssl_context, SSL_VERIFY_NONE, ssl_verify_callback_ignore);
+					SSL_CTX_set_verify(m_ssl_context, SSL_VERIFY_NONE, ssl_no_verify_callback);
 					g_logger.log("Socket handler (" + m_id + "): CA verify set to NONE", sinsp_logger::SEV_TRACE);
 				}
 

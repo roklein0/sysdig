@@ -37,6 +37,7 @@ add_library(sinsp STATIC
 	k8s_state.cpp
 	k8s_dispatcher.cpp
 	k8s_event_data.cpp
+	k8s_handler.cpp
 	k8s_http.cpp
 	k8s_net.cpp
 	lua_parser.cpp
@@ -59,6 +60,7 @@ add_library(sinsp STATIC
 	sinsp.cpp
 	stats.cpp
 	table.cpp
+	sinsp_auth.cpp
 	sinsp_curl.cpp
 	uri_parser.c
 	uri.cpp
