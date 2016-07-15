@@ -14,7 +14,7 @@ class socket_collector
 public:
 	typedef std::map<int, std::shared_ptr<T>> socket_map_t;
 
-	socket_collector(bool do_loop = true, long timeout_ms = 1000L):
+	socket_collector(bool do_loop = false, long timeout_ms = 1000L):
 		m_nfds(0),
 		m_loop(do_loop),
 		m_timeout_ms(timeout_ms),

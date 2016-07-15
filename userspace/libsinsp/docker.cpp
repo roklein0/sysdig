@@ -18,9 +18,6 @@ docker::docker(std::string url,
 	bool is_captured,
 	bool verbose,
 	event_filter_ptr_t event_filter): m_id("docker"),
-#ifdef HAS_CAPTURE
-		m_collector(false),
-#endif // HAS_CAPTURE
 		m_timeout_ms(timeout_ms),
 		m_is_captured(is_captured),
 		m_verbose(verbose),

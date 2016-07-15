@@ -19,7 +19,6 @@ k8s_handler::k8s_handler(const std::string& id,
 		m_state_filter(state_filter),
 		m_event_filter(event_filter),
 		m_filter(m_state_filter),
-		m_collector(false),
 		m_timeout_ms(timeout_ms),
 		m_url(url),
 		m_http_version(http_version),
@@ -53,38 +52,49 @@ bool k8s_handler::connect(int expected_connections)
 {
 	g_logger.log(std::string("k8s_handler (" + m_id + ") connect begin for " + m_url),
 				 sinsp_logger::SEV_TRACE);
-	if(m_http && !m_http->is_connecting())
+	if(m_http)
 	{
-		g_logger.log(std::string("k8s_handler (" + m_id +
-								 ") connect is not connecting " + m_url), sinsp_logger::SEV_TRACE);
-		if(m_collector.has(m_http))
-		{
-			g_logger.log(std::string("k8s_handler (" + m_id + ") collector has " + m_url),
-						 sinsp_logger::SEV_TRACE);
-			if(!m_http->is_connected())
-			{
-				g_logger.log(std::string("k8s_handler (" + m_id +
-										 ") http is not connected to " + m_url), sinsp_logger::SEV_TRACE);
-				m_collector.remove(m_http);
-				m_http.reset();
-			}
-		}
-		if(!m_collector.has(m_http))
+		if(!m_http->is_connecting())
 		{
 			g_logger.log(std::string("k8s_handler (" + m_id +
-									 ") collector hasn't " + m_url), sinsp_logger::SEV_TRACE);
-			make_http();
+									 ") connect is not connecting " + m_url), sinsp_logger::SEV_TRACE);
+			if(m_collector.has(m_http))
+			{
+				g_logger.log(std::string("k8s_handler (" + m_id + ") collector has " + m_url),
+							 sinsp_logger::SEV_TRACE);
+				if(!m_http->is_connected())
+				{
+					g_logger.log(std::string("k8s_handler (" + m_id +
+											 ") http is not connected to " + m_url), sinsp_logger::SEV_TRACE);
+					m_collector.remove(m_http);
+					m_http.reset();
+				}
+			}
+			if(!m_collector.has(m_http))
+			{
+				g_logger.log(std::string("k8s_handler (" + m_id +
+										 ") collector hasn't " + m_url), sinsp_logger::SEV_TRACE);
+				make_http();
+			}
+			g_logger.log(std::string("k8s_handler (" + m_id +
+									 ") collector checking status ... " + m_url), sinsp_logger::SEV_TRACE);
+			check_collector_status(expected_connections);
+			bool has_http = m_collector.has(m_http);
+			g_logger.log(std::string("k8s_handler (" + m_id +
+									 ") collector has " + (has_http ? std::string() : "not ") + m_url), sinsp_logger::SEV_TRACE);
+			return has_http;
 		}
-		g_logger.log(std::string("k8s_handler (" + m_id +
-								 ") collector checking status ... " + m_url), sinsp_logger::SEV_TRACE);
-		check_collector_status(expected_connections);
-		bool has_http = m_collector.has(m_http);
-		g_logger.log(std::string("k8s_handler (" + m_id +
-								 ") collector has " + (has_http ? std::string() : "not ") + m_url), sinsp_logger::SEV_TRACE);
-		return has_http;
+		else
+		{
+			g_logger.log(std::string("k8s_handler (" + m_id +
+									 ") connect, http connecting to " + m_url), sinsp_logger::SEV_TRACE);
+		}
 	}
-	g_logger.log(std::string("k8s_handler (" + m_id +
-							 ") connect, http null or connecting " + m_url), sinsp_logger::SEV_TRACE);
+	else
+	{
+		g_logger.log(std::string("k8s_handler (" + m_id +
+									 ") connect, http is null"), sinsp_logger::SEV_WARNING);
+	}
 	return false;
 }
 
