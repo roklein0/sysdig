@@ -218,6 +218,42 @@ void k8s_handler::collect_data()
 	}
 }
 
+k8s_handler::msg_data k8s_handler::get_msg_data(const std::string& type, const std::string& kind, const Json::Value& json)
+{
+	msg_data data;
+	if(!type.empty())
+	{
+		if(type[0] == 'A') { data.m_reason = COMPONENT_ADDED; }
+		else if(type[0] == 'M') { data.m_reason = COMPONENT_MODIFIED; }
+		else if(type[0] == 'D') { data.m_reason = COMPONENT_DELETED; }
+		else if(type[0] == 'E') { data.m_reason = COMPONENT_ERROR; }
+	}
+	else
+	{
+		return data;
+	}
+
+	data.m_kind = kind;
+
+	Json::Value name = json["name"];
+	if(!name.isNull())
+	{
+		data.m_name = name.asString();
+	}
+	Json::Value uid = json["uid"];
+	if(!uid.isNull())
+	{
+		data.m_uid = uid.asString();
+	}
+	Json::Value nspace = json["namespace"];
+	if(!nspace.isNull())
+	{
+		data.m_namespace = nspace.asString();
+	}
+
+	return data;
+}
+
 bool k8s_handler::is_ip_address(const std::string& addr)
 {
 	struct sockaddr_in serv_addr = {0};

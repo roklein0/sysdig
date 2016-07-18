@@ -53,7 +53,7 @@ k8s::k8s(const std::string& uri, bool start_watch, bool watch_in_thread, bool is
 		m_dispatch(std::move(make_dispatch_map(m_state, extensions))),
 		m_watch_in_thread(watch_in_thread)
 #ifdef HAS_CAPTURE
-		,m_net(uri.empty() ? 0 : new k8s_net(*this, uri, ssl, bt, curl_debug, extensions))
+		,m_net(uri.empty() ? 0 : new k8s_net(*this, m_state, uri, ssl, bt, curl_debug, extensions))
 #endif
 {
 	g_logger.log(std::string("Creating K8s object for [" +
@@ -135,15 +135,22 @@ void k8s::build_state()
 		for (auto& component : m_components)
 		{
 			// events are transient and fetching all data for events would pull
-			// old events on agent restart, causing unecessary network and DB
+			// old events on agent restart, causing unnecessary network and DB
 			// traffic; so, we only add watch interface here for events
 			if(component.first != k8s_component::K8S_EVENTS)
 			{
-				m_state.clear(component.first);
-				ASSERT(m_net);
-				m_net->get_all_data(component, os);
-				parse_json(os.str(), component);
-				os.str("");
+				if(component.first != k8s_component::K8S_NODES)//******************
+				{
+					m_state.clear(component.first);
+					ASSERT(m_net);
+					m_net->get_all_data(component, os);
+					parse_json(os.str(), component);
+					os.str("");
+				}
+				else
+				{
+					m_net->add_api_interface(component);
+				}
 			}
 			else if(m_event_filter)
 			{

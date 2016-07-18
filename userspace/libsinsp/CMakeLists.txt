@@ -40,6 +40,7 @@ add_library(sinsp STATIC
 	k8s_handler.cpp
 	k8s_http.cpp
 	k8s_net.cpp
+	k8s_node_handler.cpp
 	lua_parser.cpp
 	lua_parser_api.cpp
 	marathon_component.cpp

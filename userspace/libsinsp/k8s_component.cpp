@@ -586,12 +586,12 @@ k8s_node_t::k8s_node_t(const std::string& name, const std::string& uid, const st
 {
 }
 
-k8s_node_t::host_ip_list k8s_node_t::extract_addresses(const Json::Value& status)
+k8s_node_t::host_ip_list k8s_node_t::extract_addresses(const Json::Value& addresses)
 {
 	host_ip_list address_list;
-	if(!status.isNull())
-	{
-		const Json::Value& addresses = status["addresses"];
+	//if(!status.isNull())
+	//{
+		//const Json::Value& addresses = status["addresses"];
 		if(!addresses.isNull() && addresses.isArray())
 		{
 			for (auto& address : addresses)
@@ -613,7 +613,7 @@ k8s_node_t::host_ip_list k8s_node_t::extract_addresses(const Json::Value& status
 				}
 			}
 		}
-	}
+	//}
 	return address_list;
 }
 

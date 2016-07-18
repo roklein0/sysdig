@@ -164,8 +164,8 @@ void k8s_dispatcher::log_error(const Json::Value& root, const std::string& comp)
 	g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
 }
 
-void k8s_dispatcher::handle_node(const Json::Value& root, const msg_data& data)
-{
+void k8s_dispatcher::handle_node(const Json::Value& root, const msg_data& data)//******************8
+{/*
 	if(data.m_reason == COMPONENT_ADDED)
 	{
 		if(m_state.has(m_state.get_nodes(), data.m_uid))
@@ -246,7 +246,7 @@ void k8s_dispatcher::handle_node(const Json::Value& root, const msg_data& data)
 	{
 		g_logger.log(std::string("Unsupported K8S NODE event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
 	}
-}
+*/}
 
 void k8s_dispatcher::handle_namespace(const Json::Value& root, const msg_data& data)
 {

@@ -6,6 +6,7 @@
 
 #include "k8s_net.h"
 #include "k8s_component.h"
+#include "k8s_node_handler.h"
 #include "k8s.h"
 #include "sinsp.h"
 #include "sinsp_int.h"
@@ -14,11 +15,11 @@
 #include <memory>
 
 
-k8s_net::k8s_net(k8s& kube, const std::string& uri,
+k8s_net::k8s_net(k8s& kube, k8s_state_t& state, const std::string& uri,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt,
 	bool curl_debug,
-	ext_list_ptr_t extensions) : m_k8s(kube),
+	ext_list_ptr_t extensions) : m_k8s(kube), m_state(state),
 		m_uri(uri),
 		m_ssl(ssl),
 		m_bt(bt),
@@ -73,6 +74,19 @@ void k8s_net::watch()
 		}
 		m_collector.get_data();
 	}
+	//***************************
+	for(auto& handler : m_handlers)
+	{
+		if(handler.second)
+		{
+			handler.second->collect_data();
+		}
+		else
+		{
+			g_logger.log("K8s: " + k8s_component::get_name(handler.first) + " handler is null.", sinsp_logger::SEV_WARNING);
+		}
+	}
+	//***************************
 }
 
 void k8s_net::subscribe()
@@ -118,6 +132,35 @@ void k8s_net::stop_watching()
 	}
 }
 
+void k8s_net::add_handler(const k8s_component::type_map::value_type& component)
+{
+	std::ostringstream os;
+	os << m_uri.get_scheme() << "://" << m_uri.get_host();
+	int port = m_uri.get_port();
+	if(port) { os << ':' << port; }
+	switch(component.first)
+	{
+		case k8s_component::K8S_NODES:
+			m_handlers[component.first] = std::make_shared<k8s_node_handler>(m_state, os.str(), "1.0", m_ssl, m_bt);
+			g_logger.log("K8s: created node handler.", sinsp_logger::SEV_DEBUG);
+			break;
+		case k8s_component::K8S_NAMESPACES:
+		case k8s_component::K8S_PODS:
+		case k8s_component::K8S_REPLICATIONCONTROLLERS:
+		case k8s_component::K8S_REPLICASETS:
+		case k8s_component::K8S_SERVICES:
+		case k8s_component::K8S_DAEMONSETS:
+		case k8s_component::K8S_DEPLOYMENTS:
+		case k8s_component::K8S_EVENTS:
+			break;
+		case k8s_component::K8S_COMPONENT_COUNT:
+		default:
+			throw sinsp_exception("k8s_net::add_handler: invalid type: " +
+								  component.second + " (" +
+								  std::to_string(component.first) + ')');
+	}
+}
+
 void k8s_net::add_api_interface(const k8s_component::type_map::value_type& component)
 {
 	api_map_t::iterator it = m_api_interfaces.find(component.first);
@@ -144,6 +187,7 @@ void k8s_net::add_api_interface(const k8s_component::type_map::value_type& compo
 		new k8s_http(m_k8s, component.second, os.str(), protocol,
 					m_uri.get_credentials(), api,
 					m_ssl, m_bt, m_curl_debug);
+	add_handler(component);//******************8
 }
 
 void k8s_net::get_all_data(const k8s_component::type_map::value_type& component, std::ostream& out)

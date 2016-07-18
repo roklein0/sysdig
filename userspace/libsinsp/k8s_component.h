@@ -234,7 +234,7 @@ public:
 
 	virtual std::string get_node_name() const;
 
-	static host_ip_list extract_addresses(const Json::Value& status);
+	static host_ip_list extract_addresses(const Json::Value& addresses);
 
 private:
 	host_ip_list m_host_ips;

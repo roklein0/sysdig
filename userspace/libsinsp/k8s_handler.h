@@ -13,6 +13,44 @@ class sinsp;
 class k8s_handler
 {
 public:
+	enum msg_reason
+	{
+		COMPONENT_ADDED,
+		COMPONENT_MODIFIED,
+		COMPONENT_DELETED,
+		COMPONENT_ERROR,
+		COMPONENT_UNKNOWN // only to mark bad event messages
+	};
+
+	struct msg_data
+	{
+		msg_reason  m_reason = COMPONENT_UNKNOWN;
+		std::string m_name;
+		std::string m_uid;
+		std::string m_namespace;
+		std::string m_kind;
+
+		bool is_valid() const
+		{
+			return m_reason != COMPONENT_UNKNOWN;
+		}
+
+		std::string get_reason_desc() const
+		{
+			switch(m_reason)
+			{
+				case COMPONENT_ADDED:    return "ADDED";
+				case COMPONENT_MODIFIED: return "ADDED";
+				case COMPONENT_DELETED:  return "ADDED";
+				case COMPONENT_ERROR:    return "ADDED";
+				case COMPONENT_UNKNOWN:
+				default:                 return "UNKNOWN";
+			}
+			return "UNKNOWN";
+		}
+	};
+
+	typedef std::shared_ptr<k8s_handler>    ptr_t;
 	typedef std::vector<std::string>        uri_list_t;
 	typedef std::shared_ptr<Json::Value>    json_ptr_t;
 	typedef sinsp_curl::ssl::ptr_t          ssl_ptr_t;
@@ -44,7 +82,10 @@ protected:
 	typedef std::unordered_set<std::string>    ip_addr_list_t;
 
 	virtual void handle_json(Json::Value&& root) = 0;
+	msg_data get_msg_data(const std::string& evt, const std::string& type, const Json::Value& root);
 	static bool is_ip_address(const std::string& addr);
+
+	void log_event(const msg_data& data);
 
 private:
 	typedef void (k8s_handler::*callback_func_t)(json_ptr_t, const std::string&);
@@ -97,4 +138,12 @@ inline void k8s_handler::set_machine_id(const std::string& machine_id)
 inline const std::string& k8s_handler::get_machine_id() const
 {
 	return m_machine_id;
+}
+
+inline void k8s_handler::log_event(const msg_data& data)
+{
+	g_logger.log("K8s " + data.m_kind + ' ' +
+				 data.get_reason_desc() + ' ' +
+				 data.m_name + " [" + data.m_uid + "]",
+				 sinsp_logger::SEV_DEBUG);
 }
