@@ -7,6 +7,11 @@
 #include "k8s_net.h"
 #include "k8s_component.h"
 #include "k8s_node_handler.h"
+#include "k8s_namespace_handler.h"
+#include "k8s_pod_handler.h"
+#include "k8s_replicationcontroller_handler.h"
+#include "k8s_replicaset_handler.h"
+#include "k8s_service_handler.h"
 #include "k8s.h"
 #include "sinsp.h"
 #include "sinsp_int.h"
@@ -142,13 +147,28 @@ void k8s_net::add_handler(const k8s_component::type_map::value_type& component)
 	{
 		case k8s_component::K8S_NODES:
 			m_handlers[component.first] = std::make_shared<k8s_node_handler>(m_state, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created node handler.", sinsp_logger::SEV_DEBUG);
+			g_logger.log("K8s: created node handler.", sinsp_logger::SEV_INFO);
 			break;
 		case k8s_component::K8S_NAMESPACES:
+			m_handlers[component.first] = std::make_shared<k8s_namespace_handler>(m_state, os.str(), "1.0", m_ssl, m_bt);
+			g_logger.log("K8s: created namespace handler.", sinsp_logger::SEV_INFO);
+			break;
 		case k8s_component::K8S_PODS:
+			m_handlers[component.first] = std::make_shared<k8s_pod_handler>(m_state, os.str(), "1.0", m_ssl, m_bt);
+			g_logger.log("K8s: created pod handler.", sinsp_logger::SEV_INFO);
+			break;
 		case k8s_component::K8S_REPLICATIONCONTROLLERS:
+			m_handlers[component.first] = std::make_shared<k8s_replicationcontroller_handler>(m_state, os.str(), "1.0", m_ssl, m_bt);
+			g_logger.log("K8s: created replication controller handler.", sinsp_logger::SEV_INFO);
+			break;
 		case k8s_component::K8S_REPLICASETS:
+			m_handlers[component.first] = std::make_shared<k8s_replicaset_handler>(m_state, os.str(), "1.0", m_ssl, m_bt);
+			g_logger.log("K8s: created replica set handler.", sinsp_logger::SEV_INFO);
+			break;
 		case k8s_component::K8S_SERVICES:
+			m_handlers[component.first] = std::make_shared<k8s_service_handler>(m_state, os.str(), "1.0", m_ssl, m_bt);
+			g_logger.log("K8s: created service handler.", sinsp_logger::SEV_INFO);
+			break;
 		case k8s_component::K8S_DAEMONSETS:
 		case k8s_component::K8S_DEPLOYMENTS:
 		case k8s_component::K8S_EVENTS:

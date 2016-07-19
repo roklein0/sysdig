@@ -110,7 +110,7 @@ k8s_pair_list k8s_component::extract_object(const Json::Value& object, const std
 
 bool k8s_component::is_pod_active(const Json::Value& item)
 {
-	const Json::Value& status = item["status"];
+	/*const Json::Value& status = item["status"];
 	if(!status.isNull())
 	{
 		const Json::Value& phase = status["phase"];
@@ -121,14 +121,14 @@ bool k8s_component::is_pod_active(const Json::Value& item)
 				return true;
 			}
 		}
-	}
+	}*/
 	return false;
 }
 
 std::vector<std::string> k8s_component::extract_pod_container_ids(const Json::Value& item)
 {
 	std::vector<std::string> container_list;
-	const Json::Value& status = item["status"];
+/*	const Json::Value& status = item["status"];
 	if(!status.isNull())
 	{
 		const Json::Value& containers = status["containerStatuses"];
@@ -143,14 +143,14 @@ std::vector<std::string> k8s_component::extract_pod_container_ids(const Json::Va
 				}
 			}
 		}
-	}
+	}*/
 	return container_list;
 }
 
 size_t k8s_component::extract_pod_restart_count(const Json::Value& item)
 {
 	size_t restart_count = 0;
-	const Json::Value& status = item["status"];
+	/*const Json::Value& status = item["status"];
 	if(!status.isNull())
 	{
 		const Json::Value& containers = status["containerStatuses"];
@@ -165,14 +165,14 @@ size_t k8s_component::extract_pod_restart_count(const Json::Value& item)
 				}
 			}
 		}
-	}
+	}*/
 	return restart_count;
 }
 
 k8s_container::list k8s_component::extract_pod_containers(const Json::Value& item)
 {
 	k8s_container::list ext_containers;
-	const Json::Value& spec = item["spec"];
+	/*const Json::Value& spec = item["spec"];
 	if(!spec.isNull())
 	{
 		const Json::Value& containers = spec["containers"];
@@ -220,12 +220,12 @@ k8s_container::list k8s_component::extract_pod_containers(const Json::Value& ite
 				ext_containers.emplace_back(k8s_container(cont_name, cont_ports));
 			}
 		}
-	}
+	}*/
 	return ext_containers;
 }
 
 void k8s_component::extract_pod_data(const Json::Value& item, k8s_pod_t& pod)
-{
+{/*
 	const Json::Value& spec = item["spec"];
 	if(!spec.isNull())
 	{
@@ -261,10 +261,10 @@ void k8s_component::extract_pod_data(const Json::Value& item, k8s_pod_t& pod)
 			}
 		}
 	}
-}
+*/}
 
 void k8s_component::extract_services_data(const Json::Value& spec, k8s_service_t& service, const k8s_pods& pods)
-{
+{/*
 	if(!spec.isNull())
 	{
 		const Json::Value& cluster_ip = spec["clusterIP"];
@@ -353,7 +353,7 @@ void k8s_component::extract_services_data(const Json::Value& spec, k8s_service_t
 			service.set_port_list(std::move(pl));
 		}
 	}
-}
+*/}
 
 std::string k8s_component::get_name(type t)
 {
@@ -586,12 +586,12 @@ k8s_node_t::k8s_node_t(const std::string& name, const std::string& uid, const st
 {
 }
 
-k8s_node_t::host_ip_list k8s_node_t::extract_addresses(const Json::Value& addresses)
+k8s_node_t::host_ip_list k8s_node_t::extract_addresses(const Json::Value& status)
 {
 	host_ip_list address_list;
-	//if(!status.isNull())
-	//{
-		//const Json::Value& addresses = status["addresses"];
+	if(!status.isNull())
+	{
+		const Json::Value& addresses = status["addresses"];
 		if(!addresses.isNull() && addresses.isArray())
 		{
 			for (auto& address : addresses)
@@ -613,7 +613,7 @@ k8s_node_t::host_ip_list k8s_node_t::extract_addresses(const Json::Value& addres
 				}
 			}
 		}
-	//}
+	}
 	return address_list;
 }
 

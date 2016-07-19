@@ -139,7 +139,11 @@ void k8s::build_state()
 			// traffic; so, we only add watch interface here for events
 			if(component.first != k8s_component::K8S_EVENTS)
 			{
-				if(component.first != k8s_component::K8S_NODES)//******************
+				if(component.first != k8s_component::K8S_NODES &&
+				   component.first != k8s_component::K8S_NAMESPACES &&
+				   component.first != k8s_component::K8S_PODS &&
+				   component.first != k8s_component::K8S_REPLICATIONCONTROLLERS &&
+				   component.first != k8s_component::K8S_SERVICES)//******************
 				{
 					m_state.clear(component.first);
 					ASSERT(m_net);

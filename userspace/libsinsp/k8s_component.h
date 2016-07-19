@@ -153,6 +153,21 @@ public:
 
 	virtual std::string get_node_name() const;
 
+	template <typename C>
+	static void extract_string_array(const Json::Value& arr, C& list)
+	{
+		if(!arr.isNull() && arr.isArray())
+		{
+			for (auto& item : arr)
+			{
+				if(item.isConvertibleTo(Json::stringValue))
+				{
+					list.emplace(item.asString());
+				}
+			}
+		}
+	}
+
 	static k8s_pair_list extract_object(const Json::Value& object, const std::string& name);
 
 	static bool is_pod_active(const Json::Value& item);
@@ -234,7 +249,7 @@ public:
 
 	virtual std::string get_node_name() const;
 
-	static host_ip_list extract_addresses(const Json::Value& addresses);
+	static host_ip_list extract_addresses(const Json::Value& status);
 
 private:
 	host_ip_list m_host_ips;
@@ -343,7 +358,8 @@ public:
 	int get_spec_replicas() const;
 	void set_stat_replicas(int replicas);
 	int get_stat_replicas() const;
-	void set_replicas(const Json::Value& item);
+	void set_replicas(const Json::Value& item, const std::string& replica_name = "replicas");
+	void set_replicas(int spec, int stat);
 
 protected:
 	k8s_replicas_t m_replicas;
@@ -880,10 +896,22 @@ inline int k8s_rc_t::get_stat_replicas() const
 	return m_replicas.get_stat_replicas();
 }
 
-inline void k8s_rc_t::set_replicas(const Json::Value& item)
+inline void k8s_rc_t::set_replicas(const Json::Value& item, const std::string& replica_name)
 {
-	m_replicas.set_spec_replicas(k8s_replicas_t::get_count(item["spec"]));
-	m_replicas.set_stat_replicas(k8s_replicas_t::get_count(item["status"]));
+	m_replicas.set_spec_replicas(k8s_replicas_t::get_count(item["spec"], replica_name));
+	m_replicas.set_stat_replicas(k8s_replicas_t::get_count(item["status"], replica_name));
+}
+
+inline void k8s_rc_t::set_replicas(int spec_replicas, int stat_replicas)
+{
+	if(spec_replicas < 0 || stat_replicas < 0)
+	{
+		throw sinsp_exception("K8s Replication Controller: invalid number of replicas, "
+							  "spec=" + std::to_string(spec_replicas) + ", "
+							  "stat=" + std::to_string(stat_replicas));
+	}
+	m_replicas.set_spec_replicas(spec_replicas);
+	m_replicas.set_stat_replicas(stat_replicas);
 }
 
 //

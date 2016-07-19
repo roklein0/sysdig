@@ -14,7 +14,9 @@ k8s_handler::k8s_handler(const std::string& id,
 	const std::string& http_version,
 	int timeout_ms,
 	ssl_ptr_t ssl,
-	bt_ptr_t bt): m_id(id + "_state"),
+	bt_ptr_t bt,
+	k8s_state_t* state): m_state(state),
+		m_id(id + "_state"),
 		m_path(path),
 		m_state_filter(state_filter),
 		m_event_filter(event_filter),
@@ -214,7 +216,7 @@ void k8s_handler::collect_data()
 	}
 	else
 	{
-		throw sinsp_exception("k8s_handler (" + m_id + "), no m_http interface found (state and event null for " + m_url + ").");
+		throw sinsp_exception("k8s_handler (" + m_id + "), no m_http interface found (null) for " + m_url + ").");
 	}
 }
 
@@ -252,6 +254,90 @@ k8s_handler::msg_data k8s_handler::get_msg_data(const std::string& type, const s
 	}
 
 	return data;
+}
+
+void k8s_handler::handle_json(Json::Value&& root)
+{
+	if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
+	{
+		g_logger.log("********************************************************************", sinsp_logger::SEV_TRACE);
+		g_logger.log(json_as_string(root), sinsp_logger::SEV_TRACE);
+		g_logger.log("********************************************************************", sinsp_logger::SEV_TRACE);
+	}
+
+	if(!m_state)
+	{
+		throw sinsp_exception("k8s_handler (" + m_id + "), state is null for " + m_url + ").");
+	}
+	const Json::Value& type = root["type"];
+	if(!type.isNull())
+	{
+		if(type.isConvertibleTo(Json::stringValue))
+		{
+			const Json::Value& kind = root["kind"];
+			if(!kind.isNull())
+			{
+				if(kind.isConvertibleTo(Json::stringValue))
+				{
+					std::string t = type.asString();
+					std::string k = kind.asString();
+					for(const Json::Value& item : root["items"])
+					{
+						msg_data data = get_msg_data(t, k, item);
+						log_event(data);
+						if(data.m_reason == COMPONENT_ADDED)
+						{
+							if(m_state->has(data.m_uid))
+							{
+								std::ostringstream os;
+								os << "K8s ADDED message received for existing " << data.m_kind <<
+									" [" << data.m_uid << "], updating only.";
+								g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
+							}
+							handle_component(item, &data);
+						}
+						else if(data.m_reason == COMPONENT_MODIFIED)
+						{
+							if(!m_state->has(data.m_uid))
+							{
+								std::ostringstream os;
+								os << "K8s MODIFIED message received for non-existing " << data.m_kind <<
+									" [" << data.m_uid << "], giving up.";
+								g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
+								return;
+							}
+							handle_component(item, &data);
+						}
+						else if(data.m_reason == COMPONENT_DELETED)
+						{
+							if(!m_state->delete_component(m_state->get_nodes(), data.m_uid))
+							{
+								g_logger.log(std::string("K8s " + data.m_kind + " not found: ") + data.m_name,
+											 sinsp_logger::SEV_ERROR);
+							}
+						}
+						else if(data.m_reason == COMPONENT_ERROR)
+						{
+							log_error(root, data.m_kind);
+						}
+						else
+						{
+							g_logger.log(std::string("Unsupported K8S " + data.m_kind + " event reason: ") +
+										 std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
+						}
+					} // end for nodes
+				}
+			}
+		}
+		else
+		{
+			g_logger.log(std::string("K8S NODE event type is not string."), sinsp_logger::SEV_ERROR);
+		}
+	}
+	else
+	{
+		g_logger.log(std::string("K8S NODE event type is null."), sinsp_logger::SEV_ERROR);
+	}
 }
 
 bool k8s_handler::is_ip_address(const std::string& addr)
@@ -295,4 +381,22 @@ void k8s_handler::set_event_json(json_ptr_t json, const std::string&)
 	{
 		g_logger.log("K8s: delegator (" + m_id + ") received null JSON", sinsp_logger::SEV_ERROR);
 	}
+}
+
+void k8s_handler::log_error(const Json::Value& root, const std::string& comp)
+{
+	std::string unk_err = "Unknown.";
+	std::ostringstream os;
+	os << "K8S server reported " << comp << " error: ";
+	if(!root.isNull())
+	{
+		Json::Value object = root["object"];
+		if(!object.isNull())
+		{
+			os << object.toStyledString();
+			unk_err.clear();
+		}
+	}
+	os << unk_err;
+	g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
 }

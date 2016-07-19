@@ -6,6 +6,7 @@
 
 #include "json/json.h"
 #include "socket_collector.h"
+#include "k8s_state.h"
 #include <unordered_set>
 
 class sinsp;
@@ -65,8 +66,9 @@ public:
 		const std::string& event_filter,
 		const std::string& http_version = "1.0",
 		int timeout_ms = default_timeout_ms,
-		ssl_ptr_t ssl = 0,
-		bt_ptr_t bt = 0);
+		ssl_ptr_t ssl = nullptr,
+		bt_ptr_t bt = nullptr,
+		k8s_state_t* state = nullptr);
 
 	~k8s_handler();
 
@@ -81,11 +83,15 @@ public:
 protected:
 	typedef std::unordered_set<std::string>    ip_addr_list_t;
 
-	virtual void handle_json(Json::Value&& root) = 0;
+	virtual void handle_json(Json::Value&& root);
+	virtual void handle_component(const Json::Value& json, const msg_data* data = 0) = 0;
 	msg_data get_msg_data(const std::string& evt, const std::string& type, const Json::Value& root);
 	static bool is_ip_address(const std::string& addr);
 
 	void log_event(const msg_data& data);
+	void log_error(const Json::Value& root, const std::string& comp);
+
+	k8s_state_t*   m_state = nullptr;
 
 private:
 	typedef void (k8s_handler::*callback_func_t)(json_ptr_t, const std::string&);
@@ -142,8 +148,8 @@ inline const std::string& k8s_handler::get_machine_id() const
 
 inline void k8s_handler::log_event(const msg_data& data)
 {
-	g_logger.log("K8s " + data.m_kind + ' ' +
-				 data.get_reason_desc() + ' ' +
+	g_logger.log("K8s " + data.get_reason_desc() + ' ' +
+				 data.m_kind + ' ' +
 				 data.m_name + " [" + data.m_uid + "]",
 				 sinsp_logger::SEV_DEBUG);
 }

@@ -249,7 +249,7 @@ void k8s_dispatcher::handle_node(const Json::Value& root, const msg_data& data)/
 */}
 
 void k8s_dispatcher::handle_namespace(const Json::Value& root, const msg_data& data)
-{
+{/*
 	if(data.m_reason == COMPONENT_ADDED)
 	{
 		if(m_state.has(m_state.get_namespaces(), data.m_uid))
@@ -312,10 +312,10 @@ void k8s_dispatcher::handle_namespace(const Json::Value& root, const msg_data& d
 	{
 		g_logger.log(std::string("Unsupported K8S NAMESPACE event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
 	}
-}
+*/}
 
 bool k8s_dispatcher::handle_pod(const Json::Value& root, const msg_data& data)
-{
+{/*
 	if(data.m_reason == COMPONENT_ADDED)
 	{
 		const Json::Value& object = root["object"];
@@ -388,12 +388,12 @@ bool k8s_dispatcher::handle_pod(const Json::Value& root, const msg_data& data)
 	{
 		g_logger.log(std::string("Unsupported K8S POD event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
 		return false;
-	}
-	return true;
+	}*/
+	return false;//true;
 }
 
 void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& data)
-{
+{/*
 	if(data.m_reason == COMPONENT_ADDED)
 	{
 		const Json::Value& object = root["object"];
@@ -450,7 +450,7 @@ void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& dat
 	{
 		g_logger.log(std::string("Unsupported K8S SERVICE event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
 	}
-}
+*/}
 
 void k8s_dispatcher::handle_deployment(const Json::Value& root, const msg_data& data)
 {
