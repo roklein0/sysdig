@@ -4,7 +4,7 @@
 
 #include "k8s.h"
 #include "k8s_component.h"
-#include "k8s_dispatcher.h"
+//#include "k8s_dispatcher.h"
 #include "sinsp.h"
 #include "sinsp_int.h"
 #include <sstream>
@@ -14,7 +14,7 @@
 #include <iostream>
 
 k8s_component::type_map k8s::m_components;
-
+/*
 k8s::dispatch_map k8s::make_dispatch_map(k8s_state_t& state, ext_list_ptr_t extensions)
 {
 	dispatch_map dm;
@@ -38,7 +38,7 @@ k8s::dispatch_map k8s::make_dispatch_map(k8s_state_t& state, ext_list_ptr_t exte
 
 	return dm;
 }
-
+*/
 k8s::k8s(const std::string& uri, bool start_watch, bool watch_in_thread, bool is_captured,
 		//const std::string& api,
 #ifdef HAS_CAPTURE
@@ -50,10 +50,10 @@ k8s::k8s(const std::string& uri, bool start_watch, bool watch_in_thread, bool is
 		m_watch(uri.empty() ? false : start_watch),
 		m_state(is_captured),
 		m_event_filter(event_filter),
-		m_dispatch(std::move(make_dispatch_map(m_state, extensions))),
+		//m_dispatch(std::move(make_dispatch_map(m_state, extensions))),
 		m_watch_in_thread(watch_in_thread)
 #ifdef HAS_CAPTURE
-		,m_net(uri.empty() ? 0 : new k8s_net(*this, m_state, uri, ssl, bt, curl_debug, extensions))
+		,m_net(uri.empty() ? 0 : new k8s_net(*this, m_state, uri, ssl, bt, curl_debug, extensions, event_filter))
 #endif
 {
 	g_logger.log(std::string("Creating K8s object for [" +
@@ -115,11 +115,11 @@ void k8s::stop_watch()
 }
 
 void k8s::cleanup()
-{
+{/*
 	for (auto& update : m_dispatch)
 	{
 		delete update.second;
-	}
+	}*/
 #ifdef HAS_CAPTURE
 	delete m_net;
 	m_net = 0;
@@ -139,11 +139,13 @@ void k8s::build_state()
 			// traffic; so, we only add watch interface here for events
 			if(component.first != k8s_component::K8S_EVENTS)
 			{
-				if(component.first != k8s_component::K8S_NODES &&
+				/*if(component.first != k8s_component::K8S_NODES &&
 				   component.first != k8s_component::K8S_NAMESPACES &&
 				   component.first != k8s_component::K8S_PODS &&
 				   component.first != k8s_component::K8S_REPLICATIONCONTROLLERS &&
-				   component.first != k8s_component::K8S_SERVICES)//******************
+				   component.first != k8s_component::K8S_SERVICES &&
+				   component.first != k8s_component::K8S_DAEMONSETS &&
+				   component.first != k8s_component::K8S_DEPLOYMENTS)
 				{
 					m_state.clear(component.first);
 					ASSERT(m_net);
@@ -151,7 +153,7 @@ void k8s::build_state()
 					parse_json(os.str(), component);
 					os.str("");
 				}
-				else
+				else*/
 				{
 					m_net->add_api_interface(component);
 				}
@@ -196,7 +198,7 @@ void k8s::watch()
 	}
 #endif
 }
-
+/*
 void k8s::on_watch_data(k8s_event_data&& msg)
 {
 	k8s_component::type comp = msg.component();
@@ -210,7 +212,7 @@ void k8s::on_watch_data(k8s_event_data&& msg)
 		g_logger.log("K8s: Cannot enqueue " + k8s_component::get_name(comp) + " message (dispatcher is null)", sinsp_logger::SEV_WARNING);
 	}
 }
-
+*/
 void k8s::simulate_watch_event(const std::string& json)
 {
 	Json::Value root;
@@ -250,7 +252,8 @@ void k8s::simulate_watch_event(const std::string& json)
 	}
 
 	ASSERT(component_type < k8s_component::K8S_COMPONENT_COUNT);
-	m_dispatch[component_type]->extract_data(root, false);
+	// TODO: for new data collection
+	//m_dispatch[component_type]->extract_data(root, false);
 }
 
 std::size_t k8s::count(k8s_component::type component) const
@@ -295,7 +298,7 @@ std::size_t k8s::count(k8s_component::type component) const
 }
 
 void k8s::extract_data(Json::Value& items, k8s_component::type component, const std::string& api_version)
-{
+{/*
 	if(api_version.empty())
 	{
 		throw sinsp_exception("API version not provided.");
@@ -527,7 +530,7 @@ void k8s::extract_data(Json::Value& items, k8s_component::type component, const 
 #endif // HAS_CAPTURE
 		}
 	}
-}
+*/}
 
 void k8s::parse_json(const std::string& json, const k8s_component::type_map::value_type& component)
 {

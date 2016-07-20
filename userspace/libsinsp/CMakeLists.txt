@@ -34,11 +34,13 @@ add_library(sinsp STATIC
 	k8s.cpp
 	k8s_collector.cpp
 	k8s_component.cpp
-	k8s_state.cpp
-	k8s_dispatcher.cpp
+	k8s_daemonset_handler.cpp
+	k8s_deployment_handler.cpp
+#	k8s_dispatcher.cpp
 	k8s_event_data.cpp
+	k8s_event_handler.cpp
 	k8s_handler.cpp
-	k8s_http.cpp
+#	k8s_http.cpp
 	k8s_namespace_handler.cpp
 	k8s_net.cpp
 	k8s_node_handler.cpp
@@ -46,6 +48,8 @@ add_library(sinsp STATIC
 	k8s_pod_handler.cpp
 	k8s_replicationcontroller_handler.cpp
 	k8s_replicaset_handler.cpp
+	k8s_service_handler.cpp
+	k8s_state.cpp
 	lua_parser.cpp
 	lua_parser_api.cpp
 	marathon_component.cpp

@@ -7,7 +7,7 @@
 #include "sinsp_int.h"
 
 // filters normalize state and event JSONs, so they can be processed generically:
-// event is turned into a single-node array, state is turned into ADDED event
+// event is turned into a single-entry array, state is turned into an array of ADDED events
 
 std::string k8s_node_handler::EVENT_FILTER =
 	"{"
@@ -46,11 +46,12 @@ std::string k8s_node_handler::STATE_FILTER =
 	"}";
 
 k8s_node_handler::k8s_node_handler(k8s_state_t& state,
+	collector_t& collector,
 	std::string url,
 	const std::string& http_version,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt):
-		k8s_handler("k8s_node_handler", url, "/api/v1/nodes",
+		k8s_handler(collector, "k8s_node_handler", url, "/api/v1/nodes",
 					STATE_FILTER, EVENT_FILTER, http_version,
 					1000L, ssl, bt, &state)
 {

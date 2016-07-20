@@ -15,6 +15,7 @@ class k8s_node_handler : public k8s_handler
 {
 public:
 	k8s_node_handler(k8s_state_t& state,
+		collector_t& collector,
 		std::string url,
 		const std::string& http_version = "1.0",
 		ssl_ptr_t ssl = 0,

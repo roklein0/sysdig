@@ -51,15 +51,19 @@ public:
 		}
 	};
 
-	typedef std::shared_ptr<k8s_handler>    ptr_t;
-	typedef std::vector<std::string>        uri_list_t;
-	typedef std::shared_ptr<Json::Value>    json_ptr_t;
-	typedef sinsp_curl::ssl::ptr_t          ssl_ptr_t;
-	typedef sinsp_curl::bearer_token::ptr_t bt_ptr_t;
+	typedef std::shared_ptr<k8s_handler>     ptr_t;
+	typedef std::vector<std::string>         uri_list_t;
+	typedef std::shared_ptr<Json::Value>     json_ptr_t;
+	typedef sinsp_curl::ssl::ptr_t           ssl_ptr_t;
+	typedef sinsp_curl::bearer_token::ptr_t  bt_ptr_t;
+	typedef socket_data_handler<k8s_handler> handler_t;
+	typedef handler_t::ptr_t                 handler_ptr_t;
+	typedef socket_collector<handler_t>      collector_t;
 
 	static const int default_timeout_ms = 1000L;
 
-	k8s_handler(const std::string& id,
+	k8s_handler(collector_t& collector,
+		const std::string& id,
 		std::string url,
 		const std::string& path,
 		const std::string& state_filter,
@@ -88,6 +92,21 @@ protected:
 	msg_data get_msg_data(const std::string& evt, const std::string& type, const Json::Value& root);
 	static bool is_ip_address(const std::string& addr);
 
+	k8s_pair_list extract_object(const Json::Value& object);
+
+	template <typename T>
+	void handle_selectors(T& component, const Json::Value& selector)
+	{
+		if(!selector.isNull())
+		{
+			component.set_selectors(extract_object(selector));
+		}
+		else
+		{
+			g_logger.log("K8s Replication Controller: Null selector object.", sinsp_logger::SEV_ERROR);
+		}
+	}
+
 	void log_event(const msg_data& data);
 	void log_error(const Json::Value& root, const std::string& comp);
 
@@ -96,9 +115,6 @@ protected:
 private:
 	typedef void (k8s_handler::*callback_func_t)(json_ptr_t, const std::string&);
 
-	typedef socket_data_handler<k8s_handler> handler_t;
-	typedef handler_t::ptr_t                 handler_ptr_t;
-	typedef socket_collector<handler_t>      collector_t;
 	typedef std::vector<json_ptr_t>          event_list_t;
 
 	static ip_addr_list_t hostname_to_ip(const std::string& hostname);
@@ -111,13 +127,13 @@ private:
 
 	const std::string& translate_name(const std::string& event_name);
 
+	collector_t&   m_collector;
 	handler_ptr_t  m_http;
 	std::string    m_id;
 	std::string    m_path;
 	std::string    m_state_filter;
 	std::string    m_event_filter;
 	std::string&   m_filter;
-	collector_t    m_collector;
 	std::string    m_event_uri;
 	event_list_t   m_events;
 	long           m_timeout_ms;

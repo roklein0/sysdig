@@ -453,7 +453,7 @@ void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& dat
 */}
 
 void k8s_dispatcher::handle_deployment(const Json::Value& root, const msg_data& data)
-{
+{/*
 	if(data.m_reason == COMPONENT_ADDED)
 	{
 		const Json::Value& object = root["object"];
@@ -513,10 +513,10 @@ void k8s_dispatcher::handle_deployment(const Json::Value& root, const msg_data& 
 	{
 		g_logger.log(std::string("Unsupported K8S DEPLOYMENT event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
 	}
-}
+*/}
 
 void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& data)
-{
+{/*
 	if(data.m_reason == COMPONENT_ADDED)
 	{
 		const Json::Value& object = root["object"];
@@ -567,7 +567,7 @@ void k8s_dispatcher::handle_daemonset(const Json::Value& root, const msg_data& d
 	{
 		g_logger.log(std::string("Unsupported K8S DAEMONSET event reason: ") + std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
 	}
-}
+*/}
 
 void k8s_dispatcher::handle_event(const Json::Value& root, const msg_data& data)
 {

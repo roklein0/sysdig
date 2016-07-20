@@ -16,7 +16,7 @@
 #include <sstream>
 #include <utility>
 
-class k8s_dispatcher;
+//class k8s_dispatcher;
 
 class k8s
 {
@@ -45,7 +45,7 @@ public:
 
 	std::size_t count(k8s_component::type component) const;
 
-	void on_watch_data(k8s_event_data&& msg);
+	//void on_watch_data(k8s_event_data&& msg);
 
 	const k8s_state_t& get_state(bool rebuild = false);
 
@@ -76,13 +76,13 @@ private:
 
 	// due to deleted default dispatcher constructor, g++ has trouble instantiating map with values,
 	// so we have to go with the forward declaration above and pointers here ...
-	typedef std::map<k8s_component::type, k8s_dispatcher*> dispatch_map;
-	dispatch_map make_dispatch_map(k8s_state_t& state, ext_list_ptr_t extensions);
+	//typedef std::map<k8s_component::type, k8s_dispatcher*> dispatch_map;
+	//dispatch_map make_dispatch_map(k8s_state_t& state, ext_list_ptr_t extensions);
 
 	bool         m_watch;
 	k8s_state_t  m_state;
 	filter_ptr_t m_event_filter;
-	dispatch_map m_dispatch;
+	//dispatch_map m_dispatch;
 	bool         m_watch_in_thread;
 #ifdef HAS_CAPTURE
 	k8s_net*     m_net;

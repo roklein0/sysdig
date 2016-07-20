@@ -434,6 +434,7 @@ public:
 	void set_current_scheduled(int replicas);
 	int get_current_scheduled() const;
 	void set_scheduled(const Json::Value& item);
+	void set_scheduled(int desired, int current);
 
 private:
 	k8s_replicas_t m_replicas;
@@ -456,6 +457,7 @@ public:
 	void set_stat_replicas(int replicas);
 	int get_stat_replicas() const;
 	void set_replicas(const Json::Value& item);
+	void set_replicas(int desired, int current);
 
 private:
 	k8s_replicas_t m_replicas;
@@ -968,6 +970,12 @@ inline void k8s_deployment_t::set_replicas(const Json::Value& item)
 	m_replicas.set_stat_replicas(k8s_replicas_t::get_count(item["status"]));
 }
 
+inline void k8s_deployment_t::set_replicas(int desired, int current)
+{
+	m_replicas.set_spec_replicas(desired);
+	m_replicas.set_stat_replicas(current);
+}
+
 
 //
 // daemon set
@@ -995,6 +1003,12 @@ inline int k8s_daemonset_t::get_current_scheduled() const
 
 inline void k8s_daemonset_t::set_scheduled(const Json::Value& item)
 {
-	m_replicas.set_spec_replicas(k8s_replicas_t::get_count(item["status"], "currentNumberScheduled"));
-	m_replicas.set_stat_replicas(k8s_replicas_t::get_count(item["status"], "desiredNumberScheduled"));
+	m_replicas.set_spec_replicas(k8s_replicas_t::get_count(item["status"], "desiredNumberScheduled"));
+	m_replicas.set_stat_replicas(k8s_replicas_t::get_count(item["status"], "currentNumberScheduled"));
+}
+
+inline void k8s_daemonset_t::set_scheduled(int desired, int current)
+{
+	m_replicas.set_spec_replicas(desired);
+	m_replicas.set_stat_replicas(current);
 }

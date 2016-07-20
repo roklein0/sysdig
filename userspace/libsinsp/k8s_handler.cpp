@@ -6,7 +6,8 @@
 #include "sinsp.h"
 #include "sinsp_int.h"
 
-k8s_handler::k8s_handler(const std::string& id,
+k8s_handler::k8s_handler(collector_t& collector,
+	const std::string& id,
 	std::string url,
 	const std::string& path,
 	const std::string& state_filter,
@@ -16,6 +17,7 @@ k8s_handler::k8s_handler(const std::string& id,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt,
 	k8s_state_t* state): m_state(state),
+		m_collector(collector),
 		m_id(id + "_state"),
 		m_path(path),
 		m_state_filter(state_filter),
@@ -382,6 +384,25 @@ void k8s_handler::set_event_json(json_ptr_t json, const std::string&)
 		g_logger.log("K8s: delegator (" + m_id + ") received null JSON", sinsp_logger::SEV_ERROR);
 	}
 }
+
+k8s_pair_list k8s_handler::extract_object(const Json::Value& object)
+{
+	k8s_pair_list entry_list;
+	if(!object.isNull() && object.isObject())
+	{
+		Json::Value::Members members = object.getMemberNames();
+		for (auto& member : members)
+		{
+			const Json::Value& val = object[member];
+			if(!val.isNull() && val.isString())
+			{
+				entry_list.emplace_back(k8s_pair_t(member, val.asString()));
+			}
+		}
+	}
+	return entry_list;
+}
+
 
 void k8s_handler::log_error(const Json::Value& root, const std::string& comp)
 {
