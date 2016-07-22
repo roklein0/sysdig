@@ -40,6 +40,18 @@ public:
 		m_sockets[sockfd] = handler;
 	}
 
+	int get_socket(std::shared_ptr<T> handler) const
+	{
+		for(const auto& http : m_sockets)
+		{
+			if(http.second == handler)
+			{
+				return http.first;
+			}
+		}
+		return -1;
+	}
+
 	bool has(std::shared_ptr<T> handler)
 	{
 		for(const auto& http : m_sockets)
@@ -192,9 +204,10 @@ public:
 		return subscription_count() > 0;
 	}
 
-	bool is_healthy(int expected_count) const
+	bool is_healthy(std::shared_ptr<T> handler) const
 	{
-		return subscription_count() >= expected_count;
+		return get_socket(handler) != -1;
+		//return subscription_count() >= expected_count;
 	}
 
 private:

@@ -16,8 +16,6 @@
 #include <sstream>
 #include <utility>
 
-//class k8s_dispatcher;
-
 class k8s
 {
 public:
@@ -45,9 +43,9 @@ public:
 
 	std::size_t count(k8s_component::type component) const;
 
-	//void on_watch_data(k8s_event_data&& msg);
+	void check_components();
 
-	const k8s_state_t& get_state(bool rebuild = false);
+	const k8s_state_t& get_state();
 
 	void watch();
 	bool watch_in_thread() const;
@@ -64,20 +62,9 @@ public:
 	void simulate_watch_event(const std::string& json);
 
 private:
-	void extract_data(Json::Value& items, k8s_component::type component, const std::string& api_version);
-
-	void build_state();
-
-	void parse_json(const std::string& json, const k8s_component::type_map::value_type& component);
-
 	void stop_watch();
 
 	void cleanup();
-
-	// due to deleted default dispatcher constructor, g++ has trouble instantiating map with values,
-	// so we have to go with the forward declaration above and pointers here ...
-	//typedef std::map<k8s_component::type, k8s_dispatcher*> dispatch_map;
-	//dispatch_map make_dispatch_map(k8s_state_t& state, ext_list_ptr_t extensions);
 
 	bool         m_watch;
 	k8s_state_t  m_state;

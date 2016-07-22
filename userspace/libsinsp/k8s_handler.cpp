@@ -32,7 +32,7 @@ k8s_handler::k8s_handler(collector_t& collector,
 	g_logger.log(std::string("Creating K8s handler object for " + m_id + " (" + m_url + ")"),
 				 sinsp_logger::SEV_DEBUG);
 	make_http();
-	connect(1);
+	connect();
 	g_logger.log(std::string("Sent K8s handler connect request for " + m_id + " (" + m_url + ")"),
 				 sinsp_logger::SEV_DEBUG);
 }
@@ -52,7 +52,7 @@ void k8s_handler::make_http()
 	m_collector.add(m_http);
 }
 
-bool k8s_handler::connect(int expected_connections)
+bool k8s_handler::connect()
 {
 	g_logger.log(std::string("k8s_handler (" + m_id + ") connect begin for " + m_url),
 				 sinsp_logger::SEV_TRACE);
@@ -82,7 +82,7 @@ bool k8s_handler::connect(int expected_connections)
 			}
 			g_logger.log(std::string("k8s_handler (" + m_id +
 									 ") collector checking status ... " + m_url), sinsp_logger::SEV_TRACE);
-			check_collector_status(expected_connections);
+			check_collector_status();
 			bool has_http = m_collector.has(m_http);
 			g_logger.log(std::string("k8s_handler (" + m_id +
 									 ") collector has " + (has_http ? std::string() : "not ") + m_url), sinsp_logger::SEV_TRACE);
@@ -134,14 +134,12 @@ bool k8s_handler::is_alive() const
 	return true;
 }
 
-void k8s_handler::check_collector_status(int expected)
+void k8s_handler::check_collector_status()
 {
-	if(!m_collector.is_healthy(expected))
+	if(!m_collector.is_healthy(m_http))
 	{
-		throw sinsp_exception("k8s_handler (" + m_id + ") collector not healthy (has " +
-							  std::to_string(m_collector.subscription_count()) +
-							  " connections, expected " + std::to_string(expected) +
-							  "); giving up on data collection in this cycle ...");
+		throw sinsp_exception("k8s_handler (" + m_id + ") collector not healthy, "
+							  "giving up on data collection in this cycle ...");
 	}
 }
 
@@ -207,7 +205,7 @@ void k8s_handler::collect_data()
 						m_filter = m_event_filter;
 						m_req_sent = false;
 						make_http();
-						connect(1);
+						connect();
 					}
 				}
 			}

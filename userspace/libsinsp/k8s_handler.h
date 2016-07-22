@@ -84,6 +84,8 @@ public:
 	void set_machine_id(const std::string& machine_id);
 	const std::string& get_machine_id() const;
 
+	bool is_state_built() const;
+
 protected:
 	typedef std::unordered_set<std::string>    ip_addr_list_t;
 
@@ -110,41 +112,41 @@ protected:
 	void log_event(const msg_data& data);
 	void log_error(const Json::Value& root, const std::string& comp);
 
-	k8s_state_t*   m_state = nullptr;
+	k8s_state_t*        m_state = nullptr;
 
 private:
 	typedef void (k8s_handler::*callback_func_t)(json_ptr_t, const std::string&);
 
-	typedef std::vector<json_ptr_t>          event_list_t;
+	typedef std::vector<json_ptr_t> event_list_t;
 
 	static ip_addr_list_t hostname_to_ip(const std::string& hostname);
 
 	void make_http();
 	void send_data_request();
-	void check_collector_status(int expected);
+	void check_collector_status();
 
-	bool connect(int expected_connections);
+	bool connect();
 
 	const std::string& translate_name(const std::string& event_name);
 
-	collector_t&   m_collector;
-	handler_ptr_t  m_http;
-	std::string    m_id;
-	std::string    m_path;
-	std::string    m_state_filter;
-	std::string    m_event_filter;
-	std::string&   m_filter;
-	std::string    m_event_uri;
-	event_list_t   m_events;
-	long           m_timeout_ms;
-	std::string    m_machine_id;
-	json_query     m_jq;
-	std::string    m_url;
-	std::string    m_http_version;
-	ssl_ptr_t      m_ssl;
-	bt_ptr_t       m_bt;
-	bool           m_req_sent = false;
-	bool           m_state_built = false;
+	collector_t&        m_collector;
+	handler_ptr_t       m_http;
+	std::string         m_id;
+	std::string         m_path;
+	std::string         m_state_filter;
+	std::string         m_event_filter;
+	std::string&        m_filter;
+	std::string         m_event_uri;
+	event_list_t        m_events;
+	long                m_timeout_ms;
+	std::string         m_machine_id;
+	json_query          m_jq;
+	std::string         m_url;
+	std::string         m_http_version;
+	ssl_ptr_t           m_ssl;
+	bt_ptr_t            m_bt;
+	bool                m_req_sent = false;
+	bool                m_state_built = false;
 };
 
 inline const std::string& k8s_handler::get_id() const
@@ -160,6 +162,11 @@ inline void k8s_handler::set_machine_id(const std::string& machine_id)
 inline const std::string& k8s_handler::get_machine_id() const
 {
 	return m_machine_id;
+}
+
+inline bool k8s_handler::is_state_built() const
+{
+	return m_state_built;
 }
 
 inline void k8s_handler::log_event(const msg_data& data)

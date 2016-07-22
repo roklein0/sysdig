@@ -170,12 +170,12 @@ bool docker::is_alive() const
 
 #ifdef HAS_CAPTURE
 
-void docker::check_collector_status(int expected)
+void docker::check_collector_status()
 {
-	if(!m_collector.is_healthy(expected))
+	if(!m_collector.is_healthy(m_event_http))
 	{
-		throw sinsp_exception("Docker collector not healthy (has " + std::to_string(m_collector.subscription_count()) +
-							  " connections, expected " + std::to_string(expected) + "); giving up on data collection in this cycle ...");
+		throw sinsp_exception("Docker collector not healthy, "
+							  "giving up on data collection in this cycle ...");
 	}
 }
 

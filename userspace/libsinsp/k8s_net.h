@@ -37,33 +37,30 @@ public:
 
 	~k8s_net();
 
-	//void get_all_data(const k8s_component::type_map::value_type& component, std::ostream& out);
-
 	void add_handler(const k8s_component::type_map::value_type& component);
-	void add_api_interface(const k8s_component::type_map::value_type& component);
+	bool has_handler(const k8s_component::type_map::value_type& component);
+	bool has_dependency(const k8s_component::type_map::value_type& component);
+
+	bool is_state_built(const k8s_component::type_map::value_type& component)
+	{
+		const auto& it = m_handlers.find(component.first);
+		if(it != m_handlers.end())
+		{
+			return it->second && it->second->is_state_built();
+		}
+		return false;
+	}
 
 	void watch();
-
 	void stop_watching();
-
 	bool is_healthy() const;
 
 private:
-	//void subscribe();
-
-	//void unsubscribe();
-
-	//void dispatch_events();
-
 	void init();
-
 	void end_thread();
-
 	bool is_secure();
-
 	void cleanup();
 
-	//typedef std::map<k8s_component::type, k8s_http*> api_map_t;
 	typedef k8s_handler::handler_t                       handler_t;
 	typedef k8s_handler::ptr_t                           handler_ptr_t;
 	typedef k8s_handler::collector_t                     collector_t;
@@ -77,8 +74,6 @@ private:
 	bt_ptr_t       m_bt;
 	bool           m_stopped;
 	handler_map_t  m_handlers;
-	//api_map_t      m_api_interfaces;
-	//k8s_collector  m_collector;
 	bool           m_curl_debug;
 	ext_list_ptr_t m_extensions;
 	filter_ptr_t   m_event_filter;
@@ -96,6 +91,12 @@ inline bool k8s_net::is_healthy() const
 {
 	return true;/*m_collector.subscription_count() ==
 		static_cast<int>(m_api_interfaces.size());*/
+}
+
+inline bool k8s_net::has_handler(const k8s_component::type_map::value_type& component)
+{
+	auto it = m_handlers.find(component.first);
+	return (it != m_handlers.end()) && it->second;
 }
 
 #endif // HAS_CAPTURE

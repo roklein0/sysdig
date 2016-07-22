@@ -1,0 +1,100 @@
+//
+// k8s_daemonset_handler.cpp
+//
+
+#include "k8s_daemonset_handler.h"
+#include "sinsp.h"
+#include "sinsp_int.h"
+
+// filters normalize state and event JSONs, so they can be processed generically:
+// event is turned into a single-entry array, state is turned into an array of ADDED events
+
+std::string k8s_daemonset_handler::EVENT_FILTER =
+	"{"
+	" type: .type,"
+	" apiVersion: .object.apiVersion,"
+	" kind: .object.kind,"
+	" items:"
+	" ["
+	"  .object |"
+	"  {"
+	"   name: .metadata.name,"
+	"   uid: .metadata.uid,"
+	"   timestamp: .metadata.creationTimestamp,"
+	"   desiredScheduled: .status.desiredNumberScheduled,"
+	"   currentScheduled: .status.currentNumberScheduled,"
+	"   selector: .spec.selector.matchLabels,"
+	"   labels: .metadata.labels"
+	"  }"
+	" ]"
+	"}";
+
+std::string k8s_daemonset_handler::STATE_FILTER =
+	"{"
+	" type: \"ADDED\","
+	" apiVersion: .apiVersion,"
+	" kind: \"DaemonSet\", "
+	" items:"
+	" ["
+	"  .items[] | "
+	"  {"
+	"   name: .metadata.name,"
+	"   uid: .metadata.uid,"
+	"   timestamp: .metadata.creationTimestamp,"
+	"   desiredScheduled: .status.desiredNumberScheduled,"
+	"   currentScheduled: .status.currentNumberScheduled,"
+	"   selector: .spec.selector.matchLabels,"
+	"   labels: .metadata.labels"
+	"   }"
+	" ]"
+	"}";
+
+k8s_daemonset_handler::k8s_daemonset_handler(k8s_state_t& state,
+	collector_t& collector,
+	std::string url,
+	const std::string& http_version,
+	ssl_ptr_t ssl,
+	bt_ptr_t bt):
+		k8s_handler(collector, "k8s_daemonset_handler", url, "/apis/extensions/v1beta1/daemonsets",
+					STATE_FILTER, EVENT_FILTER, http_version,
+					1000L, ssl, bt, &state)
+{
+}
+
+k8s_daemonset_handler::~k8s_daemonset_handler()
+{
+}
+
+void k8s_daemonset_handler::handle_component(const Json::Value& json, const msg_data* data)
+{
+	if(data)
+	{
+		if(m_state)
+		{
+			k8s_daemonset_t& ds =
+				m_state->get_component<k8s_daemonsets, k8s_daemonset_t>(m_state->get_daemonsets(),
+															  data->m_name, data->m_uid);
+			k8s_pair_list entries = extract_object(json["labels"]);
+			if(entries.size() > 0)
+			{
+				ds.set_labels(std::move(entries));
+			}
+			handle_selectors(ds, json["selector"]);
+			const Json::Value& desired = json["desiredScheduled"];
+			const Json::Value& current = json["currentScheduled"];
+			if(!desired.isNull() && desired.isConvertibleTo(Json::intValue) &&
+			   !current.isNull() && current.isConvertibleTo(Json::intValue))
+			{
+				ds.set_scheduled(desired.asInt(), current.asInt());
+			}
+		}
+		else
+		{
+			throw sinsp_exception("K8s node handler: state is null.");
+		}
+	}
+	else
+	{
+		throw sinsp_exception("K8s node handler: data is null.");
+	}
+}

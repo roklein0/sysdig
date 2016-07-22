@@ -331,7 +331,7 @@ public:
 			g_logger.log(std::string("Socket handler data receive error [" + m_url.to_string() + "]: ").append(ex.what()), sinsp_logger::SEV_ERROR);
 			return false;
 		}
-		return true;
+	return true;
 
 	connection_error:
 	{
@@ -342,16 +342,19 @@ public:
 			std::string ssl_err = ssl_errors();
 			if(!ssl_err.empty())
 			{
-				g_logger.log("Socket handler (" + m_id + ") SSL error : " + ssl_err, sinsp_logger::SEV_ERROR);
+				g_logger.log(/*"Socket handler (" + m_id + ") SSL error : " +*/ ssl_err, sinsp_logger::SEV_ERROR);
 			}
 		}
-		return false;
+		//return false;
 	}
 
 	connection_closed:
 		g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] closed.", sinsp_logger::SEV_ERROR);
-		m_connected = false;
-		return false;
+
+	cleanup();
+	m_socket = -1;
+	m_connected = false;
+	return false;
 	}
 
 	void on_error(const std::string& /*err*/, bool /*disconnect*/)
@@ -812,13 +815,14 @@ private:
 
 	bool try_connect()
 	{
+		if(m_connected) { return true; }
 		if(m_socket == -1)
 		{
 			create_socket();
 		}
 
 		int ret = -1;
-		if(m_connected || m_connecting)
+		if(/*m_connected || */m_connecting)
 		{
 			if(!send_ready()) { return false; }
 		}
@@ -826,7 +830,7 @@ private:
 		{
 			g_logger.log("Socket handler (" + m_id + ") connecting to " + m_address, sinsp_logger::SEV_INFO);
 			ret = connect(m_socket, m_sa, m_sa_len);
-			if(ret != 0 && errno != EINPROGRESS)
+			if(ret < 0 && errno != EINPROGRESS)
 			{
 				throw sinsp_exception("Error during conection attempt to " + m_address + ": " + strerror(errno));
 			}
@@ -1006,8 +1010,12 @@ private:
 	{
 		if(m_socket != -1)
 		{
-			close(m_socket);
-			m_socket = -1;
+			int ret = close(m_socket);
+			if(ret < 0)
+			{
+				g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] "
+							 "error closing socket: " + strerror(errno), sinsp_logger::SEV_ERROR);
+			}
 		}
 		SSL_free(m_ssl_connection);
 		m_ssl_connection = 0;

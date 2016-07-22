@@ -32,15 +32,12 @@ add_library(sinsp STATIC
 	ifinfo.cpp
 	json_query.cpp
 	k8s.cpp
-	k8s_collector.cpp
 	k8s_component.cpp
 	k8s_daemonset_handler.cpp
 	k8s_deployment_handler.cpp
-#	k8s_dispatcher.cpp
 	k8s_event_data.cpp
 	k8s_event_handler.cpp
 	k8s_handler.cpp
-#	k8s_http.cpp
 	k8s_namespace_handler.cpp
 	k8s_net.cpp
 	k8s_node_handler.cpp

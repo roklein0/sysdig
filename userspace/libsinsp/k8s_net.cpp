@@ -145,110 +145,118 @@ void k8s_net::stop_watching()
 	}
 }
 
-void k8s_net::add_handler(const k8s_component::type_map::value_type& component)
+bool k8s_net::has_dependency(const k8s_component::type_map::value_type& component)
 {
-	std::ostringstream os;
-	os << m_uri.get_scheme() << "://" << m_uri.get_host();
-	int port = m_uri.get_port();
-	if(port) { os << ':' << port; }
 	switch(component.first)
 	{
 		case k8s_component::K8S_NODES:
-			m_handlers[component.first] = std::make_shared<k8s_node_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created node handler.", sinsp_logger::SEV_INFO);
-			break;
+			return true;
 		case k8s_component::K8S_NAMESPACES:
-			m_handlers[component.first] = std::make_shared<k8s_namespace_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created namespace handler.", sinsp_logger::SEV_INFO);
-			break;
+			{
+				auto it = m_handlers.find(k8s_component::K8S_NODES);
+				return it!= m_handlers.end() && it->second && it->second->is_state_built();
+			}
 		case k8s_component::K8S_PODS:
-			m_handlers[component.first] = std::make_shared<k8s_pod_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created pod handler.", sinsp_logger::SEV_INFO);
-			break;
+			{
+				auto it = m_handlers.find(k8s_component::K8S_NAMESPACES);
+				return it!= m_handlers.end() && it->second && it->second->is_state_built();
+			}
 		case k8s_component::K8S_REPLICATIONCONTROLLERS:
-			m_handlers[component.first] = std::make_shared<k8s_replicationcontroller_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created replication controller handler.", sinsp_logger::SEV_INFO);
-			break;
-		case k8s_component::K8S_REPLICASETS:
-			m_handlers[component.first] = std::make_shared<k8s_replicaset_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created replica set handler.", sinsp_logger::SEV_INFO);
-			break;
+			{
+				auto it = m_handlers.find(k8s_component::K8S_PODS);
+				return it!= m_handlers.end() && it->second && it->second->is_state_built();
+			}
 		case k8s_component::K8S_SERVICES:
-			m_handlers[component.first] = std::make_shared<k8s_service_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created service handler.", sinsp_logger::SEV_INFO);
-			break;
+			{
+				auto it = m_handlers.find(k8s_component::K8S_REPLICATIONCONTROLLERS);
+				return it!= m_handlers.end() && it->second && it->second->is_state_built();
+			}
+		case k8s_component::K8S_REPLICASETS:
+			{
+				auto it = m_handlers.find(k8s_component::K8S_SERVICES);
+				return it!= m_handlers.end() && it->second && it->second->is_state_built();
+			}
 		case k8s_component::K8S_DAEMONSETS:
-			m_handlers[component.first] = std::make_shared<k8s_daemonset_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created daemonset handler.", sinsp_logger::SEV_INFO);
-			break;
+			{
+				auto it = m_handlers.find(k8s_component::K8S_REPLICASETS);
+				return it!= m_handlers.end() && it->second && it->second->is_state_built();
+			}
 		case k8s_component::K8S_DEPLOYMENTS:
-			m_handlers[component.first] = std::make_shared<k8s_deployment_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
-			g_logger.log("K8s: created deployment handler.", sinsp_logger::SEV_INFO);
-			break;
+			{
+				auto it = m_handlers.find(k8s_component::K8S_DAEMONSETS);
+				return it!= m_handlers.end() && it->second && it->second->is_state_built();
+			}
 		case k8s_component::K8S_EVENTS:
-			m_handlers[component.first] = std::make_shared<k8s_event_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt, m_event_filter);
-			g_logger.log("K8s: created event handler.", sinsp_logger::SEV_INFO);
-			break;
+			{
+				auto it = m_handlers.find(k8s_component::K8S_SERVICES);
+				return it!= m_handlers.end() && it->second && it->second->is_state_built();
+			}
 		case k8s_component::K8S_COMPONENT_COUNT:
 		default:
 			throw sinsp_exception("k8s_net::add_handler: invalid type: " +
 								  component.second + " (" +
 								  std::to_string(component.first) + ')');
 	}
+	return false;
 }
 
-void k8s_net::add_api_interface(const k8s_component::type_map::value_type& component)
-{/*
-	api_map_t::iterator it = m_api_interfaces.find(component.first);
-	if(it != m_api_interfaces.end() && it->second)
-	{
-		if(m_collector.has(it->second))
-		{
-			m_collector.remove(it->second);
-		}
-		delete it->second;
-		it->second = 0;
-	}
-
-	std::string protocol = m_uri.get_scheme();
-	std::ostringstream os;
-	os << m_uri.get_host();
-	int port = m_uri.get_port();
-	if(port)
-	{
-		os << ':' << port;
-	}
-	std::string api = k8s_component::get_api(component.first, m_extensions);
-	m_api_interfaces[component.first] =
-		new k8s_http(m_k8s, component.second, os.str(), protocol,
-					m_uri.get_credentials(), api,
-					m_ssl, m_bt, m_curl_debug);*/
-	add_handler(component);//******************8
-}
-/*
-void k8s_net::get_all_data(const k8s_component::type_map::value_type& component, std::ostream& out)
+void k8s_net::add_handler(const k8s_component::type_map::value_type& component)
 {
-	add_api_interface(component);
-
-	api_map_t::iterator it = m_api_interfaces.find(component.first);
-	if(it != m_api_interfaces.end())
+	if(!has_handler(component))
 	{
-		if(it->second)
+		if(has_dependency(component))
 		{
-			if(!m_api_interfaces[component.first]->get_all_data(out))
+			std::ostringstream os;
+			os << m_uri.get_scheme() << "://" << m_uri.get_host();
+			int port = m_uri.get_port();
+			if(port) { os << ':' << port; }
+			switch(component.first)
 			{
-				std::string err;
-				std::ostringstream* ostr = dynamic_cast<std::ostringstream*>(&out);
-				if(ostr) { err = ostr->str(); }
-				throw sinsp_exception(std::string("K8s: An error occurred while trying to retrieve data for ")
-									.append(k8s_component::get_name(component.first)).append(": ").append(err));
+				case k8s_component::K8S_NODES:
+					m_handlers[component.first] = std::make_shared<k8s_node_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
+					break;
+				case k8s_component::K8S_NAMESPACES:
+					m_handlers[component.first] = std::make_shared<k8s_namespace_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
+					break;
+				case k8s_component::K8S_PODS:
+					m_handlers[component.first] = std::make_shared<k8s_pod_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
+					break;
+				case k8s_component::K8S_REPLICATIONCONTROLLERS:
+					m_handlers[component.first] = std::make_shared<k8s_replicationcontroller_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
+					break;
+				case k8s_component::K8S_REPLICASETS:
+					m_handlers[component.first] = std::make_shared<k8s_replicaset_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
+					break;
+				case k8s_component::K8S_SERVICES:
+					m_handlers[component.first] = std::make_shared<k8s_service_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
+					break;
+				case k8s_component::K8S_DAEMONSETS:
+					m_handlers[component.first] = std::make_shared<k8s_daemonset_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
+					break;
+				case k8s_component::K8S_DEPLOYMENTS:
+					m_handlers[component.first] = std::make_shared<k8s_deployment_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt);
+					break;
+				case k8s_component::K8S_EVENTS:
+					m_handlers[component.first] = std::make_shared<k8s_event_handler>(m_state, m_collector, os.str(), "1.0", m_ssl, m_bt, m_event_filter);
+					break;
+				case k8s_component::K8S_COMPONENT_COUNT:
+				default:
+					throw sinsp_exception("k8s_net::add_handler: invalid type: " +
+										  component.second + " (" +
+										  std::to_string(component.first) + ')');
 			}
+			g_logger.log("K8s: created " + k8s_component::get_name(component) + " handler.", sinsp_logger::SEV_INFO);
 		}
 		else
 		{
-			g_logger.log("K8s: " + k8s_component::get_name(component.first) + " handler is null.", sinsp_logger::SEV_WARNING);
+			g_logger.log("K8s: component " + k8s_component::get_name(component) + " does not have dependencies populated yet.",
+						 sinsp_logger::SEV_DEBUG);
 		}
 	}
+	else
+	{
+		g_logger.log("K8s: component " + k8s_component::get_name(component) + " already exists.",
+					 sinsp_logger::SEV_TRACE);
+	}
 }
-*/
 #endif // HAS_CAPTURE
