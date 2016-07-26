@@ -87,7 +87,7 @@ public:
 	bool is_state_built() const;
 
 protected:
-	typedef std::unordered_set<std::string>    ip_addr_list_t;
+	typedef std::unordered_set<std::string> ip_addr_list_t;
 
 	virtual void handle_json(Json::Value&& root);
 	virtual void handle_component(const Json::Value& json, const msg_data* data = 0) = 0;
@@ -112,7 +112,7 @@ protected:
 	void log_event(const msg_data& data);
 	void log_error(const Json::Value& root, const std::string& comp);
 
-	k8s_state_t*        m_state = nullptr;
+	k8s_state_t* m_state = nullptr;
 
 private:
 	typedef void (k8s_handler::*callback_func_t)(json_ptr_t, const std::string&);
@@ -121,11 +121,13 @@ private:
 
 	static ip_addr_list_t hostname_to_ip(const std::string& hostname);
 
+	bool connect();
 	void make_http();
 	void send_data_request();
+	void check_enabled();
+	void check_state();
 	void check_collector_status();
-
-	bool connect();
+	void process_events();
 
 	const std::string& translate_name(const std::string& event_name);
 

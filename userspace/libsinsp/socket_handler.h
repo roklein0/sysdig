@@ -95,7 +95,7 @@ public:
 
 	bool is_connecting()
 	{
-		if(!m_connected)
+		if(!m_connected && m_sa && m_sa_len)
 		{
 			try_connect();
 		}
@@ -247,12 +247,22 @@ public:
 
 		connection_closed:
 		{
+			if(m_url.is_secure())
+			{
+				std::string ssl_err = ssl_errors();
+				if(!ssl_err.empty())
+				{
+					g_logger.log(ssl_err, sinsp_logger::SEV_ERROR);
+				}
+			}
 			throw sinsp_exception("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] closed.");
 		}
 	}
 
 	bool on_data()
 	{
+		std::string error_desc;
+
 		if(!m_json_callback)
 		{
 			throw sinsp_exception("Socket handler (" + m_id + "): cannot parse data (callback is null).");
@@ -270,7 +280,12 @@ public:
 				size_t iolen = 0;
 				int count = 0;
 				int ioret = 0;
-				ioret = ioctl(m_socket, FIONREAD, &count);
+				// TODO: suboptimal for SSL, there will always be much more data availability
+				//       indicated than the amount of available application data
+				ioret = ioctl(m_socket, FIONREAD, &count); 
+				g_logger.log(m_id + ' ' + m_url.to_string() + " loop_counter=" + std::to_string(loop_counter) +
+							 ", ioret=" + std::to_string(ioret) + ", count=" + std::to_string(count),
+							 sinsp_logger::SEV_TRACE);
 				if(ioret >= 0 && count > 0)
 				{
 					if(count > static_cast<int>(buf.size()))
@@ -285,12 +300,42 @@ public:
 					{
 						iolen = recv(m_socket, &buf[0], count, 0);
 					}
+					g_logger.log(m_id + ' ' + m_url.to_string() + " loop_counter=" + std::to_string(loop_counter) +
+								", iolen=" + std::to_string(iolen), sinsp_logger::SEV_TRACE);
 					if(iolen > 0)
 					{
 						data.append(&buf[0], iolen <= buf.size() ? iolen : buf.size());
 					}
 					else if(iolen == 0 || errno == ENOTCONN || errno == EPIPE)
 					{
+						if(m_url.is_secure())
+						{
+							if(m_ssl_connection)
+							{
+								int sd = SSL_get_shutdown(m_ssl_connection);
+								if(sd == 0)
+								{
+									g_logger.log("Socket handler (" + m_id + "): SSL zero bytes received, "
+												 "but no shutdown state set for [" + m_url.to_string() + "]: ",
+												 sinsp_logger::SEV_WARNING);
+								}
+								if(sd & SSL_RECEIVED_SHUTDOWN)
+								{
+									g_logger.log("Socket handler(" + m_id + "): SSL shutdown from [" +
+												 m_url.to_string() + "]: ", sinsp_logger::SEV_TRACE);
+								}
+								if(sd & SSL_SENT_SHUTDOWN)
+								{
+									g_logger.log("Socket handler(" + m_id + "): SSL shutdown sent to [" +
+												 m_url.to_string() + "]: ", sinsp_logger::SEV_TRACE);
+								}
+							}
+							else
+							{
+								g_logger.log("Socket handler(" + m_id + "): SSL connection is null",
+												 sinsp_logger::SEV_WARNING);
+							}
+						}
 						goto connection_closed;
 					}
 					else if(iolen < 0)
@@ -328,29 +373,33 @@ public:
 		}
 		catch(sinsp_exception& ex)
 		{
-			g_logger.log(std::string("Socket handler data receive error [" + m_url.to_string() + "]: ").append(ex.what()), sinsp_logger::SEV_ERROR);
+			g_logger.log(std::string("Socket handler (" + m_id + ") data receive error [" +
+						 m_url.to_string() + "]: ").append(ex.what()),
+						 sinsp_logger::SEV_ERROR);
 			return false;
 		}
 	return true;
 
 	connection_error:
 	{
-		std::string err = strerror(errno);
-		g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] error : " + err, sinsp_logger::SEV_ERROR);
+		error_desc = "error";
+	}
+
+	connection_closed:
+	{
+		if(error_desc.empty()) { error_desc = "closed"; }
+		g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] " +
+					 error_desc + " (" + (errno ? strerror(errno) : "no error") + ")",
+					 sinsp_logger::SEV_ERROR);
 		if(m_url.is_secure())
 		{
 			std::string ssl_err = ssl_errors();
 			if(!ssl_err.empty())
 			{
-				g_logger.log(/*"Socket handler (" + m_id + ") SSL error : " +*/ ssl_err, sinsp_logger::SEV_ERROR);
+				g_logger.log(ssl_err, sinsp_logger::SEV_ERROR);
 			}
 		}
-		//return false;
 	}
-
-	connection_closed:
-		g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] closed.", sinsp_logger::SEV_ERROR);
-
 	cleanup();
 	m_socket = -1;
 	m_connected = false;
@@ -398,8 +447,8 @@ public:
 			}
 			else
 			{
-				g_logger.log("Socket handler (" + id + "), [" + url + "] parsing error; " + json + ", jq filter: <" + filter + '>',
-							 sinsp_logger::SEV_ERROR);
+				g_logger.log("Socket handler (" + id + "), [" + url + "] parsing error; " +
+							 json + ", jq filter: <" + filter + '>', sinsp_logger::SEV_ERROR);
 				return nullptr;
 			}
 		}
@@ -408,13 +457,31 @@ public:
 		{
 			if(Json::Reader().parse(json, *root))
 			{
+				/*
+				if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
+				{
+					g_logger.log("Socket handler (" + id + "), [" + url + "] "
+								 "filtered JSON: " + json_as_string(*root),
+								 sinsp_logger::SEV_TRACE);
+				}
+				*/
 				return root;
 			}
 		}
 		catch(...) { }
-		g_logger.log("Socket handler (" + id + "), [" + url + "] parsing error; JSON: <" + json + ">, jq filter: <" + filter + '>',
-					 sinsp_logger::SEV_ERROR);
+		g_logger.log("Socket handler (" + id + "), [" + url + "] parsing error; JSON: <" +
+					 json + ">, jq filter: <" + filter + '>', sinsp_logger::SEV_ERROR);
 		return nullptr;
+	}
+
+	bool is_enabled() const
+	{
+		return m_enabled;
+	}
+
+	void enable(bool e = true)
+	{
+		m_enabled = e;
 	}
 
 private:
@@ -471,6 +538,7 @@ private:
 					}
 					else
 					{
+						g_logger.log("Socket handler (" + m_id + "): invoking callback.", sinsp_logger::SEV_TRACE);
 						(m_obj.*m_json_callback)(try_parse(m_jq, std::move(json), m_json_filter, m_id, m_url.to_string(false)), m_id);
 					}
 				}
@@ -513,10 +581,12 @@ private:
 	void extract_data(std::string& data)
 	{
 		//g_logger.log(data,sinsp_logger::SEV_DEBUG);
+		g_logger.log(m_id + ' ' + m_url.to_string() + ":\n\n" + data + "\n\n", sinsp_logger::SEV_TRACE);
 		if(data.empty()) { return; }
 		if(!detect_chunked_transfer(data))
 		{
-			g_logger.log("Socket handler (" + m_id + "): An error occurred while detecting chunked transfer.", sinsp_logger::SEV_ERROR);
+			g_logger.log("Socket handler (" + m_id + "): An error occurred while detecting chunked transfer.",
+						 sinsp_logger::SEV_ERROR);
 			return;
 		}
 
@@ -539,6 +609,7 @@ private:
 			{
 				end = m_data_buf.find(m_json_end);
 				if(end == std::string::npos) { break; }
+				g_logger.log(m_id + ' ' + m_url.to_string() + ": found JSON end, handling JSON", sinsp_logger::SEV_TRACE);
 				handle_json(end, true);
 			}
 		}
@@ -604,22 +675,21 @@ private:
 		SSL* ssl = (SSL*)X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
 		if(ssl)
 		{
-			std::string* id = (std::string*)SSL_get_ex_data(ssl, m_ssl_data_index);
-			char         buf[256] = {0};
-			X509*        err_cert = X509_STORE_CTX_get_current_cert(ctx);
+			char  buf[256] = {0};
+			X509* err_cert = X509_STORE_CTX_get_current_cert(ctx);
 			X509_NAME_oneline(X509_get_subject_name(err_cert), buf, 256);
 
 			if(preverify_ok && SSL_get_verify_result(ssl) == X509_V_OK)
 			{
-				g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") SSL CA verified: " + std::string(buf), sinsp_logger::SEV_DEBUG);
+				g_logger.log("Socket handler SSL CA verified: " + std::string(buf),
+							 sinsp_logger::SEV_DEBUG);
 				return 1;
 			}
 			else
 			{
 				int err = X509_STORE_CTX_get_error(ctx);
 				int depth = X509_STORE_CTX_get_error_depth(ctx);
-				g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") "
-							 "SSL CA verify error:num=" + std::to_string(err) +
+				g_logger.log("Socket handler SSL CA verify error: num=" + std::to_string(err) +
 							 ':' + X509_verify_cert_error_string(err) +
 							 ":depth=" + std::to_string(depth) +
 							 ':' + std::string(buf), sinsp_logger::SEV_ERROR);
@@ -631,10 +701,8 @@ private:
 
 	static int ssl_no_verify_callback(int, X509_STORE_CTX* ctx)
 	{
-		SSL* ssl = (SSL*)X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
-		std::string* id = (std::string*)SSL_get_ex_data(ssl, m_ssl_data_index);
-		g_logger.log("Socket handler (" + (id ? *id : std::string()) + ") "
-					 "SSL CA verification disabled, certificate accepted.", sinsp_logger::SEV_DEBUG);
+		g_logger.log("Socket handler SSL CA verification disabled, certificate accepted.",
+					 sinsp_logger::SEV_DEBUG);
 		return 1;
 	}
 
@@ -662,7 +730,7 @@ private:
 			{
 				if(os.str().empty())
 				{
-					os << "Socket handler (" + m_id + ") SSL errors:\n";
+					os << "Socket handler (" + m_id + ", socket=" + std::to_string(m_socket) + ") SSL errors:\n";
 				}
 				os << ERR_error_string(err, errbuf) << std::endl;
 			}
@@ -769,13 +837,15 @@ private:
 					m_ssl_connection = SSL_new(m_ssl_context);
 					if(m_ssl_connection)
 					{
-						if(0 == SSL_set_fd(m_ssl_connection, m_socket))
+						if(1 == SSL_set_fd(m_ssl_connection, m_socket))
+						{
+							m_ssl_init_complete = true;
+						}
+						else
 						{
 							throw sinsp_exception("Socket handler " + m_id + " (" + m_url.to_string(false) + ") "
 							  "error assigning socket to SSL connection: " + ssl_errors());
 						}
-						m_ssl_data_index = SSL_get_ex_new_index(0, (void*)"data index", NULL, NULL, NULL);
-						SSL_set_ex_data(m_ssl_connection, m_ssl_data_index, &m_id);
 					}
 					else
 					{
@@ -790,7 +860,6 @@ private:
 				}
 			}
 		}
-		m_ssl_init_complete = true;
 	}
 
 	void create_socket()
@@ -822,17 +891,19 @@ private:
 		}
 
 		int ret = -1;
-		if(/*m_connected || */m_connecting)
+		if(m_connecting)
 		{
 			if(!send_ready()) { return false; }
 		}
 		else
 		{
-			g_logger.log("Socket handler (" + m_id + ") connecting to " + m_address, sinsp_logger::SEV_INFO);
+			g_logger.log("Socket handler (" + m_id + ") connecting to " + m_address +
+						 " (socket=" + std::to_string(m_socket) + ')', sinsp_logger::SEV_INFO);
 			ret = connect(m_socket, m_sa, m_sa_len);
 			if(ret < 0 && errno != EINPROGRESS)
 			{
-				throw sinsp_exception("Error during conection attempt to " + m_address + ": " + strerror(errno));
+				throw sinsp_exception("Error during conection attempt to " + m_address +
+									  " (socket=" + std::to_string(m_socket) + "): " + strerror(errno));
 			}
 			else if(errno == EINPROGRESS)
 			{
@@ -849,24 +920,29 @@ private:
 			if(m_ssl_connection)
 			{
 				ret = SSL_connect(m_ssl_connection);
-				if(ret != 1)
+				if(ret == 1)
+				{
+					m_connecting = false;
+					m_connected = true;
+					g_logger.log("Socket handler (" + m_id + "): "
+								 "SSL connected to " + m_url.get_host() + ", "
+								 "socket=" + std::to_string(m_socket) +
+								 "local port=" + std::to_string(get_local_port()),
+								 sinsp_logger::SEV_INFO);
+				}
+				else
 				{
 					int err = SSL_get_error(m_ssl_connection, ret);
 					if(err != SSL_ERROR_WANT_WRITE && err != SSL_ERROR_WANT_READ)
 					{
-						std::string ssl_err = ssl_errors();
-						ssl_err = "Socket handler (" + m_id + ") SSL error : " + ssl_err;
-						throw sinsp_exception(ssl_err);
+						throw sinsp_exception(ssl_errors());
 					}
 					else
 					{
+						g_logger.log(ssl_errors(), sinsp_logger::SEV_WARNING);
 						return false;
 					}
 				}
-				g_logger.log("Socket handler (" + m_id + "): "
-							 "SSL connected to " + m_url.get_host() + ", "
-							 "socket=" + std::to_string(m_socket),
-							 sinsp_logger::SEV_INFO);
 			}
 			else
 			{
@@ -1006,8 +1082,26 @@ private:
 		try_connect();
 	}
 
+	std::string get_local_address()
+	{
+		struct sockaddr_in local_address;
+		socklen_t address_length = sizeof(local_address);
+		getsockname(m_socket, (struct sockaddr*)&local_address, &address_length);
+		return std::string(inet_ntoa(local_address.sin_addr));
+	}
+
+	int get_local_port()
+	{
+		struct sockaddr_in local_address;
+		socklen_t address_length = sizeof(local_address);
+		getsockname(m_socket, (struct sockaddr*)&local_address, &address_length);
+		return (int) ntohs(local_address.sin_port);
+	}
+
 	void cleanup()
 	{
+		g_logger.log("Socket handler (" + m_id + ") closing connection to " + m_url.to_string(),
+					 sinsp_logger::SEV_INFO);
 		if(m_socket != -1)
 		{
 			int ret = close(m_socket);
@@ -1030,6 +1124,7 @@ private:
 	std::string            m_address;
 	bool                   m_connecting = false;
 	bool                   m_connected = false;
+	bool                   m_enabled = false;
 	int                    m_socket = -1;
 	ssl_ptr_t              m_ssl;
 	bt_ptr_t               m_bt;
@@ -1051,14 +1146,11 @@ private:
 	struct sockaddr*       m_sa = 0;
 	socklen_t              m_sa_len = 0;
 	std::string::size_type m_content_length = std::string::npos;
-	static int             m_ssl_data_index; // !!! not thread-safe
 };
 
 template <typename T>
 const std::string socket_data_handler<T>::HTTP_VERSION_10 = "1.0";
 template <typename T>
 const std::string socket_data_handler<T>::HTTP_VERSION_11 = "1.1";
-template <typename T>
-int socket_data_handler<T>::m_ssl_data_index = -1;
 
 #endif // HAS_CAPTURE
