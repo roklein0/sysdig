@@ -7,7 +7,7 @@
 #include "sinsp_int.h"
 
 // filters normalize state and event JSONs, so they can be processed generically:
-// event is turned into a single-node array, state is turned into ADDED event
+// event is turned into a single-entry array, state is turned into an array of ADDED events
 
 std::string k8s_event_handler::EVENT_FILTER =
 	"{"
@@ -21,6 +21,7 @@ std::string k8s_event_handler::EVENT_FILTER =
 	"   name: .metadata.name,"
 	"   uid: .metadata.uid,"
 	"   timestamp: .metadata.creationTimestamp,"
+	"   lastTimestamp: .lastTimestamp,"
 	"   reason: .reason,"
 	"   message: .message,"
 	"   involvedObject: .involvedObject"
@@ -40,6 +41,7 @@ std::string k8s_event_handler::STATE_FILTER =
 	"   name: .metadata.name,"
 	"   uid: .metadata.uid,"
 	"   timestamp: .metadata.creationTimestamp,"
+	"   lastTimestamp: .lastTimestamp,"
 	"   reason: .reason,"
 	"   message: .message,"
 	"   involvedObject: .involvedObject"
@@ -73,78 +75,71 @@ void k8s_event_handler::handle_component(const Json::Value& json, const msg_data
 		{
 			if(data)
 			{
-				if(!json.isNull())
+				g_logger.log("K8s EVENT: handling event.", sinsp_logger::SEV_TRACE);
+				const Json::Value& involved_object = json["involvedObject"];
+				if(!involved_object.isNull())
 				{
-					g_logger.log("K8s EVENT: json found.", sinsp_logger::SEV_TRACE);
-					const Json::Value& involved_json = json["involvedJson"];
-					if(!involved_json.isNull())
+					bool is_aggregate = (get_json_string(json , "message").find("events with common reason combined") != std::string::npos);
+					time_t last_ts = get_epoch_utc_seconds(get_json_string(json , "lastTimestamp"));
+					time_t now_ts = get_epoch_utc_seconds_now();
+					g_logger.log("K8s EVENT: lastTimestamp=" + std::to_string(last_ts) + ", now_ts=" + std::to_string(now_ts), sinsp_logger::SEV_TRACE);
+					if(((last_ts > 0) && (now_ts > 0)) && // we got good timestamps
+						!is_aggregate && // not an aggregated cached event
+						((now_ts - last_ts) < 10)) // event not older than 10 seconds
 					{
-						bool is_aggregate = (get_json_string(json , "message").find("events with common reason combined") != std::string::npos);
-						time_t last_ts = get_epoch_utc_seconds(get_json_string(json , "lastTimestamp"));
-						time_t now_ts = get_epoch_utc_seconds_now();
-						g_logger.log("K8s EVENT: lastTimestamp=" + std::to_string(last_ts) + ", now_ts=" + std::to_string(now_ts), sinsp_logger::SEV_TRACE);
-						if(((last_ts > 0) && (now_ts > 0)) && // we got good timestamps
-							!is_aggregate && // not an aggregated cached event
-							((now_ts - last_ts) < 10)) // event not older than 10 seconds
+						const Json::Value& kind = involved_object["kind"];
+						const Json::Value& event_reason = json["reason"];
+						g_logger.log("K8s EVENT: involved object and event reason found:" + kind.asString() + '/' + event_reason.asString(), sinsp_logger::SEV_TRACE);
+						if(!kind.isNull() && kind.isConvertibleTo(Json::stringValue) &&
+							!event_reason.isNull() && event_reason.isConvertibleTo(Json::stringValue))
 						{
-							const Json::Value& kind = involved_json["kind"];
-							const Json::Value& event_reason = json["reason"];
-							g_logger.log("K8s EVENT: involved json and event reason found:" + kind.asString() + '/' + event_reason.asString(), sinsp_logger::SEV_TRACE);
-							if(!kind.isNull() && kind.isConvertibleTo(Json::stringValue) &&
-								!event_reason.isNull() && event_reason.isConvertibleTo(Json::stringValue))
+							bool is_allowed = m_event_filter->allows_all();
+							std::string type = kind.asString();
+							if(!is_allowed && !type.empty())
 							{
-								bool is_allowed = m_event_filter->allows_all();
-								std::string type = kind.asString();
-								if(!is_allowed && !type.empty())
+								std::string reason = event_reason.asString();
+								is_allowed = m_event_filter->allows_all(type);
+								if(!is_allowed && !reason.empty())
 								{
-									std::string reason = event_reason.asString();
-									is_allowed = m_event_filter->allows_all(type);
-									if(!is_allowed && !reason.empty())
-									{
-										is_allowed = m_event_filter->has(type, reason);
-									}
+									is_allowed = m_event_filter->has(type, reason);
 								}
-								if(is_allowed)
-								{
-									g_logger.log("K8s EVENT: adding event.", sinsp_logger::SEV_TRACE);
-									k8s_event_t& evt = m_state->add_component<k8s_events, k8s_event_t>(m_state->get_events(),
-																data->m_name, data->m_uid, data->m_namespace);
-									m_state->update_event(evt, json);
-								}
-								else
-								{
-									g_logger.log("K8s EVENT: filter does not allow {\"" + type + "\", \"{" + event_reason.asString() + "\"} }", sinsp_logger::SEV_TRACE);
-									g_logger.log(m_event_filter->to_string(), sinsp_logger::SEV_TRACE);
-								}
+							}
+							if(is_allowed)
+							{
+								g_logger.log("K8s EVENT: adding event.", sinsp_logger::SEV_TRACE);
+								k8s_event_t& evt = m_state->add_component<k8s_events, k8s_event_t>(m_state->get_events(),
+															data->m_name, data->m_uid, data->m_namespace);
+								m_state->update_event(evt, json);
 							}
 							else
 							{
-								g_logger.log("K8s EVENT: event type or involvedJson kind not found.", sinsp_logger::SEV_ERROR);
-								g_logger.log(Json::FastWriter().write(json), sinsp_logger::SEV_TRACE);
+								g_logger.log("K8s EVENT: filter does not allow {\"" + type + "\", \"{" + event_reason.asString() + "\"} }", sinsp_logger::SEV_TRACE);
+								g_logger.log(m_event_filter->to_string(), sinsp_logger::SEV_TRACE);
 							}
 						}
 						else
 						{
-							g_logger.log("K8s EVENT: old event, ignoring: "
-										 ", lastTimestamp=" + std::to_string(last_ts) + ", now_ts=" + std::to_string(now_ts),
-										sinsp_logger::SEV_DEBUG);
+							g_logger.log("K8s EVENT: event type or involvedObject kind not found.", sinsp_logger::SEV_ERROR);
+							g_logger.log(Json::FastWriter().write(json), sinsp_logger::SEV_TRACE);
 						}
 					}
 					else
 					{
-						g_logger.log("K8s EVENT: involvedJson not found (null).", sinsp_logger::SEV_ERROR);
-						g_logger.log(Json::FastWriter().write(json), sinsp_logger::SEV_TRACE);
+						g_logger.log("K8s EVENT: old event, ignoring: "/*firstTimestamp=" + std::to_string(first_ts) +*/
+									 ", lastTimestamp=" + std::to_string(last_ts) + ", now_ts=" + std::to_string(now_ts),
+									sinsp_logger::SEV_DEBUG);
 					}
 				}
 				else
 				{
-					g_logger.log("K8s EVENT: json not found (null).", sinsp_logger::SEV_ERROR);
+					g_logger.log("K8s EVENT: involvedObject not found.", sinsp_logger::SEV_ERROR);
 					g_logger.log(Json::FastWriter().write(json), sinsp_logger::SEV_TRACE);
 				}
 			}
 			else
 			{
 				g_logger.log("K8s EVENT: msg data is null.", sinsp_logger::SEV_ERROR);
+				g_logger.log(Json::FastWriter().write(json), sinsp_logger::SEV_TRACE);
 			}
 		}
 		else
@@ -154,16 +149,6 @@ void k8s_event_handler::handle_component(const Json::Value& json, const msg_data
 	}
 	else
 	{
-		g_logger.log("K8s EVENT: filter NOT found.", sinsp_logger::SEV_DEBUG);
+		g_logger.log("K8s EVENT: no filter, K8s events disabled.", sinsp_logger::SEV_TRACE);
 	}
-}
-
-void k8s_event_handler::handle_json(Json::Value&& root)
-{
-	if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
-	{
-		g_logger.log(json_as_string(root), sinsp_logger::SEV_TRACE);
-	}
-
-	handle_component(root);
 }

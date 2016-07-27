@@ -30,7 +30,6 @@ private:
 	static std::string EVENT_FILTER;
 	static std::string STATE_FILTER;
 
-	void handle_json(Json::Value&& root);
 	void handle_component(const Json::Value& json, const msg_data* data = 0);
 
 	filter_ptr_t m_event_filter;
