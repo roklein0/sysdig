@@ -192,6 +192,10 @@ void docker::collect_data()
 {
 	if(m_collector.subscription_count())
 	{
+		if(!m_event_http->is_enabled())
+		{
+			m_event_http->enable();
+		}
 		m_collector.get_data();
 		if(m_events.size())
 		{
