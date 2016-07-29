@@ -111,6 +111,8 @@ public:
 
 	k8s_component(type comp_type, const std::string& name, const std::string& uid, const std::string& ns = "");
 
+	virtual ~k8s_component();
+
 	const std::string& get_name() const;
 
 	void set_name(const std::string& name);

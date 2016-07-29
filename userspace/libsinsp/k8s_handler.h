@@ -72,9 +72,10 @@ public:
 		int timeout_ms = default_timeout_ms,
 		ssl_ptr_t ssl = nullptr,
 		bt_ptr_t bt = nullptr,
-		k8s_state_t* state = nullptr);
+		k8s_state_t* state = nullptr,
+		bool watch = true);
 
-	~k8s_handler();
+	virtual ~k8s_handler();
 
 	bool is_alive() const;
 	void set_event_json(json_ptr_t json, const std::string&);
@@ -131,24 +132,25 @@ private:
 
 	const std::string& translate_name(const std::string& event_name);
 
-	collector_t&        m_collector;
-	handler_ptr_t       m_http;
-	std::string         m_id;
-	std::string         m_path;
-	std::string         m_state_filter;
-	std::string         m_event_filter;
-	std::string&        m_filter;
-	std::string         m_event_uri;
-	event_list_t        m_events;
-	long                m_timeout_ms;
-	std::string         m_machine_id;
-	json_query          m_jq;
-	std::string         m_url;
-	std::string         m_http_version;
-	ssl_ptr_t           m_ssl;
-	bt_ptr_t            m_bt;
-	bool                m_req_sent = false;
-	bool                m_state_built = false;
+	collector_t&  m_collector;
+	handler_ptr_t m_http;
+	std::string   m_id;
+	std::string   m_path;
+	std::string   m_state_filter;
+	std::string   m_event_filter;
+	std::string&  m_filter;
+	std::string   m_event_uri;
+	event_list_t  m_events;
+	long          m_timeout_ms;
+	std::string   m_machine_id;
+	json_query    m_jq;
+	std::string   m_url;
+	std::string   m_http_version;
+	ssl_ptr_t     m_ssl;
+	bt_ptr_t      m_bt;
+	bool          m_req_sent = false;
+	bool          m_state_built = false;
+	bool          m_watch;
 };
 
 inline const std::string& k8s_handler::get_id() const

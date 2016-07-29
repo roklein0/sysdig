@@ -16,7 +16,8 @@ k8s_handler::k8s_handler(collector_t& collector,
 	int timeout_ms,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt,
-	k8s_state_t* state): m_state(state),
+	k8s_state_t* state,
+	bool watch): m_state(state),
 		m_collector(collector),
 		m_id(id + "_state"),
 		m_path(path),
@@ -27,7 +28,8 @@ k8s_handler::k8s_handler(collector_t& collector,
 		m_url(url),
 		m_http_version(http_version),
 		m_ssl(ssl),
-		m_bt(bt)
+		m_bt(bt),
+		m_watch(watch)
 {
 	g_logger.log(std::string("Creating K8s handler object for " + m_id + " (" + m_url + ")"),
 				 sinsp_logger::SEV_DEBUG);
@@ -167,7 +169,7 @@ void k8s_handler::process_events()
 
 void k8s_handler::check_state()
 {
-	if(!m_state_built)
+	if(!m_state_built && m_watch)
 	{
 		// done with initial state handling, switch to events
 		m_state_built = true;

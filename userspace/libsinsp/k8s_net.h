@@ -26,7 +26,7 @@ public:
 	typedef sinsp_curl::ssl::ptr_t          ssl_ptr_t;
 	typedef sinsp_curl::bearer_token::ptr_t bt_ptr_t;
 	typedef k8s_component::ext_list_ptr_t   ext_list_ptr_t;
-	typedef user_event_filter_t::ptr_t     filter_ptr_t;
+	typedef user_event_filter_t::ptr_t      filter_ptr_t;
 
 	k8s_net(k8s& kube, k8s_state_t& state, const std::string& uri = "http://localhost:80",
 		ssl_ptr_t ssl = nullptr,
@@ -57,7 +57,6 @@ public:
 
 private:
 	void init();
-	void end_thread();
 	bool is_secure();
 	void cleanup();
 
@@ -77,9 +76,6 @@ private:
 	bool           m_curl_debug;
 	ext_list_ptr_t m_extensions;
 	filter_ptr_t   m_event_filter;
-#ifndef K8S_DISABLE_THREAD
-	std::thread*   m_thread;
-#endif
 };
 
 inline bool k8s_net::is_secure()

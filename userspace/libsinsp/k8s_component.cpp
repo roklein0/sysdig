@@ -86,6 +86,10 @@ k8s_component::k8s_component(type comp_type, const std::string& name, const std:
 {
 }
 
+k8s_component::~k8s_component()
+{
+}
+
 k8s_pair_list k8s_component::extract_object(const Json::Value& object, const std::string& name)
 {
 	k8s_pair_list entry_list;

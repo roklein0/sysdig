@@ -33,60 +33,25 @@ k8s_net::k8s_net(k8s& kube, k8s_state_t& state, const std::string& uri,
 		m_ssl(ssl),
 		m_bt(bt),
 		m_stopped(true),
-		//m_collector(kube.watch_in_thread()),
 		m_curl_debug(curl_debug),
 		m_extensions(extensions),
 		m_event_filter(event_filter)
-#ifndef K8S_DISABLE_THREAD
-		,m_thread(0)
-#endif
 {
 }
 
 k8s_net::~k8s_net()
 {
-	end_thread();
 	cleanup();
 }
 
 void k8s_net::cleanup()
-{/*
-	unsubscribe();
-	for (auto& component : m_api_interfaces)
-	{
-		delete component.second;
-	}
-	m_api_interfaces.clear();*/
+{
 	stop_watching();
 	m_handlers.clear();
 }
 
 void k8s_net::watch()
-{/*
-	bool in_thread = m_k8s.watch_in_thread();
-#ifdef K8S_DISABLE_THREAD
-	if(in_thread)
-	{
-		g_logger.log("Thread run requested for non-thread binary.", sinsp_logger::SEV_WARNING);
-	}
-#else
-	if(m_stopped && in_thread)
-	{
-		subscribe();
-		m_stopped = false;
-		m_thread = new std::thread(&k8s_collector::get_data, &m_collector);
-	}
-	else
-#endif // K8S_DISABLE_THREAD
-	if(!in_thread)
-	{
-		if(!m_collector.subscription_count())
-		{
-			subscribe();
-		}
-		m_collector.get_data();
-	}*/
-	//***************************
+{
 	for(auto& handler : m_handlers)
 	{
 		if(handler.second)
@@ -95,43 +60,10 @@ void k8s_net::watch()
 		}
 		else
 		{
-			g_logger.log("K8s: " + k8s_component::get_name(handler.first) + " handler is null.", sinsp_logger::SEV_WARNING);
+			g_logger.log("K8s: " + k8s_component::get_name(handler.first) + " handler is null.",
+						 sinsp_logger::SEV_WARNING);
 		}
 	}
-	//***************************
-}
-/*
-void k8s_net::subscribe()
-{
-	for (auto& api : m_api_interfaces)
-	{
-		if(api.second)
-		{
-			m_collector.add(api.second);
-		}
-		else
-		{
-			g_logger.log("K8s: " + k8s_component::get_name(api.first) + " handler is null.", sinsp_logger::SEV_WARNING);
-		}
-	}
-}
-
-void k8s_net::unsubscribe()
-{
-	m_collector.stop();
-	m_collector.remove_all();
-}
-*/
-void k8s_net::end_thread()
-{
-#ifndef K8S_DISABLE_THREAD
-	if(m_thread)
-	{
-		m_thread->join();
-		delete m_thread;
-		m_thread = 0;
-	}
-#endif
 }
 
 void k8s_net::stop_watching()
@@ -139,8 +71,6 @@ void k8s_net::stop_watching()
 	if(!m_stopped)
 	{
 		m_stopped = true;
-		//unsubscribe();
-		//end_thread();
 		m_collector.remove_all();
 	}
 }
