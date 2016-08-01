@@ -95,6 +95,10 @@ public:
 
 	bool is_connecting()
 	{
+		if(m_address.empty())
+		{
+			try_resolve();
+		}
 		if(!m_connected && m_sa && m_sa_len)
 		{
 			try_connect();
@@ -890,6 +894,14 @@ private:
 			create_socket();
 		}
 
+		if(!is_resolved())
+		{
+			if(!try_resolve())
+			{
+				return false;
+			}
+		}
+
 		int ret = -1;
 		if(m_connecting)
 		{
@@ -969,44 +981,100 @@ private:
 		m_connected = true;
 		return true;
 	}
-/*
-	void resolve_address()
+
+	bool is_resolved() const
 	{
-		if(!m_resolving)
+		return !m_address.empty() && m_sa && m_sa_len;
+	}
+
+	bool try_resolve()
+	{
+		if(is_resolved())
 		{
-			if(!inet_aton(m_url.get_host().c_str(), &m_serv_addr.sin_addr))
+			return true;
+		}
+		else
+		{
+			if(inet_aton(m_url.get_host().c_str(), &m_serv_addr.sin_addr)) // IP address provided
 			{
-				struct addrinfo *result = 0;
-				if (0 == getaddrinfo(m_url.get_host().c_str(), NULL, NULL, &result))
+				m_address = m_url.get_host();
+				return true;
+			}
+			else // name provided, resolve to IP address
+			{
+				m_serv_addr = {0};
+				int ret = 0;
+				if(!m_dns_reqs) // first call, call async resolver
 				{
-					//create_socket();
-					for (struct addrinfo* ai = result; ai; ai = ai->ai_next)
+					g_logger.log("Socket handler (" + m_id + ") resolving " + m_url.get_host(), sinsp_logger::SEV_TRACE);
+					m_dns_reqs = (struct gaicb**)calloc(1, sizeof(struct gaicb*));
+					m_dns_reqs[0] = (struct gaicb*)calloc(1, sizeof(struct gaicb));
+					m_dns_reqs[0]->ar_name = strdup(m_url.get_host().c_str());
+					ret = getaddrinfo_a(GAI_NOWAIT, &m_dns_reqs[0], 1, NULL);
+					if(ret)
 					{
-						if (ai->ai_addrlen && ai->ai_addr && ai->ai_addr->sa_family == AF_INET)
+						throw sinsp_exception("Socket handler (" + m_id + "): " + m_url.get_host() +
+									 " getaddrinfo_a() failed: " + gai_strerror(ret));
+					}
+					return false;
+				}
+				else // rest of the calls, try to get resolver result
+				{
+					g_logger.log("Socket handler (" + m_id + ") checking resolve for " + m_url.get_host(), sinsp_logger::SEV_TRACE);
+					ret = gai_error(m_dns_reqs[0]);
+					if(!ret)
+					{
+						if(m_dns_reqs && m_dns_reqs[0] && m_dns_reqs[0]->ar_result)
 						{
-							struct sockaddr_in* saddr = (struct sockaddr_in*)ai->ai_addr;
-							if(saddr->sin_addr.s_addr)
+							for (struct addrinfo* ai = m_dns_reqs[0]->ar_result; ai; ai = ai->ai_next)
 							{
-								m_serv_addr.sin_addr.s_addr = saddr->sin_addr.s_addr;
-								break;
+								if (ai->ai_addrlen && ai->ai_addr && ai->ai_addr->sa_family == AF_INET)
+								{
+									struct sockaddr_in* saddr = (struct sockaddr_in*)ai->ai_addr;
+									if(saddr->sin_addr.s_addr)
+									{
+										if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
+										{
+											char* ip_addr = inet_ntoa(saddr->sin_addr);
+											if(ip_addr)
+											{
+												g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + " resolved to " + ip_addr,
+															 sinsp_logger::SEV_TRACE);
+											}
+										}
+										m_serv_addr.sin_addr.s_addr = saddr->sin_addr.s_addr;
+										break;
+									}
+								}
+							}
+							if(!m_serv_addr.sin_addr.s_addr)
+							{
+								g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + " address not resolved yet.",
+											 sinsp_logger::SEV_TRACE);
+								return false;
 							}
 						}
+						else
+						{
+							throw sinsp_exception("Socket handler (" + m_id + "): " + m_url.get_host() + ", resolver request is NULL.");
+						}
 					}
-					if(!m_serv_addr.sin_addr.s_addr)
+					else
 					{
-						throw sinsp_exception("Socket handler (" + m_id + "): " + m_url.get_host() + " address not found.");
+						g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + ", resolver error: " + gai_strerror(ret),
+									 sinsp_logger::SEV_TRACE);
+						return false;
 					}
 				}
-				else
-				{
-					freeaddrinfo(result);
-					throw sinsp_exception("Socket handler error: can not resolve host " + m_url.get_host() + ", error: " + strerror(errno));
-				}
-				freeaddrinfo(result);
 			}
 		}
+		m_serv_addr.sin_family = AF_INET;
+		m_serv_addr.sin_port = htons(m_url.get_port());
+		m_sa = (sockaddr*)&m_serv_addr;
+		m_sa_len = sizeof(struct sockaddr_in);
+		return true;
 	}
-*/
+
 	void connect_socket()
 	{
 		if(!m_sa || !m_sa_len)
@@ -1026,52 +1094,7 @@ private:
 			}
 			else if(m_url.is("https") || m_url.is("http"))
 			{
-				if(m_address.empty() && inet_aton(m_url.get_host().c_str(), &m_serv_addr.sin_addr))
-				{
-					m_address = m_url.get_host();
-				}
-				else if(m_address.empty())
-				{
-					throw sinsp_exception("Host name to IPaddress resolution not supported.");
-					/*TODO
-					if(!m_resolving)
-					{
-						// not IP address, try hostname
-						struct addrinfo *result = 0;
-						//TODO: getaddrinfo blocks, use getaddrinfo_a ?
-						if (0 == getaddrinfo(m_url.get_host().c_str(), NULL, NULL, &result))
-						{
-							create_socket();
-							for (struct addrinfo* ai = result; ai; ai = ai->ai_next)
-							{
-								if (ai->ai_addrlen && ai->ai_addr && ai->ai_addr->sa_family == AF_INET)
-								{
-									struct sockaddr_in* saddr = (struct sockaddr_in*)ai->ai_addr;
-									if(saddr->sin_addr.s_addr)
-									{
-										serv_addr.sin_addr.s_addr = saddr->sin_addr.s_addr;
-										break;
-									}
-								}
-							}
-							if(!serv_addr.sin_addr.s_addr)
-							{
-								throw sinsp_exception("Socket handler (" + m_id + "): " + m_url.get_host() + " address not found.");
-							}
-						}
-						else
-						{
-							freeaddrinfo(result);
-							throw sinsp_exception("Socket handler error: can not resolve host " + m_url.get_host() + ", error: " + strerror(errno));
-						}
-						freeaddrinfo(result);
-					}
-					*/
-				}
-				m_serv_addr.sin_family = AF_INET;
-				m_serv_addr.sin_port = htons(m_url.get_port());
-				m_sa = (sockaddr*)&m_serv_addr;
-				m_sa_len = sizeof(struct sockaddr_in);
+				try_resolve();
 			}
 			else
 			{
@@ -1111,6 +1134,17 @@ private:
 							 "error closing socket: " + strerror(errno), sinsp_logger::SEV_ERROR);
 			}
 		}
+
+		if(m_dns_reqs)
+		{
+			// ?? crashes
+			//freeaddrinfo(m_dns_reqs[0]->ar_result);
+			free((void*)m_dns_reqs[0]->ar_name);
+			free(m_dns_reqs[0]);
+			free(m_dns_reqs);
+			m_dns_reqs = nullptr;
+		}
+
 		SSL_free(m_ssl_connection);
 		m_ssl_connection = 0;
 		SSL_CTX_free(m_ssl_context);
@@ -1126,6 +1160,7 @@ private:
 	bool                   m_connected = false;
 	bool                   m_enabled = false;
 	int                    m_socket = -1;
+	struct gaicb**         m_dns_reqs = nullptr;
 	ssl_ptr_t              m_ssl;
 	bt_ptr_t               m_bt;
 	long                   m_timeout_ms;

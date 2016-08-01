@@ -92,7 +92,8 @@ if(NOT WIN32)
 			"${CURL_LIBRARIES}"
 			"${OPENSSL_LIBRARY_SSL}"
 			"${OPENSSL_LIBRARY_CRYPTO}"
-            rt)
+			rt
+			anl)
 	endif()
 
 	target_link_libraries(sinsp
