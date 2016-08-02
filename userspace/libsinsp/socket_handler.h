@@ -1060,7 +1060,8 @@ private:
 						{
 							case EAI_AGAIN:
 							case EAI_INPROGRESS:
-								g_logger.log("Socket handler (" + m_id + ") [" + m_url.get_host() + "]: " + gai_strerror(ret), sinsp_logger::SEV_INFO);
+								g_logger.log("Socket handler (" + m_id + ") [" + m_url.get_host() + "]: " + gai_strerror(ret),
+											 sinsp_logger::SEV_INFO);
 								break;
 							case EAI_SYSTEM:
 								g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + ", resolver error: " + gai_strerror(ret) +
@@ -1155,7 +1156,6 @@ private:
 				free((void*)dns_reqs[0]->ar_name);
 				free(dns_reqs[0]);
 				free(dns_reqs);
-				//m_dns_reqs = 0;
 				return true;
 			}
 			else if(err == EAI_INPROGRESS)
@@ -1173,7 +1173,6 @@ private:
 							 "\n ret: (" + std::to_string(ret) + ") " + gai_strerror(ret) +
 							 "\n err: (" + std::to_string(err) + ") " + gai_strerror(err),
 							 sinsp_logger::SEV_ERROR);
-				//m_pending_dns_reqs.push_back(m_dns_reqs);
 				return false;
 			}
 		}
@@ -1188,7 +1187,7 @@ private:
 			{
 				it = m_pending_dns_reqs.erase(it);
 				g_logger.log("Socket handler: postponed canceling of DNS request succeeded, number of pending "
-							 "DNS cancelation requests: " + std::to_string(m_pending_dns_reqs.size()),
+							 "cancelation requests: " + std::to_string(m_pending_dns_reqs.size()),
 							 sinsp_logger::SEV_TRACE);
 			}
 			else { ++it; }
