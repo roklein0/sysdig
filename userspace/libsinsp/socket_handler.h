@@ -237,7 +237,8 @@ public:
 		connection_error:
 		{
 			std::string err = strerror(errno);
-			g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] error : " + err, sinsp_logger::SEV_ERROR);
+			g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "] error : " + err,
+						 sinsp_logger::SEV_ERROR);
 			if(m_url.is_secure())
 			{
 				std::string ssl_err = ssl_errors();
@@ -259,7 +260,7 @@ public:
 					g_logger.log(ssl_err, sinsp_logger::SEV_ERROR);
 				}
 			}
-			throw sinsp_exception("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] closed.");
+			throw sinsp_exception("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "] closed.");
 		}
 	}
 
@@ -287,7 +288,7 @@ public:
 				// TODO: suboptimal for SSL, there will always be much more data availability
 				//       indicated than the amount of available application data
 				ioret = ioctl(m_socket, FIONREAD, &count); 
-				g_logger.log(m_id + ' ' + m_url.to_string() + " loop_counter=" + std::to_string(loop_counter) +
+				g_logger.log(m_id + ' ' + m_url.to_string(false) + " loop_counter=" + std::to_string(loop_counter) +
 							 ", ioret=" + std::to_string(ioret) + ", count=" + std::to_string(count),
 							 sinsp_logger::SEV_TRACE);
 				if(ioret >= 0 && count > 0)
@@ -304,7 +305,7 @@ public:
 					{
 						iolen = recv(m_socket, &buf[0], count, 0);
 					}
-					g_logger.log(m_id + ' ' + m_url.to_string() + " loop_counter=" + std::to_string(loop_counter) +
+					g_logger.log(m_id + ' ' + m_url.to_string(false) + " loop_counter=" + std::to_string(loop_counter) +
 								", iolen=" + std::to_string(iolen), sinsp_logger::SEV_TRACE);
 					if(iolen > 0)
 					{
@@ -320,18 +321,18 @@ public:
 								if(sd == 0)
 								{
 									g_logger.log("Socket handler (" + m_id + "): SSL zero bytes received, "
-												 "but no shutdown state set for [" + m_url.to_string() + "]: ",
+												 "but no shutdown state set for [" + m_url.to_string(false) + "]: ",
 												 sinsp_logger::SEV_WARNING);
 								}
 								if(sd & SSL_RECEIVED_SHUTDOWN)
 								{
 									g_logger.log("Socket handler(" + m_id + "): SSL shutdown from [" +
-												 m_url.to_string() + "]: ", sinsp_logger::SEV_TRACE);
+												 m_url.to_string(false) + "]: ", sinsp_logger::SEV_TRACE);
 								}
 								if(sd & SSL_SENT_SHUTDOWN)
 								{
 									g_logger.log("Socket handler(" + m_id + "): SSL shutdown sent to [" +
-												 m_url.to_string() + "]: ", sinsp_logger::SEV_TRACE);
+												 m_url.to_string(false) + "]: ", sinsp_logger::SEV_TRACE);
 								}
 							}
 							else
@@ -378,7 +379,7 @@ public:
 		catch(sinsp_exception& ex)
 		{
 			g_logger.log(std::string("Socket handler (" + m_id + ") data receive error [" +
-						 m_url.to_string() + "]: ").append(ex.what()),
+						 m_url.to_string(false) + "]: ").append(ex.what()),
 						 sinsp_logger::SEV_ERROR);
 			return false;
 		}
@@ -392,7 +393,7 @@ public:
 	connection_closed:
 	{
 		if(error_desc.empty()) { error_desc = "closed"; }
-		g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] " +
+		g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "] " +
 					 error_desc + " (" + (errno ? strerror(errno) : "no error") + ")",
 					 sinsp_logger::SEV_ERROR);
 		if(m_url.is_secure())
@@ -585,7 +586,7 @@ private:
 	void extract_data(std::string& data)
 	{
 		//g_logger.log(data,sinsp_logger::SEV_DEBUG);
-		g_logger.log(m_id + ' ' + m_url.to_string() + ":\n\n" + data + "\n\n", sinsp_logger::SEV_TRACE);
+		g_logger.log(m_id + ' ' + m_url.to_string(false) + ":\n\n" + data + "\n\n", sinsp_logger::SEV_TRACE);
 		if(data.empty()) { return; }
 		if(!detect_chunked_transfer(data))
 		{
@@ -613,7 +614,7 @@ private:
 			{
 				end = m_data_buf.find(m_json_end);
 				if(end == std::string::npos) { break; }
-				g_logger.log(m_id + ' ' + m_url.to_string() + ": found JSON end, handling JSON", sinsp_logger::SEV_TRACE);
+				g_logger.log(m_id + ' ' + m_url.to_string(false) + ": found JSON end, handling JSON", sinsp_logger::SEV_TRACE);
 				handle_json(end, true);
 			}
 		}
@@ -1028,22 +1029,16 @@ private:
 						{
 							for (struct addrinfo* ai = m_dns_reqs[0]->ar_result; ai; ai = ai->ai_next)
 							{
-								if (ai->ai_addrlen && ai->ai_addr && ai->ai_addr->sa_family == AF_INET)
+								if(ai->ai_addrlen && ai->ai_addr && ai->ai_addr->sa_family == AF_INET)
 								{
 									struct sockaddr_in* saddr = (struct sockaddr_in*)ai->ai_addr;
 									if(saddr->sin_addr.s_addr)
 									{
-										if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
-										{
-											char* ip_addr = inet_ntoa(saddr->sin_addr);
-											if(ip_addr)
-											{
-												g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + " resolved to " + ip_addr,
-															 sinsp_logger::SEV_TRACE);
-											}
-										}
 										m_serv_addr.sin_addr.s_addr = saddr->sin_addr.s_addr;
-										break;
+										m_address = inet_ntoa(saddr->sin_addr);
+										g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + " resolved to " + m_address,
+															 sinsp_logger::SEV_TRACE);
+										dns_cleanup();
 									}
 								}
 							}
@@ -1061,8 +1056,20 @@ private:
 					}
 					else
 					{
-						g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + ", resolver error: " + gai_strerror(ret),
-									 sinsp_logger::SEV_TRACE);
+						switch(ret)
+						{
+							case EAI_AGAIN:
+							case EAI_INPROGRESS:
+								g_logger.log("Socket handler (" + m_id + ") [" + m_url.get_host() + "]: " + gai_strerror(ret), sinsp_logger::SEV_INFO);
+								break;
+							case EAI_SYSTEM:
+								g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + ", resolver error: " + gai_strerror(ret) +
+											 ", system error: " + strerror(errno), sinsp_logger::SEV_ERROR);
+								break;
+							default:
+								g_logger.log("Socket handler (" + m_id + "): " + m_url.get_host() + ", resolver error: " + gai_strerror(ret),
+											 sinsp_logger::SEV_ERROR);
+						}
 						return false;
 					}
 				}
@@ -1090,7 +1097,6 @@ private:
 				m_file_addr.sun_path[sizeof(m_file_addr.sun_path) - 1]= '\0';
 				m_sa = (sockaddr*)&m_file_addr;
 				m_sa_len = sizeof(struct sockaddr_un);
-				m_address = m_url.get_path();
 			}
 			else if(m_url.is("https") || m_url.is("http"))
 			{
@@ -1121,35 +1127,106 @@ private:
 		return (int) ntohs(local_address.sin_port);
 	}
 
-	void cleanup()
+	void close_socket()
 	{
-		g_logger.log("Socket handler (" + m_id + ") closing connection to " + m_url.to_string(),
-					 sinsp_logger::SEV_INFO);
 		if(m_socket != -1)
 		{
+			g_logger.log("Socket handler (" + m_id + ") closing connection to " + m_url.to_string(false),
+					 sinsp_logger::SEV_INFO);
 			int ret = close(m_socket);
 			if(ret < 0)
 			{
-				g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string() + "] "
+				g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "] "
 							 "error closing socket: " + strerror(errno), sinsp_logger::SEV_ERROR);
 			}
+			m_socket = -1;
 		}
+	}
 
-		if(m_dns_reqs)
+	bool dns_cleanup(struct gaicb** dns_reqs)
+	{
+		if(dns_reqs)
 		{
-			// ?? crashes
-			//freeaddrinfo(m_dns_reqs[0]->ar_result);
-			free((void*)m_dns_reqs[0]->ar_name);
-			free(m_dns_reqs[0]);
-			free(m_dns_reqs);
-			m_dns_reqs = nullptr;
+			int ret = gai_cancel(dns_reqs[0]);
+			int err = gai_error(dns_reqs[0]);
+			if(ret == EAI_ALLDONE || err == EAI_CANCELED)
+			{
+				freeaddrinfo(dns_reqs[0]->ar_result);
+				free((void*)dns_reqs[0]->ar_name);
+				free(dns_reqs[0]);
+				free(dns_reqs);
+				//m_dns_reqs = 0;
+				return true;
+			}
+			else if(err == EAI_INPROGRESS)
+			{
+				g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "], "
+							 " cancelling DNS request postponed (processing still in progress)"
+							 "\n err: (" + std::to_string(err) + ") " + gai_strerror(err),
+							 sinsp_logger::SEV_INFO);
+				return false;
+			}
+			else
+			{
+				g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "], "
+							 "error canceling DNS request"
+							 "\n ret: (" + std::to_string(ret) + ") " + gai_strerror(ret) +
+							 "\n err: (" + std::to_string(err) + ") " + gai_strerror(err),
+							 sinsp_logger::SEV_ERROR);
+				//m_pending_dns_reqs.push_back(m_dns_reqs);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	void dns_cleanup()
+	{
+		for(dns_list_t::iterator it = m_pending_dns_reqs.begin(); it != m_pending_dns_reqs.end();)
+		{
+			if(dns_cleanup(*it))
+			{
+				it = m_pending_dns_reqs.erase(it);
+				g_logger.log("Socket handler: postponed canceling of DNS request succeeded, number of pending "
+							 "DNS cancelation requests: " + std::to_string(m_pending_dns_reqs.size()),
+							 sinsp_logger::SEV_TRACE);
+			}
+			else { ++it; }
 		}
 
+		std::size_t pending_reqs = m_pending_dns_reqs.size();
+		if(pending_reqs)
+		{
+			g_logger.log("Socket handler: number of pending DNS cancelation requests is " + std::to_string(pending_reqs),
+						 (pending_reqs > 10) ? sinsp_logger::SEV_WARNING : sinsp_logger::SEV_TRACE);
+		}
+
+		if(dns_cleanup(m_dns_reqs))
+		{
+			m_dns_reqs = 0;
+		}
+		else // store for postponed canceling
+		{
+			m_pending_dns_reqs.push_back(m_dns_reqs);
+		}
+	}
+
+	void ssl_cleanup()
+	{
 		SSL_free(m_ssl_connection);
 		m_ssl_connection = 0;
 		SSL_CTX_free(m_ssl_context);
 		m_ssl_context = 0;
 	}
+
+	void cleanup()
+	{
+		close_socket();
+		dns_cleanup();
+		ssl_cleanup();
+	}
+
+	typedef std::deque<struct gaicb**> dns_list_t;
 
 	T&                     m_obj;
 	std::string            m_id;
@@ -1161,6 +1238,7 @@ private:
 	bool                   m_enabled = false;
 	int                    m_socket = -1;
 	struct gaicb**         m_dns_reqs = nullptr;
+	static dns_list_t      m_pending_dns_reqs;
 	ssl_ptr_t              m_ssl;
 	bt_ptr_t               m_bt;
 	long                   m_timeout_ms;
@@ -1187,5 +1265,7 @@ template <typename T>
 const std::string socket_data_handler<T>::HTTP_VERSION_10 = "1.0";
 template <typename T>
 const std::string socket_data_handler<T>::HTTP_VERSION_11 = "1.1";
+template <typename T>
+typename socket_data_handler<T>::dns_list_t socket_data_handler<T>::m_pending_dns_reqs;
 
 #endif // HAS_CAPTURE
