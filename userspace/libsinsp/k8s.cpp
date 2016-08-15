@@ -46,9 +46,21 @@ k8s::k8s(const std::string& uri, bool start_watch, bool watch_in_thread, bool is
 		}
 		if(extensions)
 		{
-			m_components.insert({ k8s_component::K8S_DAEMONSETS,  "daemonsets"  });
-			m_components.insert({ k8s_component::K8S_DEPLOYMENTS, "deployments" });
-			m_components.insert({ k8s_component::K8S_REPLICASETS, "replicasets" });
+			for(const auto& ext : *extensions)
+			{
+				if(ext == "daemonsets")
+				{
+					m_components.insert({ k8s_component::K8S_DAEMONSETS,  "daemonsets"  });
+				}
+				else if(ext == "deployments")
+				{
+					m_components.insert({ k8s_component::K8S_DEPLOYMENTS, "deployments" });
+				}
+				else if(ext == "replicasets")
+				{
+					m_components.insert({ k8s_component::K8S_REPLICASETS, "replicasets" });
+				}
+			}
 		}
 	}
 }

@@ -912,11 +912,20 @@ private:
 		{
 			g_logger.log("Socket handler (" + m_id + ") connecting to " + m_address +
 						 " (socket=" + std::to_string(m_socket) + ')', sinsp_logger::SEV_INFO);
+			if(!m_sa || !m_sa_len)
+			{
+				std::ostringstream os;
+				os << m_sa;
+				throw sinsp_exception("Socket handler (" + m_id + ") invalid state connecting to " +
+							 m_address + " (socket=" + std::to_string(m_socket) + "), "
+							 "sa=" + os.str() + ", sa_len=" + std::to_string(m_sa_len));
+			}
 			ret = connect(m_socket, m_sa, m_sa_len);
 			if(ret < 0 && errno != EINPROGRESS)
 			{
 				throw sinsp_exception("Error during conection attempt to " + m_address +
-									  " (socket=" + std::to_string(m_socket) + "): " + strerror(errno));
+									  " (socket=" + std::to_string(m_socket) +
+									  ", error=" + std::to_string(errno) + "): " + strerror(errno));
 			}
 			else if(errno == EINPROGRESS)
 			{
@@ -971,7 +980,10 @@ private:
 		{
 			if(SSL_get_peer_certificate(m_ssl_connection))
 			{
-				if(SSL_get_verify_result(m_ssl_connection) != X509_V_OK)
+				long err = SSL_get_verify_result(m_ssl_connection);
+				if(err != X509_V_OK &&
+					err != X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT &&
+					err != X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN)
 				{
 					throw sinsp_exception("Socket handler (" + m_id + "): " + m_address +
 										  " server certificate verification failed.");
@@ -999,7 +1011,6 @@ private:
 			if(inet_aton(m_url.get_host().c_str(), &m_serv_addr.sin_addr)) // IP address provided
 			{
 				m_address = m_url.get_host();
-				return true;
 			}
 			else // name provided, resolve to IP address
 			{
