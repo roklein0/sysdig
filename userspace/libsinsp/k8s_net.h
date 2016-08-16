@@ -92,4 +92,3 @@ inline bool k8s_net::has_handler(const k8s_component::type_map::value_type& comp
 }
 
 #endif // HAS_CAPTURE
-
