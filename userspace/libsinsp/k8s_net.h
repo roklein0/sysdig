@@ -9,8 +9,6 @@
 
 #include "k8s_component.h"
 #include "k8s_event_data.h"
-//#include "k8s_http.h"
-//#include "k8s_collector.h"
 #include "k8s_handler.h"
 #include "k8s_event_data.h"
 #include "uri.h"
@@ -31,7 +29,6 @@ public:
 	k8s_net(k8s& kube, k8s_state_t& state, const std::string& uri = "http://localhost:80",
 		ssl_ptr_t ssl = nullptr,
 		bt_ptr_t bt = nullptr,
-		bool curl_debug = false,
 		ext_list_ptr_t extensions = nullptr,
 		filter_ptr_t event_filter = nullptr);
 
@@ -73,7 +70,6 @@ private:
 	bt_ptr_t       m_bt;
 	bool           m_stopped;
 	handler_map_t  m_handlers;
-	bool           m_curl_debug;
 	ext_list_ptr_t m_extensions;
 	filter_ptr_t   m_event_filter;
 };
@@ -85,8 +81,8 @@ inline bool k8s_net::is_secure()
 
 inline bool k8s_net::is_healthy() const
 {
-	return true;/*m_collector.subscription_count() ==
-		static_cast<int>(m_api_interfaces.size());*/
+	return m_collector.subscription_count() ==
+		static_cast<int>(m_handlers.size());
 }
 
 inline bool k8s_net::has_handler(const k8s_component::type_map::value_type& component)

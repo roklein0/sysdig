@@ -26,14 +26,12 @@
 k8s_net::k8s_net(k8s& kube, k8s_state_t& state, const std::string& uri,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt,
-	bool curl_debug,
 	ext_list_ptr_t extensions,
 	filter_ptr_t event_filter) : m_k8s(kube), m_state(state),
 		m_uri(uri),
 		m_ssl(ssl),
 		m_bt(bt),
 		m_stopped(true),
-		m_curl_debug(curl_debug),
 		m_extensions(extensions),
 		m_event_filter(event_filter)
 {

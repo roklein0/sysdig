@@ -15,19 +15,16 @@
 
 k8s_component::type_map k8s::m_components;
 
-k8s::k8s(const std::string& uri, bool start_watch, bool watch_in_thread, bool is_captured,
+k8s::k8s(const std::string& uri, bool is_captured,
 #ifdef HAS_CAPTURE
 		ssl_ptr_t ssl, bt_ptr_t bt,
 #endif // HAS_CAPTURE
-		bool curl_debug,
 		filter_ptr_t event_filter,
 		ext_list_ptr_t extensions) :
-		m_watch(uri.empty() ? false : start_watch),
 		m_state(is_captured),
-		m_event_filter(event_filter),
-		m_watch_in_thread(watch_in_thread)
+		m_event_filter(event_filter)
 #ifdef HAS_CAPTURE
-		,m_net(uri.empty() ? 0 : new k8s_net(*this, m_state, uri, ssl, bt, curl_debug, extensions, event_filter))
+		,m_net(uri.empty() ? 0 : new k8s_net(*this, m_state, uri, ssl, bt, extensions, event_filter))
 #endif
 {
 	g_logger.log(std::string("Creating K8s object for [" +
@@ -74,9 +71,8 @@ k8s::~k8s()
 void k8s::stop_watch()
 {
 #ifdef HAS_CAPTURE
-	if(m_watch)
+	if(m_net)
 	{
-		ASSERT(m_net);
 		m_net->stop_watching();
 	}
 #endif
@@ -97,13 +93,16 @@ void k8s::check_components()
 	{
 		for (auto& component : m_components)
 		{
-			if(component.first != k8s_component::K8S_EVENTS)
+			if(!m_net->has_handler(component))
 			{
-				m_net->add_handler(component);
-			}
-			else if(m_event_filter) // events only if filter is enabled
-			{
-				m_net->add_handler(component);
+				if(component.first != k8s_component::K8S_EVENTS)
+				{
+					m_net->add_handler(component);
+				}
+				else if(m_event_filter) // events only if filter is enabled
+				{
+					m_net->add_handler(component);
+				}
 			}
 		}
 	}
@@ -122,8 +121,7 @@ const k8s_state_t& k8s::get_state()
 void k8s::watch()
 {
 #ifdef HAS_CAPTURE
-	ASSERT(m_net);
-	if(m_watch)
+	if(m_net)
 	{
 		check_components();
 		m_net->watch();

@@ -28,14 +28,11 @@ public:
 	typedef user_event_filter_t::ptr_t    filter_ptr_t;
 
 	k8s(const std::string& uri = "http://localhost:80",
-		bool start_watch = false,
-		bool watch_in_thread = false,
 		bool is_captured = false,
 #ifdef HAS_CAPTURE
 		ssl_ptr_t ssl = 0,
 		bt_ptr_t bt = 0,
 #endif // HAS_CAPTURE
-		bool curl_debug = false,
 		filter_ptr_t event_filter = nullptr,
 		ext_list_ptr_t extensions = nullptr);
 
@@ -48,7 +45,6 @@ public:
 	const k8s_state_t& get_state();
 
 	void watch();
-	bool watch_in_thread() const;
 	void stop_watching();
 
 	bool is_alive() const;
@@ -66,11 +62,8 @@ private:
 
 	void cleanup();
 
-	bool         m_watch;
 	k8s_state_t  m_state;
 	filter_ptr_t m_event_filter;
-	//dispatch_map m_dispatch;
-	bool         m_watch_in_thread;
 #ifdef HAS_CAPTURE
 	k8s_net*     m_net;
 #endif
@@ -88,7 +81,3 @@ inline bool k8s::is_alive() const
 	return true;
 }
 
-inline bool k8s::watch_in_thread() const
-{
-	return m_watch_in_thread;
-}

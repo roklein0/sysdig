@@ -796,6 +796,10 @@ private:
 											  "Can't load SSL certificate  from " + cert + ".\n" +
 											  ssl_errors());
 					}
+					else
+					{
+						g_logger.log("Socket handler (" + m_id + "): using SSL certificate from " + cert, sinsp_logger::SEV_TRACE);
+					}
 					const std::string& key = m_ssl->key();
 					if(!key.empty())
 					{
@@ -807,17 +811,28 @@ private:
 							SSL_CTX_set_default_passwd_cb_userdata(m_ssl_context, (void*)&m_ssl_key_pass[0]);
 							SSL_CTX_set_default_passwd_cb(m_ssl_context, ssl_key_password_cb);
 						}
+
 						if(SSL_CTX_use_PrivateKey_file(m_ssl_context, key.c_str(), SSL_FILETYPE_PEM) <= 0)
 						{
 							throw sinsp_exception("Socket handler (" + m_id + "): "
 											  "Can't load SSL private key from " + key + ".\n" +
 											  ssl_errors());
 						}
+						else
+						{
+							g_logger.log("Socket handler (" + m_id + "): using SSL private key from " + key, sinsp_logger::SEV_TRACE);
+						}
+
 						if(!SSL_CTX_check_private_key(m_ssl_context))
 						{
 							throw sinsp_exception("Socket handler (" + m_id + "): "
 											  "SSL private key (" + key + ") does not match public certificate (" + cert + ").\n" +
 											  ssl_errors());
+						}
+						else
+						{
+							g_logger.log("Socket handler (" + m_id + "): SSL private key " + key + " matches public certificate " + cert,
+										 sinsp_logger::SEV_TRACE);
 						}
 					}
 					else
@@ -825,6 +840,10 @@ private:
 						throw sinsp_exception("Socket handler (" + m_id + "): "
 											  "Invalid SSL configuration: public certificate specified without private key.");
 					}
+				}
+				else
+				{
+					g_logger.log("Socket handler (" + m_id + "): SSL public certificate not provided.", sinsp_logger::SEV_TRACE);
 				}
 			}
 		}
