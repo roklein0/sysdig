@@ -12,7 +12,7 @@
 #include "k8s_state.h"
 #include "k8s_event_data.h"
 #include "k8s_net.h"
-#include "sinsp_curl.h"
+#include "sinsp_auth.h"
 #include <sstream>
 #include <utility>
 
@@ -20,8 +20,8 @@ class k8s
 {
 public:
 #ifdef HAS_CAPTURE
-	typedef sinsp_curl::ssl::ptr_t          ssl_ptr_t;
-	typedef sinsp_curl::bearer_token::ptr_t bt_ptr_t;
+	typedef sinsp_ssl::ptr_t          ssl_ptr_t;
+	typedef sinsp_bearer_token::ptr_t bt_ptr_t;
 #endif // HAS_CAPTURE
 
 	typedef k8s_component::ext_list_ptr_t ext_list_ptr_t;

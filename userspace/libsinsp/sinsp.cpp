@@ -29,6 +29,7 @@ along with sysdig.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "sinsp.h"
 #include "sinsp_int.h"
+#include "sinsp_auth.h"
 #include "filter.h"
 #include "filterchecks.h"
 #include "chisel.h"
@@ -1657,82 +1658,84 @@ void sinsp::init_mesos_client(string* api_server, bool verbose)
 void sinsp::init_k8s_client(string* api_server, string* ssl_cert, bool verbose)
 {
 	ASSERT(api_server);
+	bool is_live = m_k8s_api_server && !m_k8s_api_server->empty();
 	m_verbose_json = verbose;
 	m_k8s_api_server = api_server;
 	m_k8s_api_cert = ssl_cert;
 
-	if(m_k8s_client == NULL)
+	if(m_k8s_client)
 	{
-#ifdef HAS_CAPTURE
-		std::shared_ptr<sinsp_curl::ssl> k8s_ssl;
-		std::shared_ptr<sinsp_curl::bearer_token> k8s_bt;
-
-		if(ssl_cert)
-		{
-			std::string cert;
-			std::string key;
-			std::string key_pwd;
-			std::string ca_cert;
-
-			// -K <bt_file> | <cert_file>:<key_file[#password]>[:<ca_cert_file>]
-			std::string::size_type pos = ssl_cert->find(':');
-			if(pos == std::string::npos) // ca_cert-only is obsoleted, single entry is now bearer token
-			{
-				k8s_bt = std::make_shared<sinsp_curl::bearer_token>(*ssl_cert);
-				ssl_cert->clear();
-			}
-			else
-			{
-				while(ssl_cert->length())
-				{
-					if(cert.empty() && pos != std::string::npos)
-					{
-						cert = ssl_cert->substr(0, pos);
-						if(ssl_cert->length() > (pos + 1))
-						{
-							*ssl_cert = ssl_cert->substr(pos + 1);
-						}
-						else { break; }
-					}
-					else if(key.empty())
-					{
-						key = ssl_cert->substr(0, pos);
-						if(ssl_cert->length() > (pos + 1))
-						{
-							*ssl_cert = ssl_cert->substr(pos + 1);
-							std::string::size_type s_pos = key.find('#');
-							if(s_pos != std::string::npos && key.length() > (s_pos + 1))
-							{
-								key_pwd = key.substr(s_pos + 1);
-								key = key.substr(0, s_pos);
-							}
-							if(pos == std::string::npos) { break; }
-						}
-						else { break; }
-					}
-					else if(ca_cert.empty())
-					{
-						ca_cert = *ssl_cert;
-						ssl_cert->clear();
-					}
-					else { goto ssl_err; }
-					pos = ssl_cert->find(':', pos);
-				}
-				if(cert.empty() || key.empty()) { goto ssl_err; }
-			}
-			k8s_ssl = std::make_shared<sinsp_curl::ssl>(cert, key, key_pwd,
-						ca_cert, ca_cert.empty() ? false : true, "PEM");
-		}
-#endif // HAS_CAPTURE
-		bool is_live = !m_k8s_api_server->empty();
-		m_k8s_client = new k8s(*m_k8s_api_server,
-			is_live // capture
-#ifdef HAS_CAPTURE
-			,k8s_ssl
-			,k8s_bt
-#endif // HAS_CAPTURE
-		);
+		delete m_k8s_client;
+		m_k8s_client = nullptr;
 	}
+#ifdef HAS_CAPTURE
+	std::shared_ptr<sinsp_ssl> k8s_ssl;
+	std::shared_ptr<sinsp_bearer_token> k8s_bt;
+
+	if(ssl_cert)
+	{
+		std::string cert;
+		std::string key;
+		std::string key_pwd;
+		std::string ca_cert;
+
+		// -K <bt_file> | <cert_file>:<key_file[#password]>[:<ca_cert_file>]
+		std::string::size_type pos = ssl_cert->find(':');
+		if(pos == std::string::npos) // ca_cert-only is obsoleted, single entry is now bearer token
+		{
+			k8s_bt = std::make_shared<sinsp_bearer_token>(*ssl_cert);
+			ssl_cert->clear();
+		}
+		else
+		{
+			while(ssl_cert->length())
+			{
+				if(cert.empty() && pos != std::string::npos)
+				{
+					cert = ssl_cert->substr(0, pos);
+					if(ssl_cert->length() > (pos + 1))
+					{
+						*ssl_cert = ssl_cert->substr(pos + 1);
+					}
+					else { break; }
+				}
+				else if(key.empty())
+				{
+					key = ssl_cert->substr(0, pos);
+					if(ssl_cert->length() > (pos + 1))
+					{
+						*ssl_cert = ssl_cert->substr(pos + 1);
+						std::string::size_type s_pos = key.find('#');
+						if(s_pos != std::string::npos && key.length() > (s_pos + 1))
+						{
+							key_pwd = key.substr(s_pos + 1);
+							key = key.substr(0, s_pos);
+						}
+						if(pos == std::string::npos) { break; }
+					}
+					else { break; }
+				}
+				else if(ca_cert.empty())
+				{
+					ca_cert = *ssl_cert;
+					ssl_cert->clear();
+				}
+				else { goto ssl_err; }
+				pos = ssl_cert->find(':', pos);
+			}
+			if(cert.empty() || key.empty()) { goto ssl_err; }
+		}
+		k8s_ssl = std::make_shared<sinsp_ssl>(cert, key, key_pwd,
+					ca_cert, ca_cert.empty() ? false : true, "PEM");
+	}
+#endif // HAS_CAPTURE
+	m_k8s_client = new k8s(*m_k8s_api_server,
+		is_live // capture
+#ifdef HAS_CAPTURE
+		,k8s_ssl
+		,k8s_bt
+#endif // HAS_CAPTURE
+	);
 
 	return;
 
