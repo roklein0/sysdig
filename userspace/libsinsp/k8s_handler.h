@@ -54,8 +54,8 @@ public:
 	typedef std::shared_ptr<k8s_handler>     ptr_t;
 	typedef std::vector<std::string>         uri_list_t;
 	typedef std::shared_ptr<Json::Value>     json_ptr_t;
-	typedef sinsp_curl::ssl::ptr_t           ssl_ptr_t;
-	typedef sinsp_curl::bearer_token::ptr_t  bt_ptr_t;
+	typedef sinsp_ssl::ptr_t                 ssl_ptr_t;
+	typedef sinsp_bearer_token::ptr_t        bt_ptr_t;
 	typedef socket_data_handler<k8s_handler> handler_t;
 	typedef handler_t::ptr_t                 handler_ptr_t;
 	typedef socket_collector<handler_t>      collector_t;

@@ -30,7 +30,7 @@
 #include <memory>
 #include <cstring>
 #include <climits>
-#include "sinsp_curl.h"
+//#include "sinsp_curl.h"
 
 template <typename T>
 class socket_data_handler
