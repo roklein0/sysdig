@@ -210,25 +210,36 @@ void k8s_pod_handler::handle_component(const Json::Value& json, const msg_data* 
 		{
 			if(m_state)
 			{
-				k8s_pod_t& pod =
-					m_state->get_component<k8s_pods, k8s_pod_t>(m_state->get_pods(),
-																  data->m_name, data->m_uid);
-				k8s_pair_list entries = k8s_component::extract_object(json, "labels");
-				if(entries.size() > 0)
+				if((data->m_reason == COMPONENT_ADDED) || (data->m_reason == COMPONENT_MODIFIED))
 				{
-					pod.set_labels(std::move(entries));
+					k8s_pod_t& pod =
+						m_state->get_component<k8s_pods, k8s_pod_t>(m_state->get_pods(),
+																	  data->m_name, data->m_uid);
+					k8s_pair_list entries = k8s_component::extract_object(json, "labels");
+					if(entries.size() > 0)
+					{
+						pod.set_labels(std::move(entries));
+					}
+					//m_state->update_pod(pod, json);
+					k8s_pod_t::container_id_list container_ids = extract_pod_container_ids(json);
+					k8s_container::list containers = extract_pod_containers(json);
+					extract_pod_data(json, pod);
+					pod.set_restart_count(extract_pod_restart_count(json));
+					pod.set_container_ids(std::move(container_ids));
+					pod.set_containers(std::move(containers));
 				}
-				//m_state->update_pod(pod, json);
-				k8s_pod_t::container_id_list container_ids = extract_pod_container_ids(json);
-				k8s_container::list containers = extract_pod_containers(json);
-				extract_pod_data(json, pod);
-				pod.set_restart_count(extract_pod_restart_count(json));
-				pod.set_container_ids(std::move(container_ids));
-				pod.set_containers(std::move(containers));
+				else if(data->m_reason == COMPONENT_DELETED)
+				{
+					if(!m_state->delete_component(m_state->get_pods(), data->m_uid))
+					{
+						log_not_found(*data);
+					}
+				}
 			}
-			else
+			else if(data->m_reason != COMPONENT_ERROR)
 			{
-				throw sinsp_exception("K8s node handler: state is null.");
+				g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
+							 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);
 			}
 		}
 		else

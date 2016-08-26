@@ -71,21 +71,36 @@ void k8s_deployment_handler::handle_component(const Json::Value& json, const msg
 	{
 		if(m_state)
 		{
-			k8s_deployment_t& deployment =
-				m_state->get_component<k8s_deployments, k8s_deployment_t>(m_state->get_deployments(),
-															  data->m_name, data->m_uid);
-			k8s_pair_list entries = k8s_component::extract_object(json, "labels");
-			if(entries.size() > 0)
+			if((data->m_reason == COMPONENT_ADDED) || (data->m_reason == COMPONENT_MODIFIED))
 			{
-				deployment.set_labels(std::move(entries));
+				k8s_deployment_t& deployment =
+					m_state->get_component<k8s_deployments, k8s_deployment_t>(m_state->get_deployments(),
+																  data->m_name, data->m_uid);
+				k8s_pair_list entries = k8s_component::extract_object(json, "labels");
+				if(entries.size() > 0)
+				{
+					deployment.set_labels(std::move(entries));
+				}
+				handle_selectors(deployment, json["selector"]);
+				const Json::Value& spec = json["specReplicas"];
+				const Json::Value& stat = json["statReplicas"];
+				if(!spec.isNull() && spec.isConvertibleTo(Json::intValue) &&
+				   !stat.isNull() && stat.isConvertibleTo(Json::intValue))
+				{
+					deployment.set_replicas(spec.asInt(), stat.asInt());
+				}
 			}
-			handle_selectors(deployment, json["selector"]);
-			const Json::Value& spec = json["specReplicas"];
-			const Json::Value& stat = json["statReplicas"];
-			if(!spec.isNull() && spec.isConvertibleTo(Json::intValue) &&
-			   !stat.isNull() && stat.isConvertibleTo(Json::intValue))
+			else if(data->m_reason == COMPONENT_DELETED)
 			{
-				deployment.set_replicas(spec.asInt(), stat.asInt());
+				if(!m_state->delete_component(m_state->get_deployments(), data->m_uid))
+				{
+					log_not_found(*data);
+				}
+			}
+			else if(data->m_reason != COMPONENT_ERROR)
+			{
+				g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
+							 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);
 			}
 		}
 		else

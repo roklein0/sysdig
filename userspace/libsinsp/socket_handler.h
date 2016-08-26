@@ -260,6 +260,7 @@ public:
 					g_logger.log(ssl_err, sinsp_logger::SEV_ERROR);
 				}
 			}
+			m_connected = false;
 			throw sinsp_exception("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "] closed.");
 		}
 	}
@@ -383,32 +384,35 @@ public:
 						 sinsp_logger::SEV_ERROR);
 			return false;
 		}
-	return true;
+		return true;
 
 	connection_error:
-	{
-		error_desc = "error";
-	}
+		{
+			error_desc = "error";
+		}
 
 	connection_closed:
-	{
-		if(error_desc.empty()) { error_desc = "closed"; }
-		g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "] " +
-					 error_desc + " (" + (errno ? strerror(errno) : "no error") + ")",
-					 sinsp_logger::SEV_ERROR);
-		if(m_url.is_secure())
 		{
-			std::string ssl_err = ssl_errors();
-			if(!ssl_err.empty())
+			if(error_desc.empty())
 			{
-				g_logger.log(ssl_err, sinsp_logger::SEV_ERROR);
+				error_desc = "closed";
+				m_connected = false;
+			}
+			g_logger.log("Socket handler (" + m_id + ") connection [" + m_url.to_string(false) + "] " +
+						 error_desc + " (" + (errno ? strerror(errno) : "no error") + ")",
+						 sinsp_logger::SEV_ERROR);
+			if(m_url.is_secure())
+			{
+				std::string ssl_err = ssl_errors();
+				if(!ssl_err.empty())
+				{
+					g_logger.log(ssl_err, sinsp_logger::SEV_ERROR);
+				}
 			}
 		}
-	}
-	cleanup();
-	m_socket = -1;
-	m_connected = false;
-	return false;
+		cleanup();
+		m_socket = -1;
+		return false;
 	}
 
 	void on_error(const std::string& /*err*/, bool /*disconnect*/)
@@ -436,19 +440,47 @@ public:
 		return m_json_end;
 	}
 
-	void set_json_filter(const std::string& filter)
+	void add_json_filter(const std::string& filter)
 	{
-		m_json_filter = filter;
+		m_json_filters.push_back(filter);
 	}
 
-	static json_ptr_t try_parse(json_query& jq, std::string&& json, const std::string& filter,
+	void remove_json_filter(const std::string& filter)
+	{
+		for(auto it = m_json_filters.begin(); it != m_json_filters.end(); ++it)
+		{
+			if(*it == filter)
+			{
+				m_json_filters.erase(it);
+				return;
+			}
+		}
+	}
+
+	void replace_json_filter(const std::string& from, const std::string& to)
+	{
+		for(auto it = m_json_filters.cbegin(); it != m_json_filters.cend(); ++it)
+		{
+			if(*it == from)
+			{
+				*it = to;
+				return;
+			}
+		}
+		throw sinsp_exception(std::string("Socket handler (") + m_id + "), "
+							  "[" + m_url.to_string(false) + "] "
+							  "attempt to replace non-existing filter");
+	}
+
+	static json_ptr_t try_parse(json_query& jq, const std::string& json, const std::string& filter,
 								const std::string& id, const std::string& url)
 	{
+		std::string filtered_json;
 		if(!filter.empty())
 		{
 			if(jq.process(json, filter))
 			{
-				json = jq.result();
+				filtered_json = jq.result();
 			}
 			else
 			{
@@ -460,7 +492,7 @@ public:
 		json_ptr_t root(new Json::Value());
 		try
 		{
-			if(Json::Reader().parse(json, *root))
+			if(Json::Reader().parse(filtered_json, *root))
 			{
 				/*
 				if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
@@ -487,6 +519,11 @@ public:
 	void enable(bool e = true)
 	{
 		m_enabled = e;
+	}
+
+	bool connection_error() const
+	{
+		return m_connection_error;
 	}
 
 private:
@@ -544,10 +581,21 @@ private:
 					else
 					{
 						g_logger.log("Socket handler (" + m_id + "): invoking callback.", sinsp_logger::SEV_TRACE);
-						(m_obj.*m_json_callback)(try_parse(m_jq, std::move(json), m_json_filter, m_id, m_url.to_string(false)), m_id);
+						for(auto it = m_json_filters.cbegin(); it != m_json_filters.cend(); ++it)
+						{
+							json_ptr_t pjson = try_parse(m_jq, json, *it, m_id, m_url.to_string(false));
+							if(pjson)
+							{
+								(m_obj.*m_json_callback)(pjson, m_id);
+								return;
+							}
+						}
 					}
+					g_logger.log("Socket handler (" + m_id + ") " + m_url.to_string(false) + ": "
+								 "An error occurred while handling JSON.",
+								 sinsp_logger::SEV_ERROR);
+					g_logger.log(json, sinsp_logger::SEV_TRACE);
 				}
-				
 			}
 		}
 	}
@@ -590,7 +638,8 @@ private:
 		if(data.empty()) { return; }
 		if(!detect_chunked_transfer(data))
 		{
-			g_logger.log("Socket handler (" + m_id + "): An error occurred while detecting chunked transfer.",
+			g_logger.log("Socket handler (" + m_id + ") " + m_url.to_string(false) + ": "
+						 "An error occurred while detecting chunked transfer.",
 						 sinsp_logger::SEV_ERROR);
 			return;
 		}
@@ -614,7 +663,8 @@ private:
 			{
 				end = m_data_buf.find(m_json_end);
 				if(end == std::string::npos) { break; }
-				g_logger.log(m_id + ' ' + m_url.to_string(false) + ": found JSON end, handling JSON", sinsp_logger::SEV_TRACE);
+				g_logger.log("Socket handler (" + m_id + ") " + m_url.to_string(false) + ": "
+							 "found JSON end, handling JSON", sinsp_logger::SEV_TRACE);
 				handle_json(end, true);
 			}
 		}
@@ -923,7 +973,11 @@ private:
 		}
 
 		int ret = -1;
-		if(m_connecting)
+		if(m_connection_error)
+		{
+			return false;
+		}
+		else if(m_connecting)
 		{
 			if(!send_ready()) { return false; }
 		}
@@ -942,9 +996,11 @@ private:
 			ret = connect(m_socket, m_sa, m_sa_len);
 			if(ret < 0 && errno != EINPROGRESS)
 			{
-				throw sinsp_exception("Error during conection attempt to " + m_address +
+				g_logger.log("Error during conection attempt to " + m_address +
 									  " (socket=" + std::to_string(m_socket) +
-									  ", error=" + std::to_string(errno) + "): " + strerror(errno));
+									  ", error=" + std::to_string(errno) + "): " + strerror(errno),
+									  sinsp_logger::SEV_ERROR);
+				m_connection_error = true;
 			}
 			else if(errno == EINPROGRESS)
 			{
@@ -1257,37 +1313,38 @@ private:
 
 	typedef std::deque<struct gaicb**> dns_list_t;
 
-	T&                     m_obj;
-	std::string            m_id;
-	uri                    m_url;
-	std::string            m_path;
-	std::string            m_address;
-	bool                   m_connecting = false;
-	bool                   m_connected = false;
-	bool                   m_enabled = false;
-	int                    m_socket = -1;
-	struct gaicb**         m_dns_reqs = nullptr;
-	static dns_list_t      m_pending_dns_reqs;
-	ssl_ptr_t              m_ssl;
-	bt_ptr_t               m_bt;
-	long                   m_timeout_ms;
-	json_callback_func_t   m_json_callback = nullptr;
-	std::string            m_data_buf;
-	std::string            m_request;
-	std::string            m_http_version;
-	std::string            m_json_begin;
-	std::string            m_json_end;
-	std::string            m_json_filter;
-	json_query             m_jq;
-	bool                   m_ssl_init_complete = false;
-	SSL_CTX*               m_ssl_context = nullptr;
-	SSL*                   m_ssl_connection = nullptr;
-	password_vec_t         m_ssl_key_pass;
-	struct sockaddr_un     m_file_addr = {0};
-	struct sockaddr_in     m_serv_addr = {0};
-	struct sockaddr*       m_sa = 0;
-	socklen_t              m_sa_len = 0;
-	std::string::size_type m_content_length = std::string::npos;
+	T&                       m_obj;
+	std::string              m_id;
+	uri                      m_url;
+	std::string              m_path;
+	std::string              m_address;
+	bool                     m_connecting = false;
+	bool                     m_connected = false;
+	bool                     m_connection_error = false;
+	bool                     m_enabled = false;
+	int                      m_socket = -1;
+	struct gaicb**           m_dns_reqs = nullptr;
+	static dns_list_t        m_pending_dns_reqs;
+	ssl_ptr_t                m_ssl;
+	bt_ptr_t                 m_bt;
+	long                     m_timeout_ms;
+	json_callback_func_t     m_json_callback = nullptr;
+	std::string              m_data_buf;
+	std::string              m_request;
+	std::string              m_http_version;
+	std::string              m_json_begin;
+	std::string              m_json_end;
+	std::vector<std::string> m_json_filters;
+	json_query               m_jq;
+	bool                     m_ssl_init_complete = false;
+	SSL_CTX*                 m_ssl_context = nullptr;
+	SSL*                     m_ssl_connection = nullptr;
+	password_vec_t           m_ssl_key_pass;
+	struct sockaddr_un       m_file_addr = {0};
+	struct sockaddr_in       m_serv_addr = {0};
+	struct sockaddr*         m_sa = 0;
+	socklen_t                m_sa_len = 0;
+	std::string::size_type   m_content_length = std::string::npos;
 };
 
 template <typename T>

@@ -77,6 +77,7 @@ public:
 
 	virtual ~k8s_handler();
 
+	bool connection_error() const;
 	bool is_alive() const;
 	void set_event_json(json_ptr_t json, const std::string&);
 	const std::string& get_id() const;
@@ -86,6 +87,10 @@ public:
 	const std::string& get_machine_id() const;
 
 	bool is_state_built() const;
+
+	handler_ptr_t handler();
+
+	std::string name() const;
 
 protected:
 	typedef std::unordered_set<std::string> ip_addr_list_t;
@@ -111,9 +116,13 @@ protected:
 	}
 
 	void log_event(const msg_data& data);
-	void log_error(const Json::Value& root, const std::string& comp);
+	void handle_error(const Json::Value& root, bool log = true);
+	void log_error(const Json::Value& root);
+	void log_not_found(const msg_data& data) const;
 
 	k8s_state_t* m_state = nullptr;
+
+	static std::string ERROR_FILTER;
 
 private:
 	typedef void (k8s_handler::*callback_func_t)(json_ptr_t, const std::string&);
@@ -153,6 +162,11 @@ private:
 	bool          m_watch;
 };
 
+inline k8s_handler::handler_ptr_t k8s_handler::handler()
+{
+	return m_http;
+}
+
 inline const std::string& k8s_handler::get_id() const
 {
 	return m_id;
@@ -179,4 +193,10 @@ inline void k8s_handler::log_event(const msg_data& data)
 				 data.m_kind + ' ' +
 				 data.m_name + " [" + data.m_uid + "]",
 				 sinsp_logger::SEV_DEBUG);
+}
+
+inline void k8s_handler::log_not_found(const msg_data& data) const
+{
+	g_logger.log("K8s " + name() + " not found [" + data.m_uid + "]: " + data.m_name,
+				 sinsp_logger::SEV_ERROR);
 }

@@ -71,20 +71,35 @@ void k8s_replicaset_handler::handle_component(const Json::Value& json, const msg
 	{
 		if(m_state)
 		{
-			k8s_rs_t& rs =
-				m_state->get_component<k8s_replicasets, k8s_rs_t>(m_state->get_rss(), data->m_name, data->m_uid);
-			k8s_pair_list entries = k8s_component::extract_object(json, "labels");
-			if(entries.size() > 0)
+			if((data->m_reason == COMPONENT_ADDED) || (data->m_reason == COMPONENT_MODIFIED))
 			{
-				rs.set_labels(std::move(entries));
+				k8s_rs_t& rs =
+					m_state->get_component<k8s_replicasets, k8s_rs_t>(m_state->get_rss(), data->m_name, data->m_uid);
+				k8s_pair_list entries = k8s_component::extract_object(json, "labels");
+				if(entries.size() > 0)
+				{
+					rs.set_labels(std::move(entries));
+				}
+				handle_selectors(rs, json["selector"]);
+				const Json::Value& spec = json["specReplicas"];
+				const Json::Value& stat = json["statReplicas"];
+				if(!spec.isNull() && spec.isConvertibleTo(Json::intValue) &&
+				   !stat.isNull() && stat.isConvertibleTo(Json::intValue))
+				{
+					rs.set_replicas(spec.asInt(), stat.asInt());
+				}
 			}
-			handle_selectors(rs, json["selector"]);
-			const Json::Value& spec = json["specReplicas"];
-			const Json::Value& stat = json["statReplicas"];
-			if(!spec.isNull() && spec.isConvertibleTo(Json::intValue) &&
-			   !stat.isNull() && stat.isConvertibleTo(Json::intValue))
+			else if(data->m_reason == COMPONENT_DELETED)
 			{
-				rs.set_replicas(spec.asInt(), stat.asInt());
+				if(!m_state->delete_component(m_state->get_rss(), data->m_uid))
+				{
+					log_not_found(*data);
+				}
+			}
+			else if(data->m_reason != COMPONENT_ERROR)
+			{
+				g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
+							 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);
 			}
 		}
 		else

@@ -67,24 +67,39 @@ void k8s_node_handler::handle_component(const Json::Value& json, const msg_data*
 	{
 		if(m_state)
 		{
-			k8s_node_t& node =
-				m_state->get_component<k8s_nodes, k8s_node_t>(m_state->get_nodes(),
-															  data->m_name, data->m_uid);
-			k8s_node_t::host_ip_list addresses;
-			k8s_component::extract_string_array(json["addresses"], addresses);
-			if(addresses.size() > 0)
+			if((data->m_reason == COMPONENT_ADDED) || (data->m_reason == COMPONENT_MODIFIED))
 			{
-				node.set_host_ips(std::move(addresses));
+				k8s_node_t& node =
+					m_state->get_component<k8s_nodes, k8s_node_t>(m_state->get_nodes(),
+																  data->m_name, data->m_uid);
+				k8s_node_t::host_ip_list addresses;
+				k8s_component::extract_string_array(json["addresses"], addresses);
+				if(addresses.size() > 0)
+				{
+					node.set_host_ips(std::move(addresses));
+				}
+				else
+				{
+					g_logger.log("K8s Node handler: Can not obtain IP address(es) for node" + data->m_name +
+								 '[' + data->m_uid + ']', sinsp_logger::SEV_ERROR);
+				}
+				k8s_pair_list entries = k8s_component::extract_object(json, "labels");
+				if(entries.size() > 0)
+				{
+					node.set_labels(std::move(entries));
+				}
 			}
-			else
+			else if(data->m_reason == COMPONENT_DELETED)
 			{
-				g_logger.log("K8s Node handler: Can not obtain IP address(es) for node" + data->m_name +
-							 '[' + data->m_uid + ']', sinsp_logger::SEV_ERROR);
+				if(!m_state->delete_component(m_state->get_nodes(), data->m_uid))
+				{
+					log_not_found(*data);
+				}
 			}
-			k8s_pair_list entries = k8s_component::extract_object(json, "labels");
-			if(entries.size() > 0)
+			else if(data->m_reason != COMPONENT_ERROR)
 			{
-				node.set_labels(std::move(entries));
+				g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
+							 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);
 			}
 		}
 		else

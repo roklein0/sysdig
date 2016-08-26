@@ -6,6 +6,24 @@
 #include "sinsp.h"
 #include "sinsp_int.h"
 
+std::string k8s_handler::ERROR_FILTER =
+	"{ type: \"ERROR\","
+	"  apiVersion: .apiVersion,"
+	"  kind: .kind,"
+	"  items:"
+	"  ["
+	"   . |"
+	"   {"
+	"     metadata: .metadata,"
+	"     status: .status,"
+	"     message: .message,"
+	"     reason: .reason,"
+	"     details: .details,"
+	"     code: .code"
+	"   }"
+	"  ]"
+	"}";
+
 k8s_handler::k8s_handler(collector_t& collector,
 	const std::string& id,
 	std::string url,
@@ -34,8 +52,6 @@ k8s_handler::k8s_handler(collector_t& collector,
 	g_logger.log(std::string("Creating K8s handler object for " + m_id + " (" + m_url + ")"),
 				 sinsp_logger::SEV_DEBUG);
 	make_http();
-	g_logger.log(std::string("Sent K8s handler connect request for " + m_id + " (" + m_url + ")"),
-				 sinsp_logger::SEV_DEBUG);
 }
 
 k8s_handler::~k8s_handler()
@@ -49,7 +65,8 @@ void k8s_handler::make_http()
 								 m_timeout_ms, m_ssl, m_bt);
 	m_http->set_json_callback(&k8s_handler::set_event_json);
 	m_http->set_json_end("}\n");
-	m_http->set_json_filter(m_filter);
+	m_http->add_json_filter(m_filter);
+	m_http->add_json_filter(ERROR_FILTER);
 	connect();
 }
 
@@ -199,6 +216,15 @@ void k8s_handler::check_state()
 	}
 }
 
+bool k8s_handler::connection_error() const
+{
+	if(m_http)
+	{
+		return m_http->connection_error();
+	}
+	return false;
+}
+
 void k8s_handler::collect_data()
 {
 	if(m_http)
@@ -321,58 +347,80 @@ void k8s_handler::handle_json(Json::Value&& root)
 					{
 						msg_data data = get_msg_data(t, k, item);
 						log_event(data);
+						std::string reason_type;
+						switch(data.m_reason)
+						{
+							case COMPONENT_ADDED:
+								reason_type = "ADDED";
+								break;
+							case COMPONENT_MODIFIED:
+								reason_type = "MODIFIED";
+								break;
+							case COMPONENT_DELETED:
+								reason_type = "DELETED";
+								break;
+							case COMPONENT_ERROR:
+								reason_type = "ERROR";
+								break;
+							default:
+								break;
+						}
 						if(data.m_reason == COMPONENT_ADDED)
 						{
 							if(m_state->has(data.m_uid))
 							{
 								std::ostringstream os;
-								os << "K8s ADDED message received for existing " << data.m_kind <<
+								os << "K8s " + reason_type + " message received for existing " << data.m_kind <<
 									" [" << data.m_uid << "], updating only.";
 								g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
 							}
-							handle_component(item, &data);
 						}
 						else if(data.m_reason == COMPONENT_MODIFIED)
 						{
 							if(!m_state->has(data.m_uid))
 							{
 								std::ostringstream os;
-								os << "K8s MODIFIED message received for non-existing " << data.m_kind <<
+								os << "K8s " + reason_type + " message received for non-existing " << data.m_kind <<
 									" [" << data.m_uid << "], giving up.";
 								g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
 								return;
 							}
-							handle_component(item, &data);
 						}
 						else if(data.m_reason == COMPONENT_DELETED)
 						{
-							if(!m_state->delete_component(m_state->get_nodes(), data.m_uid))
+							if(!m_state->has(data.m_uid))
 							{
-								g_logger.log(std::string("K8s " + data.m_kind + " not found: ") + data.m_name,
-											 sinsp_logger::SEV_ERROR);
+								std::ostringstream os;
+								os << "K8s " + reason_type + " message received for non-existing " << data.m_kind <<
+									" [" << data.m_uid << "], giving up.";
+								g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
+								return;
 							}
 						}
 						else if(data.m_reason == COMPONENT_ERROR)
 						{
-							log_error(root, data.m_kind);
+							handle_error(root);
+							return;
 						}
 						else
 						{
-							g_logger.log(std::string("Unsupported K8S " + data.m_kind + " event reason: ") +
+							g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
 										 std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
+							return;
 						}
+						handle_component(item, &data);
 					} // end for nodes
 				}
 			}
 		}
 		else
 		{
-			g_logger.log(std::string("K8S NODE event type is not string."), sinsp_logger::SEV_ERROR);
+			g_logger.log(std::string("K8S event type is not string."), sinsp_logger::SEV_ERROR);
 		}
 	}
 	else
 	{
-		g_logger.log(std::string("K8S NODE event type is null."), sinsp_logger::SEV_ERROR);
+		g_logger.log(std::string("K8S event type is null."), sinsp_logger::SEV_ERROR);
 	}
 }
 
@@ -441,12 +489,32 @@ k8s_pair_list k8s_handler::extract_object(const Json::Value& object)
 	return entry_list;
 }
 
+std::string k8s_handler::name() const
+{
+	std::string n;
+	std::string::size_type pos = m_path.rfind('/');
+	if((pos != std::string::npos) && (++pos < m_path.size()))
+	{
+		n = m_path.substr(pos);
+	}
+	return n;
+}
 
-void k8s_handler::log_error(const Json::Value& root, const std::string& comp)
+void k8s_handler::handle_error(const Json::Value& root, bool log)
+{
+	// TODO: destroy this handler cleanly, if not critical,
+	//       otherwise throw
+	if(log)
+	{
+		log_error(root);
+	}
+}
+
+void k8s_handler::log_error(const Json::Value& root)
 {
 	std::string unk_err = "Unknown.";
 	std::ostringstream os;
-	os << "K8S server reported " << comp << " error: ";
+	os << "K8S server reported " << name() << " error: ";
 	if(!root.isNull())
 	{
 		Json::Value object = root["object"];

@@ -64,13 +64,28 @@ void k8s_namespace_handler::handle_component(const Json::Value& json, const msg_
 	{
 		if(m_state)
 		{
-			k8s_ns_t& ns =
-				m_state->get_component<k8s_namespaces, k8s_ns_t>(m_state->get_namespaces(),
-																 data->m_name, data->m_uid);
-			k8s_pair_list entries = k8s_component::extract_object(json, "labels");
-			if(entries.size() > 0)
+			if((data->m_reason == COMPONENT_ADDED) || (data->m_reason == COMPONENT_MODIFIED))
 			{
-				ns.set_labels(std::move(entries));
+				k8s_ns_t& ns =
+					m_state->get_component<k8s_namespaces, k8s_ns_t>(m_state->get_namespaces(),
+																	 data->m_name, data->m_uid);
+				k8s_pair_list entries = k8s_component::extract_object(json, "labels");
+				if(entries.size() > 0)
+				{
+					ns.set_labels(std::move(entries));
+				}
+			}
+			else if(data->m_reason == COMPONENT_DELETED)
+			{
+				if(!m_state->delete_component(m_state->get_namespaces(), data->m_uid))
+				{
+					log_not_found(*data);
+				}
+			}
+			else if(data->m_reason != COMPONENT_ERROR)
+			{
+				g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
+							 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);
 			}
 		}
 		else

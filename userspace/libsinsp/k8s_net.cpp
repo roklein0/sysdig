@@ -50,16 +50,41 @@ void k8s_net::cleanup()
 
 void k8s_net::watch()
 {
-	for(auto& handler : m_handlers)
+	for(auto it = m_handlers.cbegin(); it != m_handlers.cend();)
 	{
-		if(handler.second)
+		k8s_component::type comp_type = it->first;
+		if(it->second)
 		{
-			handler.second->collect_data();
+			if(it->second->connection_error())
+			{
+				if(k8s_component::is_critical(comp_type))
+				{
+					throw sinsp_exception("K8s: " + k8s_component::get_name(comp_type) + " connection error.");
+				}
+				else
+				{
+					g_logger.log("K8s: " + k8s_component::get_name(comp_type) + " connection error, removing component.",
+						 sinsp_logger::SEV_WARNING);
+					if(m_collector.has(it->second->handler()))
+					{
+						m_collector.remove(it->second->handler());
+					}
+					m_handlers.erase(it++);
+					g_logger.log("K8s: " + k8s_component::get_name(comp_type) + " removed from watched endpoints.",
+						 sinsp_logger::SEV_INFO);
+				}
+			}
+			else
+			{
+				it->second->collect_data();
+				++it;
+			}
 		}
 		else
 		{
-			g_logger.log("K8s: " + k8s_component::get_name(handler.first) + " handler is null.",
+			g_logger.log("K8s: " + k8s_component::get_name(comp_type) + " handler is null.",
 						 sinsp_logger::SEV_WARNING);
+			++it;
 		}
 	}
 }

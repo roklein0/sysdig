@@ -71,21 +71,36 @@ void k8s_daemonset_handler::handle_component(const Json::Value& json, const msg_
 	{
 		if(m_state)
 		{
-			k8s_daemonset_t& ds =
-				m_state->get_component<k8s_daemonsets, k8s_daemonset_t>(m_state->get_daemonsets(),
-															  data->m_name, data->m_uid);
-			k8s_pair_list entries = extract_object(json["labels"]);
-			if(entries.size() > 0)
+			if((data->m_reason == COMPONENT_ADDED) || (data->m_reason == COMPONENT_MODIFIED))
 			{
-				ds.set_labels(std::move(entries));
+				k8s_daemonset_t& ds =
+					m_state->get_component<k8s_daemonsets, k8s_daemonset_t>(m_state->get_daemonsets(),
+																  data->m_name, data->m_uid);
+				k8s_pair_list entries = extract_object(json["labels"]);
+				if(entries.size() > 0)
+				{
+					ds.set_labels(std::move(entries));
+				}
+				handle_selectors(ds, json["selector"]);
+				const Json::Value& desired = json["desiredScheduled"];
+				const Json::Value& current = json["currentScheduled"];
+				if(!desired.isNull() && desired.isConvertibleTo(Json::intValue) &&
+				   !current.isNull() && current.isConvertibleTo(Json::intValue))
+				{
+					ds.set_scheduled(desired.asInt(), current.asInt());
+				}
 			}
-			handle_selectors(ds, json["selector"]);
-			const Json::Value& desired = json["desiredScheduled"];
-			const Json::Value& current = json["currentScheduled"];
-			if(!desired.isNull() && desired.isConvertibleTo(Json::intValue) &&
-			   !current.isNull() && current.isConvertibleTo(Json::intValue))
+			else if(data->m_reason == COMPONENT_DELETED)
 			{
-				ds.set_scheduled(desired.asInt(), current.asInt());
+				if(!m_state->delete_component(m_state->get_daemonsets(), data->m_uid))
+				{
+					log_not_found(*data);
+				}
+			}
+			else if(data->m_reason != COMPONENT_ERROR)
+			{
+				g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
+							 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);
 			}
 		}
 		else
