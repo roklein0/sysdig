@@ -5,10 +5,7 @@
 #pragma once
 
 #include "json/json.h"
-//#include "sinsp_auth.h"
 #include "k8s_handler.h"
-
-//class sinsp;
 
 class k8s_api_handler : public k8s_handler
 {

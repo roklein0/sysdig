@@ -25,6 +25,7 @@ public:
 	typedef sinsp_curl::bearer_token::ptr_t bt_ptr_t;
 	typedef k8s_component::ext_list_ptr_t   ext_list_ptr_t;
 	typedef user_event_filter_t::ptr_t      filter_ptr_t;
+	typedef k8s_handler::ptr_t              handler_ptr_t;
 
 	k8s_net(k8s& kube, k8s_state_t& state, const std::string& uri = "http://localhost:80",
 		ssl_ptr_t ssl = nullptr,
@@ -36,6 +37,7 @@ public:
 
 	void add_handler(const k8s_component::type_map::value_type& component);
 	bool has_handler(const k8s_component::type_map::value_type& component);
+	handler_ptr_t get_handler(const k8s_component::type_map::value_type& component);
 	bool has_dependency(const k8s_component::type_map::value_type& component);
 
 	bool is_state_built(const k8s_component::type_map::value_type& component)
@@ -58,7 +60,6 @@ private:
 	void cleanup();
 
 	typedef k8s_handler::handler_t                       handler_t;
-	typedef k8s_handler::ptr_t                           handler_ptr_t;
 	typedef k8s_handler::collector_t                     collector_t;
 	typedef std::map<k8s_component::type, handler_ptr_t> handler_map_t;
 
@@ -89,6 +90,16 @@ inline bool k8s_net::has_handler(const k8s_component::type_map::value_type& comp
 {
 	auto it = m_handlers.find(component.first);
 	return (it != m_handlers.end()) && it->second;
+}
+
+inline k8s_net::handler_ptr_t k8s_net::get_handler(const k8s_component::type_map::value_type& component)
+{
+	auto it = m_handlers.find(component.first);
+	if(it != m_handlers.end())
+	{
+		return it->second;
+	}
+	return nullptr;
 }
 
 #endif // HAS_CAPTURE

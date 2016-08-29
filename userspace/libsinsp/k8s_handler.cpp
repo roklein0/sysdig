@@ -6,6 +6,8 @@
 #include "sinsp.h"
 #include "sinsp_int.h"
 
+// to match regular K8s API message format,
+// error is wrapped into a single-entry array
 std::string k8s_handler::ERROR_FILTER =
 	"{ type: \"ERROR\","
 	"  apiVersion: .apiVersion,"
@@ -289,10 +291,10 @@ k8s_handler::msg_data k8s_handler::get_msg_data(const std::string& type, const s
 	msg_data data;
 	if(!type.empty())
 	{
-		if(type[0] == 'A') { data.m_reason = COMPONENT_ADDED; }
-		else if(type[0] == 'M') { data.m_reason = COMPONENT_MODIFIED; }
-		else if(type[0] == 'D') { data.m_reason = COMPONENT_DELETED; }
-		else if(type[0] == 'E') { data.m_reason = COMPONENT_ERROR; }
+		if(type[0] == 'A') { data.m_reason = k8s_component::COMPONENT_ADDED; }
+		else if(type[0] == 'M') { data.m_reason = k8s_component::COMPONENT_MODIFIED; }
+		else if(type[0] == 'D') { data.m_reason = k8s_component::COMPONENT_DELETED; }
+		else if(type[0] == 'E') { data.m_reason = k8s_component::COMPONENT_ERROR; }
 	}
 	else
 	{
@@ -350,22 +352,22 @@ void k8s_handler::handle_json(Json::Value&& root)
 						std::string reason_type;
 						switch(data.m_reason)
 						{
-							case COMPONENT_ADDED:
+							case k8s_component::COMPONENT_ADDED:
 								reason_type = "ADDED";
 								break;
-							case COMPONENT_MODIFIED:
+							case k8s_component::COMPONENT_MODIFIED:
 								reason_type = "MODIFIED";
 								break;
-							case COMPONENT_DELETED:
+							case k8s_component::COMPONENT_DELETED:
 								reason_type = "DELETED";
 								break;
-							case COMPONENT_ERROR:
+							case k8s_component::COMPONENT_ERROR:
 								reason_type = "ERROR";
 								break;
 							default:
 								break;
 						}
-						if(data.m_reason == COMPONENT_ADDED)
+						if(data.m_reason == k8s_component::COMPONENT_ADDED)
 						{
 							if(m_state->has(data.m_uid))
 							{
@@ -375,7 +377,7 @@ void k8s_handler::handle_json(Json::Value&& root)
 								g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
 							}
 						}
-						else if(data.m_reason == COMPONENT_MODIFIED)
+						else if(data.m_reason == k8s_component::COMPONENT_MODIFIED)
 						{
 							if(!m_state->has(data.m_uid))
 							{
@@ -386,7 +388,7 @@ void k8s_handler::handle_json(Json::Value&& root)
 								return;
 							}
 						}
-						else if(data.m_reason == COMPONENT_DELETED)
+						else if(data.m_reason == k8s_component::COMPONENT_DELETED)
 						{
 							if(!m_state->has(data.m_uid))
 							{
@@ -397,9 +399,9 @@ void k8s_handler::handle_json(Json::Value&& root)
 								return;
 							}
 						}
-						else if(data.m_reason == COMPONENT_ERROR)
+						else if(data.m_reason == k8s_component::COMPONENT_ERROR)
 						{
-							handle_error(root);
+							handle_error(data, item);
 							return;
 						}
 						else
@@ -500,29 +502,28 @@ std::string k8s_handler::name() const
 	return n;
 }
 
-void k8s_handler::handle_error(const Json::Value& root, bool log)
+void k8s_handler::handle_error(const msg_data& data, const Json::Value& root, bool log)
 {
-	// TODO: destroy this handler cleanly, if not critical,
-	//       otherwise throw
 	if(log)
 	{
-		log_error(root);
+		log_error(data, root);
 	}
 }
 
-void k8s_handler::log_error(const Json::Value& root)
+void k8s_handler::log_error(const msg_data& data, const Json::Value& root)
 {
 	std::string unk_err = "Unknown.";
-	std::ostringstream os;
+	std::ostringstream os;;
 	os << "K8S server reported " << name() << " error: ";
 	if(!root.isNull())
 	{
-		Json::Value object = root["object"];
-		if(!object.isNull())
+		const Json::Value& items = root["items"];
+		if(!items.isNull() && items.isArray() && items.size())
 		{
-			os << object.toStyledString();
+			os << items[0].toStyledString();
 			unk_err.clear();
 		}
+		m_error.reset(new k8s_api_error(data, root));
 	}
 	os << unk_err;
 	g_logger.log(os.str(), sinsp_logger::SEV_ERROR);

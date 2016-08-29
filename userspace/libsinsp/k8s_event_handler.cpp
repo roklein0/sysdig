@@ -75,7 +75,8 @@ void k8s_event_handler::handle_component(const Json::Value& json, const msg_data
 		{
 			if(data)
 			{
-				if((data->m_reason == COMPONENT_ADDED) || (data->m_reason == COMPONENT_MODIFIED))
+				if((data->m_reason == k8s_component::COMPONENT_ADDED) ||
+				   (data->m_reason == k8s_component::COMPONENT_MODIFIED))
 				{
 					g_logger.log("K8s EVENT: handling event.", sinsp_logger::SEV_TRACE);
 					const Json::Value& involved_object = json["involvedObject"];

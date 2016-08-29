@@ -91,18 +91,45 @@ void k8s::check_components()
 #ifdef HAS_CAPTURE
 	if(m_net)
 	{
-		for (auto& component : m_components)
+		for (auto it = m_components.cbegin(); it != m_components.cend();)
 		{
-			if(!m_net->has_handler(component))
+			if(m_net->has_handler(*it))
 			{
-				if(component.first != k8s_component::K8S_EVENTS)
+				k8s_net::handler_ptr_t handler = m_net->get_handler(*it);
+				if(handler)
 				{
-					m_net->add_handler(component);
+					k8s_handler::api_error_ptr handler_error = handler->error();
+					// HTTP error > 400 means non-existing, forbidden, etc.
+					if(handler_error && handler_error->code() >= 400)
+					{
+						std::string handler_name = handler->name();
+						if(!k8s_component::is_critical(handler_name))
+						{
+							g_logger.log("K8s: removing " + handler_name + " due to HTTP error " +
+										 std::to_string(handler_error->code()) +
+										 ", reason: " + handler_error->reason() +
+										 ", message: " + handler_error->message(),
+										 sinsp_logger::SEV_WARNING);
+							m_components.erase(it++);
+						}
+						else
+						{
+							throw sinsp_exception(handler_error->to_string());
+						}
+					}
+				}
+			}
+			else
+			{
+				if(it->first != k8s_component::K8S_EVENTS)
+				{
+					m_net->add_handler(*it);
 				}
 				else if(m_event_filter) // events only if filter is enabled
 				{
-					m_net->add_handler(component);
+					m_net->add_handler(*it);
 				}
+				++it;
 			}
 		}
 	}

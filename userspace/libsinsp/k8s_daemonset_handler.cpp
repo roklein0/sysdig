@@ -71,7 +71,8 @@ void k8s_daemonset_handler::handle_component(const Json::Value& json, const msg_
 	{
 		if(m_state)
 		{
-			if((data->m_reason == COMPONENT_ADDED) || (data->m_reason == COMPONENT_MODIFIED))
+			if((data->m_reason == k8s_component::COMPONENT_ADDED) ||
+			   (data->m_reason == k8s_component::COMPONENT_MODIFIED))
 			{
 				k8s_daemonset_t& ds =
 					m_state->get_component<k8s_daemonsets, k8s_daemonset_t>(m_state->get_daemonsets(),
@@ -90,14 +91,14 @@ void k8s_daemonset_handler::handle_component(const Json::Value& json, const msg_
 					ds.set_scheduled(desired.asInt(), current.asInt());
 				}
 			}
-			else if(data->m_reason == COMPONENT_DELETED)
+			else if(data->m_reason == k8s_component::COMPONENT_DELETED)
 			{
 				if(!m_state->delete_component(m_state->get_daemonsets(), data->m_uid))
 				{
 					log_not_found(*data);
 				}
 			}
-			else if(data->m_reason != COMPONENT_ERROR)
+			else if(data->m_reason != k8s_component::COMPONENT_ERROR)
 			{
 				g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
 							 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);

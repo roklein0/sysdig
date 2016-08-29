@@ -7,6 +7,7 @@
 #include "json/json.h"
 #include "socket_collector.h"
 #include "k8s_state.h"
+#include "k8s_api_error.h"
 #include <unordered_set>
 
 class sinsp;
@@ -14,42 +15,8 @@ class sinsp;
 class k8s_handler
 {
 public:
-	enum msg_reason
-	{
-		COMPONENT_ADDED,
-		COMPONENT_MODIFIED,
-		COMPONENT_DELETED,
-		COMPONENT_ERROR,
-		COMPONENT_UNKNOWN // only to mark bad event messages
-	};
-
-	struct msg_data
-	{
-		msg_reason  m_reason = COMPONENT_UNKNOWN;
-		std::string m_name;
-		std::string m_uid;
-		std::string m_namespace;
-		std::string m_kind;
-
-		bool is_valid() const
-		{
-			return m_reason != COMPONENT_UNKNOWN;
-		}
-
-		std::string get_reason_desc() const
-		{
-			switch(m_reason)
-			{
-				case COMPONENT_ADDED:    return "ADDED";
-				case COMPONENT_MODIFIED: return "ADDED";
-				case COMPONENT_DELETED:  return "ADDED";
-				case COMPONENT_ERROR:    return "ADDED";
-				case COMPONENT_UNKNOWN:
-				default:                 return "UNKNOWN";
-			}
-			return "UNKNOWN";
-		}
-	};
+	typedef k8s_component::msg_reason msg_reason;
+	typedef k8s_component::msg_data msg_data;
 
 	typedef std::shared_ptr<k8s_handler>     ptr_t;
 	typedef std::vector<std::string>         uri_list_t;
@@ -59,6 +26,7 @@ public:
 	typedef socket_data_handler<k8s_handler> handler_t;
 	typedef handler_t::ptr_t                 handler_ptr_t;
 	typedef socket_collector<handler_t>      collector_t;
+	typedef std::shared_ptr<k8s_api_error>   api_error_ptr;
 
 	static const int default_timeout_ms = 1000L;
 
@@ -92,6 +60,8 @@ public:
 
 	std::string name() const;
 
+	api_error_ptr error() const;
+
 protected:
 	typedef std::unordered_set<std::string> ip_addr_list_t;
 
@@ -116,8 +86,8 @@ protected:
 	}
 
 	void log_event(const msg_data& data);
-	void handle_error(const Json::Value& root, bool log = true);
-	void log_error(const Json::Value& root);
+	void handle_error(const msg_data& data, const Json::Value& root, bool log = true);
+	void log_error(const msg_data& data, const Json::Value& root);
 	void log_not_found(const msg_data& data) const;
 
 	k8s_state_t* m_state = nullptr;
@@ -159,7 +129,8 @@ private:
 	bt_ptr_t      m_bt;
 	bool          m_req_sent = false;
 	bool          m_state_built = false;
-	bool          m_watch;
+	bool          m_watch; // some handlers only fetch state and die
+	api_error_ptr m_error;
 };
 
 inline k8s_handler::handler_ptr_t k8s_handler::handler()
@@ -199,4 +170,9 @@ inline void k8s_handler::log_not_found(const msg_data& data) const
 {
 	g_logger.log("K8s " + name() + " not found [" + data.m_uid + "]: " + data.m_name,
 				 sinsp_logger::SEV_ERROR);
+}
+
+inline k8s_handler::api_error_ptr k8s_handler::error() const
+{
+	return m_error;
 }

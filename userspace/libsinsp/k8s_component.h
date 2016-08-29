@@ -106,6 +106,42 @@ public:
 	typedef std::pair<type, std::string> component_pair;
 	typedef std::map<type, std::string>  type_map;
 	static const type_map list;
+	enum msg_reason
+	{
+		COMPONENT_ADDED,
+		COMPONENT_MODIFIED,
+		COMPONENT_DELETED,
+		COMPONENT_ERROR,
+		COMPONENT_UNKNOWN // only to mark bad event messages
+	};
+
+	struct msg_data
+	{
+		msg_reason  m_reason = COMPONENT_UNKNOWN;
+		std::string m_name;
+		std::string m_uid;
+		std::string m_namespace;
+		std::string m_kind;
+
+		bool is_valid() const
+		{
+			return m_reason != COMPONENT_UNKNOWN;
+		}
+
+		std::string get_reason_desc() const
+		{
+			switch(m_reason)
+			{
+				case COMPONENT_ADDED:    return "ADDED";
+				case COMPONENT_MODIFIED: return "ADDED";
+				case COMPONENT_DELETED:  return "ADDED";
+				case COMPONENT_ERROR:    return "ADDED";
+				case COMPONENT_UNKNOWN:
+				default:                 return "UNKNOWN";
+			}
+			return "UNKNOWN";
+		}
+	};
 
 	k8s_component() = delete;
 
