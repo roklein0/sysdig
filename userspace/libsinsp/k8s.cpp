@@ -111,6 +111,7 @@ void k8s::check_components()
 										 ", message: " + handler_error->message(),
 										 sinsp_logger::SEV_WARNING);
 							m_components.erase(it++);
+							continue;
 						}
 						else
 						{
@@ -129,8 +130,8 @@ void k8s::check_components()
 				{
 					m_net->add_handler(*it);
 				}
-				++it;
 			}
+			++it;
 		}
 	}
 	else

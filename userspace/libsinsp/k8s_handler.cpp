@@ -51,7 +51,8 @@ k8s_handler::k8s_handler(collector_t& collector,
 		m_bt(bt),
 		m_watch(watch)
 {
-	g_logger.log(std::string("Creating K8s handler object for " + m_id + " (" + m_url + ")"),
+	g_logger.log("Creating K8s " + name() + " (" + m_id + ") "
+				 "handler object for [" + m_url + m_path + ']',
 				 sinsp_logger::SEV_DEBUG);
 	make_http();
 }
@@ -172,7 +173,7 @@ void k8s_handler::process_events()
 	{
 		if(evt && !evt->isNull())
 		{
-			g_logger.log("k8s_handler (" + m_id + ") data::\n" + json_as_string(*evt),
+			g_logger.log("k8s_handler (" + m_id + ") data:\n" + json_as_string(*evt),
 				 sinsp_logger::SEV_TRACE);
 			handle_json(std::move(*evt));
 		}
@@ -253,7 +254,7 @@ void k8s_handler::collect_data()
 				g_logger.log("k8s_handler (" + m_id + ") collect_data(), connected to " + m_url + ", getting data ...",
 							 sinsp_logger::SEV_DEBUG);
 				m_collector.get_data();
-				g_logger.log("k8s_handler (" + m_id + ") " + std::to_string(m_events.size()) + " events from " + m_url,
+				g_logger.log("k8s_handler (" + m_id + ") collect_data(), " + std::to_string(m_events.size()) + " events from " + m_url,
 							 sinsp_logger::SEV_DEBUG);
 				if(m_events.size())
 				{
@@ -265,7 +266,7 @@ void k8s_handler::collect_data()
 				}
 				else
 				{
-					g_logger.log("k8s_handler (" + m_id + ") no data from " + m_url,
+					g_logger.log("k8s_handler (" + m_id + ") collect_data(), no data from " + m_url,
 							 sinsp_logger::SEV_DEBUG);
 				}
 			}
@@ -324,10 +325,11 @@ k8s_handler::msg_data k8s_handler::get_msg_data(const std::string& type, const s
 
 void k8s_handler::handle_json(Json::Value&& root)
 {
+	/*
 	if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
 	{
 		g_logger.log(json_as_string(root), sinsp_logger::SEV_TRACE);
-	}
+	}*/
 
 	if(!m_state)
 	{
@@ -348,7 +350,27 @@ void k8s_handler::handle_json(Json::Value&& root)
 					for(const Json::Value& item : root["items"])
 					{
 						msg_data data = get_msg_data(t, k, item);
-						log_event(data);
+						/*
+						  uncomment to test proper error handling
+
+						//if(name() == "replicasets") // vary name to verify (non)critical component error handling
+						if(name() == "pods")
+						{
+							std::string j = "{"
+											" \"metadata\": \"{}\","
+											" \"status\": \"Failure\","
+											" \"message\": \"the server could not find the requested resource\","
+											" \"reason\": \"NotFound\","
+											" \"details\": \"{}\","
+											" \"code\": 404"
+											"}";
+							Json::Value i;
+							Json::Reader().parse(j, i);
+							data.m_reason = k8s_component::COMPONENT_ERROR;
+							handle_error(data, i);
+							continue;
+						}
+						*/
 						std::string reason_type;
 						switch(data.m_reason)
 						{
@@ -494,11 +516,17 @@ k8s_pair_list k8s_handler::extract_object(const Json::Value& object)
 std::string k8s_handler::name() const
 {
 	std::string n;
-	std::string::size_type pos = m_path.rfind('/');
-	if((pos != std::string::npos) && (++pos < m_path.size()))
+	std::string::size_type slash_pos = m_path.rfind('/');
+	std::string::size_type qm_pos = m_path.rfind('?');
+	std::string::size_type length =
+		(qm_pos == std::string::npos) ?
+		 std::string::npos : qm_pos - slash_pos - 1;
+
+	if((slash_pos != std::string::npos) && (++slash_pos < m_path.size()))
 	{
-		n = m_path.substr(pos);
+		n = m_path.substr(slash_pos, length);
 	}
+
 	return n;
 }
 
@@ -510,20 +538,16 @@ void k8s_handler::handle_error(const msg_data& data, const Json::Value& root, bo
 	}
 }
 
-void k8s_handler::log_error(const msg_data& data, const Json::Value& root)
+void k8s_handler::log_error(const msg_data& data, const Json::Value& json)
 {
 	std::string unk_err = "Unknown.";
 	std::ostringstream os;;
-	os << "K8S server reported " << name() << " error: ";
-	if(!root.isNull())
+	os << "K8S server reported " << name() << " error for [" + m_url + m_path + "]: ";
+	if(!json.isNull())
 	{
-		const Json::Value& items = root["items"];
-		if(!items.isNull() && items.isArray() && items.size())
-		{
-			os << items[0].toStyledString();
-			unk_err.clear();
-		}
-		m_error.reset(new k8s_api_error(data, root));
+		os << std::endl << json.toStyledString();
+		unk_err.clear();
+		m_error.reset(new k8s_api_error(data, json));
 	}
 	os << unk_err;
 	g_logger.log(os.str(), sinsp_logger::SEV_ERROR);

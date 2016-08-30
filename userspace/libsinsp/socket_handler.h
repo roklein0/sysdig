@@ -575,7 +575,8 @@ private:
 				{
 					if(chunked && !purge_chunked_markers(m_data_buf))
 					{
-						g_logger.log("Socket handler (" + m_id + "): Invalid JSON data detected (chunked transfer).", sinsp_logger::SEV_ERROR);
+						g_logger.log("Socket handler (" + m_id + "): Invalid JSON data detected (chunked transfer).",
+									 sinsp_logger::SEV_ERROR);
 						(m_obj.*m_json_callback)(nullptr, m_id);
 					}
 					else

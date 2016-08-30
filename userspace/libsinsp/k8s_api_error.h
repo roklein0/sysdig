@@ -97,7 +97,7 @@ inline int k8s_api_error::code() const
 inline std::string k8s_api_error::to_string() const
 {
 	std::ostringstream os;
-	os << "Status: " << m_status << ", "
+	os << "K8s API error; Status: " << m_status << ", "
 		"Message: " << m_message << ", "
 		"Reason: " << m_reason << ", "
 		"Details: " << m_details << ", "
