@@ -32,6 +32,7 @@ public:
 
 	k8s_handler(collector_t& collector,
 		const std::string& id,
+		bool is_captured,
 		std::string url,
 		const std::string& path,
 		const std::string& state_filter,
@@ -131,6 +132,7 @@ private:
 	bool          m_state_built = false;
 	bool          m_watch; // some handlers only fetch state and die
 	api_error_ptr m_error;
+	bool          m_is_captured = false;
 };
 
 inline k8s_handler::handler_ptr_t k8s_handler::handler()

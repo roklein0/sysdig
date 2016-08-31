@@ -55,7 +55,8 @@ k8s_replicationcontroller_handler::k8s_replicationcontroller_handler(k8s_state_t
 	const std::string& http_version,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt):
-		k8s_handler(collector, "k8s_replicationcontroller_handler", url, "/api/v1/replicationcontrollers",
+		k8s_handler(collector, "k8s_replicationcontroller_handler", true,
+					url, "/api/v1/replicationcontrollers",
 					STATE_FILTER, EVENT_FILTER, http_version,
 					1000L, ssl, bt, &state)
 {

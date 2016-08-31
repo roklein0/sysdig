@@ -233,9 +233,6 @@ public:
 	bool selectors_in_labels(const k8s_pair_list& labels) const;
 
 private:
-	// functions needed by old k8s captures
-	static void extract_services_data(const Json::Value& spec, k8s_service_t& service, const std::vector<k8s_pod_t>& pods);
-	// end of functions needed by old k8s captures
 
 	type          m_type;
 	std::string   m_name;

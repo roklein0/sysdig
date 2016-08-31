@@ -24,7 +24,8 @@ k8s::k8s(const std::string& uri, bool is_captured,
 		m_state(is_captured),
 		m_event_filter(event_filter)
 #ifdef HAS_CAPTURE
-		,m_net(uri.empty() ? nullptr : new k8s_net(*this, m_state, uri, ssl, bt, extensions, event_filter))
+		,m_net(uri.empty() ?
+			   nullptr : new k8s_net(*this, m_state, uri, ssl, bt, extensions, event_filter))
 #endif
 {
 	g_logger.log(std::string("Creating K8s object for [" +
@@ -83,8 +84,6 @@ void k8s::cleanup()
 #ifdef HAS_CAPTURE
 	delete m_net;
 	m_net = nullptr;
-	delete m_dispatcher;
-	m_dispatcher = nullptr;
 #endif
 }
 
@@ -163,7 +162,7 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 {
 	switch(version)
 	{
-		case 1: // old capture format
+	case 1: // old capture format
 		{
 			Json::Value root;
 			Json::Reader reader;
@@ -203,11 +202,12 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 
 			if(component_type < k8s_component::K8S_COMPONENT_COUNT)
 			{
-				if(!m_dispatcher)
+				if(m_dispatch_map.find(component_type) == m_dispatch_map.end())
 				{
-					m_dispatcher = new k8s_dispatcher(component_type, m_state);
+					m_dispatch_map[component_type] =
+						std::unique_ptr<k8s_dispatcher>(new k8s_dispatcher(component_type, m_state));
 				}
-				m_dispatcher->extract_data(root, false);
+				m_dispatch_map[component_type]->extract_data(root, false);
 			}
 			else
 			{
@@ -215,10 +215,12 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 								  std::to_string(component_type) + ")");
 			}
 		}
-		case 2:
+		break;
+	case 2:
 		{
 			// TODO
 		}
+		break;
 		default:
 			throw sinsp_exception(std::string("K8s capture: invalid capture version (") +
 								  std::to_string(version) + ")");

@@ -28,6 +28,7 @@ std::string k8s_handler::ERROR_FILTER =
 
 k8s_handler::k8s_handler(collector_t& collector,
 	const std::string& id,
+	bool is_captured,
 	std::string url,
 	const std::string& path,
 	const std::string& state_filter,
@@ -49,7 +50,8 @@ k8s_handler::k8s_handler(collector_t& collector,
 		m_http_version(http_version),
 		m_ssl(ssl),
 		m_bt(bt),
-		m_watch(watch)
+		m_watch(watch),
+		m_is_captured(is_captured)
 {
 	g_logger.log("Creating K8s " + name() + " (" + m_id + ") "
 				 "handler object for [" + m_url + m_path + ']',
@@ -176,6 +178,16 @@ void k8s_handler::process_events()
 			g_logger.log("k8s_handler (" + m_id + ") data:\n" + json_as_string(*evt),
 				 sinsp_logger::SEV_TRACE);
 			handle_json(std::move(*evt));
+
+			// this capture flag does not indicate whether we are in capture mode - it is
+			// only an indication of whether this handler data should be captured at all
+			// (eg. there is no need to capture api or extensions detection handlers)
+			//
+			// global capture flag is checked in the k8s state call
+			if(m_is_captured)
+			{
+				m_state->enqueue_capture_event(*evt);
+			}
 		}
 		else
 		{

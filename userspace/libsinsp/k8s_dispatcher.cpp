@@ -3,6 +3,7 @@
 //
 
 #include "k8s_dispatcher.h"
+#include "k8s_service_handler.h"
 #include "sinsp.h"
 #include "sinsp_int.h"
 #include <assert.h>
@@ -393,7 +394,7 @@ void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& dat
 			}
 			k8s_service_t& service = m_state.get_component<k8s_services, k8s_service_t>(m_state.get_services(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(service, object["metadata"], "labels");
-			k8s_component::extract_services_data(object, service, m_state.get_pods());
+			k8s_service_handler::extract_services_data(object, service, m_state.get_pods());
 		}
 		else
 		{
@@ -414,7 +415,7 @@ void k8s_dispatcher::handle_service(const Json::Value& root, const msg_data& dat
 			}
 			k8s_service_t& service = m_state.get_component<k8s_services, k8s_service_t>(m_state.get_services(), data.m_name, data.m_uid, data.m_namespace);
 			handle_labels(service, object["metadata"], "labels");
-			k8s_component::extract_services_data(object, service, m_state.get_pods());
+			k8s_service_handler::extract_services_data(object, service, m_state.get_pods());
 		}
 		else
 		{

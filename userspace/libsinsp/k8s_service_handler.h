@@ -23,10 +23,10 @@ public:
 
 	~k8s_service_handler();
 
+	static void extract_services_data(const Json::Value& spec, k8s_service_t& service, const k8s_pods& pods);
 private:
 	static std::string EVENT_FILTER;
 	static std::string STATE_FILTER;
 
-	void extract_services_data(const Json::Value& spec, k8s_service_t& service, const k8s_pods& pods);
 	virtual void handle_component(const Json::Value& json, const msg_data* data = 0);
 };

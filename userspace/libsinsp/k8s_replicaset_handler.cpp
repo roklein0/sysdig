@@ -55,7 +55,8 @@ k8s_replicaset_handler::k8s_replicaset_handler(k8s_state_t& state,
 	const std::string& http_version,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt):
-		k8s_handler(collector, "k8s_replicaset_handler", url, "/apis/extensions/v1beta1/replicasets",
+		k8s_handler(collector, "k8s_replicaset_handler", true,
+					url, "/apis/extensions/v1beta1/replicasets",
 					STATE_FILTER, EVENT_FILTER, http_version,
 					1000L, ssl, bt, &state)
 {

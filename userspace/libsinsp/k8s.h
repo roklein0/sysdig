@@ -57,7 +57,9 @@ public:
 	std::string dequeue_capture_event() { return m_state.dequeue_capture_event(); }
 #endif // HAS_CAPTURE
 
-	// version 1 is to support k8s events captured in old format, before refactoring
+	// version:
+	//   - 1 to support k8s events captured in old format (before refactoring)
+	//   - 2 to support k8s events captured in new format (after refactoring)
 	void simulate_watch_event(const std::string& json, int version = 2);
 
 private:
@@ -68,8 +70,9 @@ private:
 	k8s_state_t  m_state;
 	filter_ptr_t m_event_filter;
 #ifdef HAS_CAPTURE
-	k8s_net*        m_net = nullptr;
-	k8s_dispatcher* m_dispatcher = nullptr;
+	typedef std::map<k8s_component::type, std::unique_ptr<k8s_dispatcher>> dispatch_map_t;
+	k8s_net*       m_net = nullptr;
+	dispatch_map_t m_dispatch_map;
 #endif
 
 	static k8s_component::type_map m_components;

@@ -16,7 +16,7 @@ k8s_api_handler::k8s_api_handler(collector_t& collector,
 	const std::string& http_version,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt):
-		k8s_handler(collector, "k8s_api_handler", url, path,
+		k8s_handler(collector, "k8s_api_handler", false, url, path,
 					filter, ".", http_version,
 					1000L, ssl, bt, nullptr, false)
 {
