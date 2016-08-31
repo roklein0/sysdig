@@ -16,6 +16,8 @@
 #include <sstream>
 #include <utility>
 
+class k8s_dispatcher;
+
 class k8s
 {
 public:
@@ -55,7 +57,8 @@ public:
 	std::string dequeue_capture_event() { return m_state.dequeue_capture_event(); }
 #endif // HAS_CAPTURE
 
-	void simulate_watch_event(const std::string& json);
+	// version 1 is to support k8s events captured in old format, before refactoring
+	void simulate_watch_event(const std::string& json, int version = 2);
 
 private:
 	void stop_watch();
@@ -65,7 +68,8 @@ private:
 	k8s_state_t  m_state;
 	filter_ptr_t m_event_filter;
 #ifdef HAS_CAPTURE
-	k8s_net*     m_net;
+	k8s_net*        m_net = nullptr;
+	k8s_dispatcher* m_dispatcher = nullptr;
 #endif
 
 	static k8s_component::type_map m_components;

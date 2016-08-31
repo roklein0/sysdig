@@ -31,7 +31,7 @@ std::string k8s_api_error::get_string(const Json::Value& obj, const std::string&
 
 int k8s_api_error::get_int(const Json::Value& obj, const std::string& name)
 {
-	int value;
+	int value = 0;
 	const Json::Value& val = obj[name];
 	if(!val.isNull() && val.isConvertibleTo(Json::intValue))
 	{

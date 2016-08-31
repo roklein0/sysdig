@@ -37,6 +37,7 @@ add_library(sinsp STATIC
 	k8s_component.cpp
 	k8s_daemonset_handler.cpp
 	k8s_deployment_handler.cpp
+	k8s_dispatcher.cpp
 	k8s_event_data.cpp
 	k8s_event_handler.cpp
 	k8s_handler.cpp

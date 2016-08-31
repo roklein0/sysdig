@@ -4,7 +4,7 @@
 
 #include "k8s.h"
 #include "k8s_component.h"
-//#include "k8s_dispatcher.h"
+#include "k8s_dispatcher.h"
 #include "sinsp.h"
 #include "sinsp_int.h"
 #include <sstream>
@@ -24,7 +24,7 @@ k8s::k8s(const std::string& uri, bool is_captured,
 		m_state(is_captured),
 		m_event_filter(event_filter)
 #ifdef HAS_CAPTURE
-		,m_net(uri.empty() ? 0 : new k8s_net(*this, m_state, uri, ssl, bt, extensions, event_filter))
+		,m_net(uri.empty() ? nullptr : new k8s_net(*this, m_state, uri, ssl, bt, extensions, event_filter))
 #endif
 {
 	g_logger.log(std::string("Creating K8s object for [" +
@@ -82,7 +82,9 @@ void k8s::cleanup()
 {
 #ifdef HAS_CAPTURE
 	delete m_net;
-	m_net = 0;
+	m_net = nullptr;
+	delete m_dispatcher;
+	m_dispatcher = nullptr;
 #endif
 }
 
@@ -157,47 +159,70 @@ void k8s::watch()
 #endif
 }
 
-void k8s::simulate_watch_event(const std::string& json)
+void k8s::simulate_watch_event(const std::string& json, int version)
 {
-	Json::Value root;
-	Json::Reader reader;
-	k8s_component::type component_type = k8s_component::K8S_COMPONENT_COUNT;
-	if(reader.parse(json, root, false))
+	switch(version)
 	{
-		Json::Value kind = root["kind"];
-		if(!kind.isNull() && kind.isString())
+		case 1: // old capture format
 		{
-			std::string type = kind.asString();
-			if(type == "Namespace")                  { component_type = k8s_component::K8S_NAMESPACES;             }
-			else if(type == "Node")                  { component_type = k8s_component::K8S_NODES;                  }
-			else if(type == "Pod")                   { component_type = k8s_component::K8S_PODS;                   }
-			else if(type == "ReplicationController") { component_type = k8s_component::K8S_REPLICATIONCONTROLLERS; }
-			else if(type == "ReplicaSet")            { component_type = k8s_component::K8S_REPLICASETS;            }
-			else if(type == "Service")               { component_type = k8s_component::K8S_SERVICES;               }
-			else if(type == "DaemonSet")             { component_type = k8s_component::K8S_DAEMONSETS;             }
-			else if(type == "Deployment")            { component_type = k8s_component::K8S_DEPLOYMENTS;            }
-			else if(type == "EventList")             { component_type = k8s_component::K8S_EVENTS;                 }
+			Json::Value root;
+			Json::Reader reader;
+			k8s_component::type component_type = k8s_component::K8S_COMPONENT_COUNT;
+			if(reader.parse(json, root, false))
+			{
+				Json::Value kind = root["kind"];
+				if(!kind.isNull() && kind.isString())
+				{
+					std::string type = kind.asString();
+					if(type == "Namespace")                  { component_type = k8s_component::K8S_NAMESPACES;             }
+					else if(type == "Node")                  { component_type = k8s_component::K8S_NODES;                  }
+					else if(type == "Pod")                   { component_type = k8s_component::K8S_PODS;                   }
+					else if(type == "ReplicationController") { component_type = k8s_component::K8S_REPLICATIONCONTROLLERS; }
+					else if(type == "ReplicaSet")            { component_type = k8s_component::K8S_REPLICASETS;            }
+					else if(type == "Service")               { component_type = k8s_component::K8S_SERVICES;               }
+					else if(type == "DaemonSet")             { component_type = k8s_component::K8S_DAEMONSETS;             }
+					else if(type == "Deployment")            { component_type = k8s_component::K8S_DEPLOYMENTS;            }
+					else if(type == "EventList")             { component_type = k8s_component::K8S_EVENTS;                 }
+					else
+					{
+						g_logger.log("Unrecognized component type: " + type, sinsp_logger::SEV_ERROR);
+						return;
+					}
+				}
+				else
+				{
+					g_logger.log("Component type not found in JSON", sinsp_logger::SEV_ERROR);
+					return;
+				}
+			}
 			else
 			{
-				g_logger.log("Unrecognized component type: " + type, sinsp_logger::SEV_ERROR);
+				g_logger.log("Error parsing JSON", sinsp_logger::SEV_ERROR);
 				return;
 			}
-		}
-		else
-		{
-			g_logger.log("Component type not found in JSON", sinsp_logger::SEV_ERROR);
-			return;
-		}
-	}
-	else
-	{
-		g_logger.log("Error parsing JSON", sinsp_logger::SEV_ERROR);
-		return;
-	}
 
-	ASSERT(component_type < k8s_component::K8S_COMPONENT_COUNT);
-	// TODO: for new data collection
-	//m_dispatch[component_type]->extract_data(root, false);
+			if(component_type < k8s_component::K8S_COMPONENT_COUNT)
+			{
+				if(!m_dispatcher)
+				{
+					m_dispatcher = new k8s_dispatcher(component_type, m_state);
+				}
+				m_dispatcher->extract_data(root, false);
+			}
+			else
+			{
+				throw sinsp_exception(std::string("K8s capture: unknown component type (") +
+								  std::to_string(component_type) + ")");
+			}
+		}
+		case 2:
+		{
+			// TODO
+		}
+		default:
+			throw sinsp_exception(std::string("K8s capture: invalid capture version (") +
+								  std::to_string(version) + ")");
+	}
 }
 
 std::size_t k8s::count(k8s_component::type component) const

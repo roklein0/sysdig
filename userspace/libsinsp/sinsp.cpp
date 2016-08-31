@@ -1870,52 +1870,60 @@ void sinsp::update_k8s_state()
 			init_k8s_client(m_k8s_api_server, m_k8s_api_cert, m_verbose_json);
 		}
 	}*/
-	if(m_k8s_client && m_k8s_api_server && !m_k8s_api_server->empty())
+	try
 	{
-		if(!m_k8s_api_detected)
+		if(m_k8s_client && m_k8s_api_server && !m_k8s_api_server->empty())
 		{
-			if(!m_k8s_api_handler)
+			if(!m_k8s_api_detected)
 			{
-				if(!m_k8s_collector)
+				if(!m_k8s_api_handler)
 				{
-					m_k8s_collector.reset(new k8s_handler::collector_t());
-				}
-				if(uri(*m_k8s_api_server).is_secure() && (!m_k8s_ssl || ! m_k8s_bt))
-				{
-					init_k8s_ssl(m_k8s_api_server, m_k8s_api_cert);
-				}
-				m_k8s_api_handler.reset(new k8s_api_handler(*m_k8s_collector, *m_k8s_api_server, "/api", ".versions", "1.0", m_k8s_ssl, m_k8s_bt));
-				
-			}
-			else
-			{
-				m_k8s_api_handler->collect_data();
-				if(m_k8s_api_handler->ready())
-				{
-					g_logger.log("K8s API handler data received.", sinsp_logger::SEV_DEBUG);
-					if(m_k8s_api_handler->error())
+					if(!m_k8s_collector)
 					{
-						g_logger.log("K8s API handler data error occurred while detecting API versions.",
-									 sinsp_logger::SEV_ERROR);
+						m_k8s_collector.reset(new k8s_handler::collector_t());
 					}
-					else
+					if(uri(*m_k8s_api_server).is_secure() && (!m_k8s_ssl || ! m_k8s_bt))
 					{
-						m_k8s_api_detected = m_k8s_api_handler->has("v1");
+						init_k8s_ssl(m_k8s_api_server, m_k8s_api_cert);
 					}
-					m_k8s_collector.reset();
-					m_k8s_api_handler.reset();
+					m_k8s_api_handler.reset(new k8s_api_handler(*m_k8s_collector, *m_k8s_api_server, "/api", ".versions", "1.0", m_k8s_ssl, m_k8s_bt));
 				}
 				else
 				{
-					g_logger.log("K8s API handler not ready yet.", sinsp_logger::SEV_DEBUG);
+					m_k8s_api_handler->collect_data();
+					if(m_k8s_api_handler->ready())
+					{
+						g_logger.log("K8s API handler data received.", sinsp_logger::SEV_DEBUG);
+						if(m_k8s_api_handler->error())
+						{
+							g_logger.log("K8s API handler data error occurred while detecting API versions.",
+										 sinsp_logger::SEV_ERROR);
+						}
+						else
+						{
+							m_k8s_api_detected = m_k8s_api_handler->has("v1");
+						}
+						m_k8s_collector.reset();
+						m_k8s_api_handler.reset();
+					}
+					else
+					{
+						g_logger.log("K8s API handler not ready yet.", sinsp_logger::SEV_DEBUG);
+					}
 				}
 			}
-		}
 
-		if(m_k8s_api_detected)
-		{
-			collect_k8s();
+			if(m_k8s_api_detected)
+			{
+				collect_k8s();
+			}
 		}
+	}
+	catch(std::exception& e)
+	{
+		g_logger.log(std::string("Error fetching K8s data: ").append(e.what()), sinsp_logger::SEV_ERROR);
+		delete m_k8s_client;
+		m_k8s_client = nullptr;
 	}
 }
 
