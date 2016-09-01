@@ -50,15 +50,15 @@ std::string k8s_daemonset_handler::STATE_FILTER =
 	"}";
 
 k8s_daemonset_handler::k8s_daemonset_handler(k8s_state_t& state,
-	collector_t& collector,
+	collector_ptr_t collector,
 	std::string url,
 	const std::string& http_version,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt):
-		k8s_handler(collector, "k8s_daemonset_handler", true,
-					url, "/apis/extensions/v1beta1/daemonsets",
-					STATE_FILTER, EVENT_FILTER, http_version,
-					1000L, ssl, bt, &state)
+		k8s_handler("k8s_daemonset_handler", true, url,
+					"/apis/extensions/v1beta1/daemonsets",
+					STATE_FILTER, EVENT_FILTER, collector,
+					http_version, 1000L, ssl, bt, &state)
 {
 }
 

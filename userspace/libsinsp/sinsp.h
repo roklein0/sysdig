@@ -843,7 +843,7 @@ private:
 	uint64_t m_k8s_last_watch_time_ns;
 	//unique_ptr<k8s_handler::collector_t> m_k8s_collector;
 	unique_ptr<k8s_api_handler> m_k8s_api_handler;
-	unique_ptr<socket_collector<socket_data_handler<k8s_handler>>> m_k8s_collector;
+	shared_ptr<socket_collector<socket_data_handler<k8s_handler>>> m_k8s_collector;
 	bool m_k8s_api_detected = false;
 
 	//

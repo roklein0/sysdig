@@ -4033,21 +4033,20 @@ int sinsp_parser::get_k8s_version(const std::string& json)
 		Json::Value root;
 		if(Json::Reader().parse(json, root))
 		{
-			const Json::Value& items = root["items"];
-			const Json::Value& kind = root["kind"];
-
-			if(!kind.isNull())
-			{
-				m_k8s_capture_version = 1;
-			}
-			else if(!items.isNull())
+			const Json::Value& items = root["items"]; // new
+			if(!items.isNull())
 			{
 				m_k8s_capture_version = 2;
+				return m_k8s_capture_version;
 			}
-			if(m_k8s_capture_version == -1)
+
+			const Json::Value& object = root["object"]; // old
+			if(!object.isNull())
 			{
-				throw sinsp_exception("Unrecognized K8s capture format.");
+				m_k8s_capture_version = 1;
+				return m_k8s_capture_version;
 			}
+			throw sinsp_exception("Unrecognized K8s capture format.");
 		}
 		else
 		{

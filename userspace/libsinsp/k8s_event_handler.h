@@ -17,8 +17,8 @@ public:
 	typedef user_event_filter_t::ptr_t filter_ptr_t;
 
 	k8s_event_handler(k8s_state_t& state,
-		collector_t& collector,
-		std::string url,
+		collector_ptr_t collector = nullptr,
+		std::string url = "",
 		const std::string& http_version = "1.0",
 		ssl_ptr_t ssl = 0,
 		bt_ptr_t bt = 0,

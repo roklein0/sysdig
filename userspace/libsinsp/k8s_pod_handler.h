@@ -15,8 +15,8 @@ class k8s_pod_handler : public k8s_handler
 {
 public:
 	k8s_pod_handler(k8s_state_t& state,
-		collector_t& collector,
-		std::string url,
+		collector_ptr_t collector = nullptr,
+		std::string url = "",
 		const std::string& http_version = "1.0",
 		ssl_ptr_t ssl = 0,
 		bt_ptr_t bt = 0);

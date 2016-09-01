@@ -26,17 +26,18 @@ public:
 	typedef socket_data_handler<k8s_handler> handler_t;
 	typedef handler_t::ptr_t                 handler_ptr_t;
 	typedef socket_collector<handler_t>      collector_t;
+	typedef std::shared_ptr<socket_collector<handler_t>>      collector_ptr_t;
 	typedef std::shared_ptr<k8s_api_error>   api_error_ptr;
 
 	static const int default_timeout_ms = 1000L;
 
-	k8s_handler(collector_t& collector,
-		const std::string& id,
+	k8s_handler(const std::string& id,
 		bool is_captured,
 		std::string url,
 		const std::string& path,
 		const std::string& state_filter,
 		const std::string& event_filter,
+		collector_ptr_t collector = nullptr,
 		const std::string& http_version = "1.0",
 		int timeout_ms = default_timeout_ms,
 		ssl_ptr_t ssl = nullptr,
@@ -112,27 +113,47 @@ private:
 
 	const std::string& translate_name(const std::string& event_name);
 
-	collector_t&  m_collector;
-	handler_ptr_t m_http;
-	std::string   m_id;
-	std::string   m_path;
-	std::string   m_state_filter;
-	std::string   m_event_filter;
-	std::string&  m_filter;
-	std::string   m_event_uri;
-	event_list_t  m_events;
-	long          m_timeout_ms;
-	std::string   m_machine_id;
-	json_query    m_jq;
-	std::string   m_url;
-	std::string   m_http_version;
-	ssl_ptr_t     m_ssl;
-	bt_ptr_t      m_bt;
-	bool          m_req_sent = false;
-	bool          m_state_built = false;
-	bool          m_watch; // some handlers only fetch state and die
+	collector_ptr_t m_collector;
+	handler_ptr_t   m_http;
+	std::string     m_id;
+	std::string     m_path;
+	std::string     m_state_filter;
+	std::string     m_event_filter;
+	std::string&    m_filter;
+	std::string     m_event_uri;
+	event_list_t    m_events;
+	long            m_timeout_ms;
+	std::string     m_machine_id;
+	json_query      m_jq;
+	std::string     m_url;
+	std::string     m_http_version;
+	ssl_ptr_t       m_ssl;
+	bt_ptr_t        m_bt;
+	bool            m_req_sent = false;
+	bool            m_state_built = false;
+
+	// some handlers only fetch state and die by design (eg. api or extensions handlers
+	// have no need to continuously watch for updates)
+	// this flag indicates whether handler should continue to watch after receiving
+	// the initial state
+	bool m_watch;
+
+	// error indicating something went wrong with the K8s component handled by this handler
+	// this error is later examined by k8s::check_components() and if it is
+	// HTTP status > 400, one of the following actions is taken:
+	//  - if component is critical for consistent k8s state (eg. namepace, node, pod),
+	//    exception is thrown and, consequently, the whole k8s framework will be destroyed
+	//  - if component is not critical (eg. extensions like daemonset or deployment),
+	//    error is logged and handler is destroyed, but the k8s framework continues to
+	//    exist without it, only receiving data for existing components
 	api_error_ptr m_error;
-	bool          m_is_captured = false;
+
+	// this capture flag does not indicate whether we are in global capture mode,
+	// it is only an indication of whether this handler data should be captured
+	// at all (eg. there is no need to capture api or extensions detection data)
+	//
+	// global capture flag is checked in the k8s state call
+	bool m_is_captured = false;
 };
 
 inline k8s_handler::handler_ptr_t k8s_handler::handler()

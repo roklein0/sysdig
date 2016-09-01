@@ -9,15 +9,15 @@
 // filters normalize state and event JSONs, so they can be processed generically:
 // event is turned into a single-entry array, state is turned into an array of ADDED events
 
-k8s_api_handler::k8s_api_handler(collector_t& collector,
+k8s_api_handler::k8s_api_handler(collector_ptr_t collector,
 	const std::string& url,
 	const std::string& path,
 	const std::string& filter,
 	const std::string& http_version,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt):
-		k8s_handler(collector, "k8s_api_handler", false, url, path,
-					filter, ".", http_version,
+		k8s_handler("k8s_api_handler", false, url, path,
+					filter, ".", collector, http_version,
 					1000L, ssl, bt, nullptr, false)
 {
 }

@@ -1880,13 +1880,13 @@ void sinsp::update_k8s_state()
 				{
 					if(!m_k8s_collector)
 					{
-						m_k8s_collector.reset(new k8s_handler::collector_t());
+						m_k8s_collector = std::make_shared<k8s_handler::collector_t>();
 					}
 					if(uri(*m_k8s_api_server).is_secure() && (!m_k8s_ssl || ! m_k8s_bt))
 					{
 						init_k8s_ssl(m_k8s_api_server, m_k8s_api_cert);
 					}
-					m_k8s_api_handler.reset(new k8s_api_handler(*m_k8s_collector, *m_k8s_api_server, "/api", ".versions", "1.0", m_k8s_ssl, m_k8s_bt));
+					m_k8s_api_handler.reset(new k8s_api_handler(m_k8s_collector, *m_k8s_api_server, "/api", ".versions", "1.0", m_k8s_ssl, m_k8s_bt));
 				}
 				else
 				{

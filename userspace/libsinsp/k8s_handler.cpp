@@ -26,13 +26,13 @@ std::string k8s_handler::ERROR_FILTER =
 	"  ]"
 	"}";
 
-k8s_handler::k8s_handler(collector_t& collector,
-	const std::string& id,
+k8s_handler::k8s_handler(const std::string& id,
 	bool is_captured,
 	std::string url,
 	const std::string& path,
 	const std::string& state_filter,
 	const std::string& event_filter,
+	collector_ptr_t collector,
 	const std::string& http_version,
 	int timeout_ms,
 	ssl_ptr_t ssl,
@@ -94,13 +94,13 @@ void k8s_handler::check_enabled()
 
 bool k8s_handler::connect()
 {
-	if(m_http)
+	if(m_collector && m_http)
 	{
-		if(!m_collector.has(m_http))
+		if(!m_collector->has(m_http))
 		{
 			g_logger.log(std::string("k8s_handler (" + m_id +
 									 ") connect() adding socket to collector"), sinsp_logger::SEV_TRACE);
-			m_collector.add(m_http);
+			m_collector->add(m_http);
 			return false;
 		}
 		if(m_http->is_connecting())
@@ -117,7 +117,7 @@ bool k8s_handler::connect()
 			return true;
 		}
 	}
-	else
+	else if (!m_url.empty())
 	{
 		g_logger.log(std::string("k8s_handler (" + m_id +
 									 ") connect(), http is null, (re)creating ... "), sinsp_logger::SEV_WARNING);
@@ -162,7 +162,7 @@ bool k8s_handler::is_alive() const
 
 void k8s_handler::check_collector_status()
 {
-	if(!m_collector.is_healthy(m_http))
+	if(m_collector && !m_collector->is_healthy(m_http))
 	{
 		throw sinsp_exception("k8s_handler (" + m_id + ") collector not healthy, "
 							  "giving up on data collection in this cycle ...");
@@ -179,11 +179,6 @@ void k8s_handler::process_events()
 				 sinsp_logger::SEV_TRACE);
 			handle_json(std::move(*evt));
 
-			// this capture flag does not indicate whether we are in capture mode - it is
-			// only an indication of whether this handler data should be captured at all
-			// (eg. there is no need to capture api or extensions detection handlers)
-			//
-			// global capture flag is checked in the k8s state call
 			if(m_is_captured)
 			{
 				m_state->enqueue_capture_event(*evt);
@@ -201,11 +196,11 @@ void k8s_handler::process_events()
 
 void k8s_handler::check_state()
 {
-	if(!m_state_built && m_watch)
+	if(m_collector && !m_state_built && m_watch)
 	{
 		// done with initial state handling, switch to events
 		m_state_built = true;
-		m_collector.remove(m_http);
+		m_collector->remove(m_http);
 		m_http.reset();
 		std::string::size_type pos = m_id.find("_state");
 		if(pos != std::string::npos)
@@ -242,7 +237,7 @@ bool k8s_handler::connection_error() const
 
 void k8s_handler::collect_data()
 {
-	if(m_http)
+	if(m_collector && m_http)
 	{
 		process_events(); // there may be leftovers from state connection closed by collector
 		check_state(); // switch to events, if needed
@@ -261,11 +256,11 @@ void k8s_handler::collect_data()
 							 sinsp_logger::SEV_DEBUG);
 				send_data_request();
 			}
-			if(m_collector.subscription_count())
+			if(m_collector->subscription_count())
 			{
 				g_logger.log("k8s_handler (" + m_id + ") collect_data(), connected to " + m_url + ", getting data ...",
 							 sinsp_logger::SEV_DEBUG);
-				m_collector.get_data();
+				m_collector->get_data();
 				g_logger.log("k8s_handler (" + m_id + ") collect_data(), " + std::to_string(m_events.size()) + " events from " + m_url,
 							 sinsp_logger::SEV_DEBUG);
 				if(m_events.size())
