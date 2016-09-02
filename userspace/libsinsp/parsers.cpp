@@ -4027,23 +4027,27 @@ uint8_t* sinsp_parser::reserve_event_buffer()
 
 int sinsp_parser::get_k8s_version(const std::string& json)
 {
-	if(m_k8s_capture_version == -1)
+	if(m_k8s_capture_version == k8s_state_t::CAPTURE_VERSION_NONE)
 	{
-		//g_logger.log(json, sinsp_logger::SEV_DEBUG);
+		g_logger.log(json, sinsp_logger::SEV_DEBUG);
 		Json::Value root;
 		if(Json::Reader().parse(json, root))
 		{
 			const Json::Value& items = root["items"]; // new
 			if(!items.isNull())
 			{
-				m_k8s_capture_version = 2;
+				g_logger.log("K8s capture version " + std::to_string(k8s_state_t::CAPTURE_VERSION_2) + " detected.",
+							 sinsp_logger::SEV_DEBUG);
+				m_k8s_capture_version = k8s_state_t::CAPTURE_VERSION_2;
 				return m_k8s_capture_version;
 			}
 
 			const Json::Value& object = root["object"]; // old
 			if(!object.isNull())
 			{
-				m_k8s_capture_version = 1;
+				g_logger.log("K8s capture version " + std::to_string(k8s_state_t::CAPTURE_VERSION_2) + " detected.",
+							 sinsp_logger::SEV_DEBUG);
+				m_k8s_capture_version = k8s_state_t::CAPTURE_VERSION_1;
 				return m_k8s_capture_version;
 			}
 			throw sinsp_exception("Unrecognized K8s capture format.");
@@ -4066,7 +4070,7 @@ void sinsp_parser::parse_k8s_evt(sinsp_evt *evt)
 	//g_logger.log(json, sinsp_logger::SEV_DEBUG);
 	ASSERT(m_inspector);
 	ASSERT(m_inspector->m_k8s_client);
-	m_inspector->m_k8s_client->simulate_watch_event(json, get_k8s_version(json));
+	m_inspector->m_k8s_client->simulate_watch_event(std::move(json), get_k8s_version(json));
 }
 
 void sinsp_parser::parse_mesos_evt(sinsp_evt *evt)

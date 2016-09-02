@@ -165,7 +165,7 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 	k8s_component::type component_type = k8s_component::K8S_COMPONENT_COUNT;
 	if(reader.parse(json, root, false))
 	{
-		Json::Value kind = root["kind"];
+		const Json::Value& kind = root["kind"];
 		if(!kind.isNull() && kind.isString())
 		{
 			std::string type = kind.asString();
@@ -196,9 +196,13 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 		return;
 	}
 
+	if(m_state.get_capture_version() == k8s_state_t::CAPTURE_VERSION_NONE)
+	{
+		m_state.set_capture_version(version);
+	}
 	switch(version)
 	{
-	case 1: // old capture format
+	case k8s_state_t::CAPTURE_VERSION_1: // old capture format
 		if(component_type < k8s_component::K8S_COMPONENT_COUNT)
 		{
 			if(m_dispatch_map.find(component_type) == m_dispatch_map.end())
@@ -214,14 +218,23 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 							  std::to_string(component_type) + ")");
 		}
 		break;
-	case 2:
+	case k8s_state_t::CAPTURE_VERSION_2:
 		if(component_type < k8s_component::K8S_COMPONENT_COUNT)
 		{
 			if(m_handler_map.find(component_type) == m_handler_map.end())
 			{
 				m_handler_map[component_type] = k8s_net::get_handler(m_state, component_type);
+				if(m_handler_map[component_type])
+				{
+					m_handler_map[component_type]->handle_json(std::move(root));
+				}
+				else
+				{
+					throw sinsp_exception(std::string("K8s capture replay: error creating ") +
+										  k8s_component::get_name(component_type) +
+										  " handler");
+				}
 			}
-			//m_handler_map[component_type]->extract_data(root, false);
 		}
 		else
 		{

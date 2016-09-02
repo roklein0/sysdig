@@ -3,6 +3,7 @@
 //
 
 #include "k8s_state.h"
+#include "k8s_pod_handler.h"
 #include "sinsp.h"
 #include "sinsp_int.h"
 #include <sstream>
@@ -16,21 +17,43 @@ const std::string k8s_state_t::m_docker_prefix = "docker://";
 const std::string k8s_state_t::m_rkt_prefix = "rkt://";
 const unsigned    k8s_state_t::m_id_length = 12u;
 
-k8s_state_t::k8s_state_t(bool is_captured) : m_is_captured(is_captured)
+k8s_state_t::k8s_state_t(bool is_captured, int capture_version):
+	m_is_captured(is_captured),
+	m_capture_version(capture_version)
 {
 }
 
 // state/pods
 
 void k8s_state_t::update_pod(k8s_pod_t& pod, const Json::Value& item)
-{/*
-	k8s_pod_t::container_id_list container_ids = k8s_component::extract_pod_container_ids(item);
-	k8s_container::list containers = k8s_component::extract_pod_containers(item);
-	k8s_component::extract_pod_data(item, pod);
-	pod.set_restart_count(k8s_component::extract_pod_restart_count(item));
+{
+	k8s_pod_t::container_id_list container_ids = k8s_pod_handler::extract_pod_container_ids(item);
+	k8s_container::list containers = k8s_pod_handler::extract_pod_containers(item);
+	k8s_pod_handler::extract_pod_data(item, pod);
+	pod.set_restart_count(k8s_pod_handler::extract_pod_restart_count(item));
 	pod.set_container_ids(std::move(container_ids));
 	pod.set_containers(std::move(containers));
-*/}
+}
+
+void k8s_state_t::cache_pod(container_pod_map& map, const std::string& id, const k8s_pod_t* pod)
+{
+	ASSERT(pod);
+	ASSERT(!pod->get_name().empty());
+	std::string::size_type pos = id.find(m_docker_prefix);
+	if (pos == 0)
+	{
+		map[id.substr(m_docker_prefix.size(), m_id_length)] = pod;
+		return;
+	}
+	pos = id.find(m_rkt_prefix);
+	if( pos == 0)
+	{
+		map[id.substr(m_rkt_prefix.size())] = pod;
+		return;
+	}
+	throw sinsp_exception("Invalid container ID (expected '" + m_docker_prefix +
+						  "{ID}' or '" + m_rkt_prefix + "{ID}'): " + id);
+}
 
 bool k8s_state_t::has_pod(k8s_pod_t& pod)
 {
@@ -552,7 +575,22 @@ void k8s_state_t::enqueue_capture_event(const Json::Value& item)
 {
 	if(m_is_captured)
 	{
-		m_capture_events.emplace_back(Json::FastWriter().write(extract_capture_data(item)));
+		std::string json;
+		if(m_capture_version == 1)
+		{
+			json = Json::FastWriter().write(extract_capture_data(item));
+		}
+		else if(m_capture_version == 2)
+		{
+			json = Json::FastWriter().write(item);
+		}
+		else
+		{
+			throw sinsp_exception(std::string("K8s : invalid capture version (") +
+								  std::to_string(m_capture_version) + ')');
+		}
+		m_capture_events.emplace_back(json);
+		g_logger.log("K8s captured:\n" + json, sinsp_logger::SEV_DEBUG);
 	}
 }
 
@@ -562,7 +600,7 @@ std::string k8s_state_t::dequeue_capture_event()
 	{
 		throw sinsp_exception("Invalid event dequeue request.");
 	}
-	std::string ev = std::move(m_capture_events.front());
+	std::string ev = m_capture_events.front();
 	m_capture_events.pop_front();
 	return ev;
 }

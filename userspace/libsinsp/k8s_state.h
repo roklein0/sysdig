@@ -26,7 +26,11 @@ public:
 	typedef std::unordered_multimap<std::string, const k8s_service_t*> pod_service_map;
 	typedef std::unordered_map<std::string, const k8s_rc_t*>           pod_rc_map;
 
-	k8s_state_t(bool is_captured = false);
+	static const int CAPTURE_VERSION_NONE = -1;
+	static const int CAPTURE_VERSION_1 = 1;
+	static const int CAPTURE_VERSION_2 = 2;
+
+	k8s_state_t(bool is_captured = false, int capture_version = CAPTURE_VERSION_2);
 
 	//
 	// namespaces
@@ -242,6 +246,8 @@ public:
 	const pod_rc_map& get_pod_rc_map() const { return m_pod_rcs; }
 
 #ifdef HAS_CAPTURE
+	void set_capture_version(int version);
+	int get_capture_version() const;
 	typedef std::deque<std::string> event_list_t;
 	const event_list_t& get_capture_events() const { return m_capture_events; }
 	void enqueue_capture_event(const Json::Value& item);
@@ -285,25 +291,7 @@ private:
 		return false;
 	}
 
-	void cache_pod(container_pod_map& map, const std::string& id, const k8s_pod_t* pod)
-	{
-		ASSERT(pod);
-		ASSERT(!pod->get_name().empty());
-		std::string::size_type pos = id.find(m_docker_prefix);
-		if (pos == 0)
-		{
-			map[id.substr(m_docker_prefix.size(), m_id_length)] = pod;
-			return;
-		}
-		pos = id.find(m_rkt_prefix);
-		if( pos == 0)
-		{
-			map[id.substr(m_rkt_prefix.size())] = pod;
-			return;
-		}
-		throw sinsp_exception("Invalid container ID (expected '" + m_docker_prefix +
-							  "{ID}' or '" + m_rkt_prefix + "{ID}'): " + id);
-	}
+	void cache_pod(container_pod_map& map, const std::string& id, const k8s_pod_t* pod);
 
 	template<typename C>
 	void cache_component(C& map, const std::string& key, typename C::mapped_type component)
@@ -355,6 +343,7 @@ private:
 	// used by to quickly lookup any component by uid
 	component_map_t m_component_map;
 	bool            m_is_captured;
+	int             m_capture_version = -1;
 
 	friend class k8s_dispatcher;
 	friend class k8s;
@@ -593,4 +582,21 @@ inline void k8s_state_t::add_last_pod_container_id(std::string&& container_id)
 	{
 		m_pods.back().emplace_container_id(std::move(container_id));
 	}
+}
+
+inline void k8s_state_t::set_capture_version(int version)
+{
+	if(version != CAPTURE_VERSION_NONE &&
+	   version != CAPTURE_VERSION_1 &&
+	   version != CAPTURE_VERSION_2)
+	{
+		throw sinsp_exception(std::string("K8s invalid capture version (") +
+							  std::to_string(version) + ')');
+	}
+	m_capture_version = version;
+}
+
+inline int k8s_state_t::get_capture_version() const
+{
+	return m_capture_version;
 }

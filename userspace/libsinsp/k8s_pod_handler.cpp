@@ -222,7 +222,6 @@ void k8s_pod_handler::handle_component(const Json::Value& json, const msg_data* 
 					{
 						pod.set_labels(std::move(entries));
 					}
-					//m_state->update_pod(pod, json);
 					k8s_pod_t::container_id_list container_ids = extract_pod_container_ids(json);
 					k8s_container::list containers = extract_pod_containers(json);
 					extract_pod_data(json, pod);

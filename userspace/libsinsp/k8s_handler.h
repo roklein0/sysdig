@@ -64,10 +64,11 @@ public:
 
 	api_error_ptr error() const;
 
+	virtual void handle_json(Json::Value&& root);
+
 protected:
 	typedef std::unordered_set<std::string> ip_addr_list_t;
 
-	virtual void handle_json(Json::Value&& root);
 	virtual void handle_component(const Json::Value& json, const msg_data* data = 0) = 0;
 	msg_data get_msg_data(const std::string& evt, const std::string& type, const Json::Value& root);
 	static bool is_ip_address(const std::string& addr);
