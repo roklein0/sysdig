@@ -55,11 +55,12 @@ k8s_event_handler::k8s_event_handler(k8s_state_t& state,
 	const std::string& http_version,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt,
+	bool connect,
 	filter_ptr_t event_filter):
 		k8s_handler("k8s_event_handler", true,
 					url, "/api/v1/events",
 					STATE_FILTER, EVENT_FILTER, collector,
-					http_version, 1000L, ssl, bt, &state),
+					http_version, 1000L, ssl, bt, &state, true, connect),
 		m_event_filter(event_filter)
 {
 }
@@ -68,7 +69,7 @@ k8s_event_handler::~k8s_event_handler()
 {
 }
 
-void k8s_event_handler::handle_component(const Json::Value& json, const msg_data* data)
+bool k8s_event_handler::handle_component(const Json::Value& json, const msg_data* data)
 {
 	if(m_event_filter)
 	{
@@ -119,12 +120,14 @@ void k8s_event_handler::handle_component(const Json::Value& json, const msg_data
 								{
 									g_logger.log("K8s EVENT: filter does not allow {\"" + type + "\", \"{" + event_reason.asString() + "\"} }", sinsp_logger::SEV_TRACE);
 									g_logger.log(m_event_filter->to_string(), sinsp_logger::SEV_TRACE);
+									return false;
 								}
 							}
 							else
 							{
 								g_logger.log("K8s EVENT: event type or involvedObject kind not found.", sinsp_logger::SEV_ERROR);
 								g_logger.log(Json::FastWriter().write(json), sinsp_logger::SEV_TRACE);
+								return false;
 							}
 						}
 						else
@@ -132,33 +135,40 @@ void k8s_event_handler::handle_component(const Json::Value& json, const msg_data
 							g_logger.log("K8s EVENT: old event, ignoring: "/*firstTimestamp=" + std::to_string(first_ts) +*/
 										 ", lastTimestamp=" + std::to_string(last_ts) + ", now_ts=" + std::to_string(now_ts),
 										sinsp_logger::SEV_DEBUG);
+							return false;
 						}
 					}
 					else
 					{
 						g_logger.log("K8s EVENT: involvedObject not found.", sinsp_logger::SEV_ERROR);
 						g_logger.log(Json::FastWriter().write(json), sinsp_logger::SEV_TRACE);
+						return false;
 					}
 				}
 				else
 				{
 					g_logger.log(std::string("Unsupported K8S Event reason: ") +
 								 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);
+					return false;
 				}
 			}
 			else
 			{
 				g_logger.log("K8s EVENT: msg data is null.", sinsp_logger::SEV_ERROR);
 				g_logger.log(Json::FastWriter().write(json), sinsp_logger::SEV_TRACE);
+				return false;
 			}
 		}
 		else
 		{
 			g_logger.log("K8s EVENT: state is null.", sinsp_logger::SEV_ERROR);
+			return false;
 		}
 	}
 	else
 	{
 		g_logger.log("K8s EVENT: no filter, K8s events disabled.", sinsp_logger::SEV_TRACE);
+		return false;
 	}
+	return true;
 }

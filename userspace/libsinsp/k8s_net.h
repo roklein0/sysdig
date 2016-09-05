@@ -37,7 +37,7 @@ public:
 
 	~k8s_net();
 
-	static handler_ptr_t get_handler(k8s_state_t& state, const k8s_component::type component,
+	static handler_ptr_t get_handler(k8s_state_t& state, const k8s_component::type component, bool connect = true,
 									 collector_ptr_t collector = nullptr, const std::string& urlstr = "",
 									 ssl_ptr_t ssl = nullptr, bt_ptr_t bt = nullptr,
 									 filter_ptr_t event_filter = nullptr);

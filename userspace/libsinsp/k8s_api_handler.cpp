@@ -26,7 +26,7 @@ k8s_api_handler::~k8s_api_handler()
 {
 }
 
-void k8s_api_handler::handle_component(const Json::Value& json, const msg_data* data)
+bool k8s_api_handler::handle_component(const Json::Value& json, const msg_data* data)
 {
 	m_error = false;
 	if(!json.isNull())
@@ -44,7 +44,7 @@ void k8s_api_handler::handle_component(const Json::Value& json, const msg_data* 
 					g_logger.log("K8s API handler error: could not extract versions from JSON.",
 						 sinsp_logger::SEV_ERROR);
 					m_error = true;
-					return;
+					return false;
 				}
 			}
 		}
@@ -57,7 +57,7 @@ void k8s_api_handler::handle_component(const Json::Value& json, const msg_data* 
 			g_logger.log("K8s API handler error: could not extract version from JSON.",
 						 sinsp_logger::SEV_ERROR);
 			m_error = true;
-			return;
+			return false;
 		}
 		m_data_received = true;
 	}
@@ -65,7 +65,9 @@ void k8s_api_handler::handle_component(const Json::Value& json, const msg_data* 
 	{
 		g_logger.log("K8s API handler error: json is null.", sinsp_logger::SEV_ERROR);
 		m_error = true;
+		return false;
 	}
+	return true;
 }
 
 void k8s_api_handler::handle_json(Json::Value&& root)

@@ -43,7 +43,8 @@ public:
 		ssl_ptr_t ssl = nullptr,
 		bt_ptr_t bt = nullptr,
 		k8s_state_t* state = nullptr,
-		bool watch = true);
+		bool watch = true,
+		bool connect = true);
 
 	virtual ~k8s_handler();
 
@@ -69,7 +70,7 @@ public:
 protected:
 	typedef std::unordered_set<std::string> ip_addr_list_t;
 
-	virtual void handle_component(const Json::Value& json, const msg_data* data = 0) = 0;
+	virtual bool handle_component(const Json::Value& json, const msg_data* data = 0) = 0;
 	msg_data get_msg_data(const std::string& evt, const std::string& type, const Json::Value& root);
 	static bool is_ip_address(const std::string& addr);
 
@@ -138,6 +139,10 @@ private:
 	// this flag indicates whether handler should continue to watch after receiving
 	// the initial state
 	bool m_watch;
+
+	// flag indicating whether to connect to K8s API server (no connection needed when
+	// replaying capture)
+	bool m_connect;
 
 	// error indicating something went wrong with the K8s component handled by this handler
 	// this error is later examined by k8s::check_components() and if it is

@@ -38,7 +38,8 @@ k8s_handler::k8s_handler(const std::string& id,
 	ssl_ptr_t ssl,
 	bt_ptr_t bt,
 	k8s_state_t* state,
-	bool watch): m_state(state),
+	bool watch,
+	bool connect): m_state(state),
 		m_collector(collector),
 		m_id(id + "_state"),
 		m_path(path),
@@ -51,6 +52,7 @@ k8s_handler::k8s_handler(const std::string& id,
 		m_ssl(ssl),
 		m_bt(bt),
 		m_watch(watch),
+		m_connect(connect),
 		m_is_captured(is_captured)
 {
 	g_logger.log("Creating K8s " + name() + " (" + m_id + ") "
@@ -65,14 +67,17 @@ k8s_handler::~k8s_handler()
 
 void k8s_handler::make_http()
 {
-	m_http = std::make_shared<handler_t>(*this, m_id,
-								 m_url, m_path, m_http_version,
-								 m_timeout_ms, m_ssl, m_bt);
-	m_http->set_json_callback(&k8s_handler::set_event_json);
-	m_http->set_json_end("}\n");
-	m_http->add_json_filter(m_filter);
-	m_http->add_json_filter(ERROR_FILTER);
-	connect();
+	if(m_connect)
+	{
+		m_http = std::make_shared<handler_t>(*this, m_id,
+									 m_url, m_path, m_http_version,
+									 m_timeout_ms, m_ssl, m_bt);
+		m_http->set_json_callback(&k8s_handler::set_event_json);
+		m_http->set_json_end("}\n");
+		m_http->add_json_filter(m_filter);
+		m_http->add_json_filter(ERROR_FILTER);
+		connect();
+	}
 }
 
 void k8s_handler::check_enabled()
@@ -332,8 +337,7 @@ k8s_handler::msg_data k8s_handler::get_msg_data(const std::string& type, const s
 
 void k8s_handler::handle_json(Json::Value&& root)
 {
-	/*
-	if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
+	/*if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
 	{
 		g_logger.log(json_as_string(root), sinsp_logger::SEV_TRACE);
 	}*/
@@ -378,24 +382,7 @@ void k8s_handler::handle_json(Json::Value&& root)
 							continue;
 						}
 						*/
-						std::string reason_type;
-						switch(data.m_reason)
-						{
-							case k8s_component::COMPONENT_ADDED:
-								reason_type = "ADDED";
-								break;
-							case k8s_component::COMPONENT_MODIFIED:
-								reason_type = "MODIFIED";
-								break;
-							case k8s_component::COMPONENT_DELETED:
-								reason_type = "DELETED";
-								break;
-							case k8s_component::COMPONENT_ERROR:
-								reason_type = "ERROR";
-								break;
-							default:
-								break;
-						}
+						std::string reason_type = data.get_reason_desc();
 						if(data.m_reason == k8s_component::COMPONENT_ADDED)
 						{
 							if(m_state->has(data.m_uid))
@@ -403,7 +390,7 @@ void k8s_handler::handle_json(Json::Value&& root)
 								std::ostringstream os;
 								os << "K8s " + reason_type + " message received for existing " << data.m_kind <<
 									" [" << data.m_uid << "], updating only.";
-								g_logger.log(os.str(), sinsp_logger::SEV_DEBUG);
+								g_logger.log(os.str(), sinsp_logger::SEV_WARNING);
 							}
 						}
 						else if(data.m_reason == k8s_component::COMPONENT_MODIFIED)
@@ -413,7 +400,7 @@ void k8s_handler::handle_json(Json::Value&& root)
 								std::ostringstream os;
 								os << "K8s " + reason_type + " message received for non-existing " << data.m_kind <<
 									" [" << data.m_uid << "], giving up.";
-								g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
+								g_logger.log(os.str(), sinsp_logger::SEV_WARNING);
 								return;
 							}
 						}
@@ -439,7 +426,23 @@ void k8s_handler::handle_json(Json::Value&& root)
 										 std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
 							return;
 						}
-						handle_component(item, &data);
+						/*if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
+						{
+							g_logger.log("K8s handling item:\n" + json_as_string(item), sinsp_logger::SEV_TRACE);
+						}*/
+						if(handle_component(item, &data))
+						{
+							std::ostringstream os;
+							os << "K8s [" + reason_type + ", " << data.m_kind <<
+								", " << data.m_name << ", " << data.m_uid << "]";
+							g_logger.log(os.str(), sinsp_logger::SEV_INFO);
+						}
+						else
+						{
+							g_logger.log("K8s: error occurred while handling " + reason_type +
+										 " event for " + data.m_kind + ' ' + data.m_name + " [" +
+										 data.m_uid + ']', sinsp_logger::SEV_ERROR);
+						}
 					} // end for nodes
 				}
 			}

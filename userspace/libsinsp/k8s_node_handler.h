@@ -19,7 +19,8 @@ public:
 		std::string url = "",
 		const std::string& http_version = "1.0",
 		ssl_ptr_t ssl = 0,
-		bt_ptr_t bt = 0);
+		bt_ptr_t bt = 0,
+		bool connect = true);
 
 	~k8s_node_handler();
 
@@ -27,5 +28,5 @@ private:
 	static std::string EVENT_FILTER;
 	static std::string STATE_FILTER;
 
-	virtual void handle_component(const Json::Value& json, const msg_data* data = 0);
+	virtual bool handle_component(const Json::Value& json, const msg_data* data = 0);
 };

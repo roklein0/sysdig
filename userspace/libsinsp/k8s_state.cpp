@@ -576,11 +576,11 @@ void k8s_state_t::enqueue_capture_event(const Json::Value& item)
 	if(m_is_captured)
 	{
 		std::string json;
-		if(m_capture_version == 1)
+		if(m_capture_version == k8s_state_t::CAPTURE_VERSION_1)
 		{
 			json = Json::FastWriter().write(extract_capture_data(item));
 		}
-		else if(m_capture_version == 2)
+		else if(m_capture_version == k8s_state_t::CAPTURE_VERSION_2)
 		{
 			json = Json::FastWriter().write(item);
 		}
@@ -590,7 +590,6 @@ void k8s_state_t::enqueue_capture_event(const Json::Value& item)
 								  std::to_string(m_capture_version) + ')');
 		}
 		m_capture_events.emplace_back(json);
-		g_logger.log("K8s captured:\n" + json, sinsp_logger::SEV_DEBUG);
 	}
 }
 

@@ -22,6 +22,7 @@ public:
 		const std::string& http_version = "1.0",
 		ssl_ptr_t ssl = 0,
 		bt_ptr_t bt = 0,
+		bool connect = true,
 		filter_ptr_t event_filter = 0);
 
 	~k8s_event_handler();
@@ -30,7 +31,7 @@ private:
 	static std::string EVENT_FILTER;
 	static std::string STATE_FILTER;
 
-	void handle_component(const Json::Value& json, const msg_data* data = 0);
+	bool handle_component(const Json::Value& json, const msg_data* data = 0);
 
 	filter_ptr_t m_event_filter;
 };

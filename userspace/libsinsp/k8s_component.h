@@ -133,9 +133,9 @@ public:
 			switch(m_reason)
 			{
 				case COMPONENT_ADDED:    return "ADDED";
-				case COMPONENT_MODIFIED: return "ADDED";
-				case COMPONENT_DELETED:  return "ADDED";
-				case COMPONENT_ERROR:    return "ADDED";
+				case COMPONENT_MODIFIED: return "MODIFIED";
+				case COMPONENT_DELETED:  return "DELETED";
+				case COMPONENT_ERROR:    return "ERROR";
 				case COMPONENT_UNKNOWN:
 				default:                 return "UNKNOWN";
 			}
@@ -211,6 +211,7 @@ public:
 	static const std::string& get_name(const component_pair& p);
 
 	static std::string get_name(type t);
+	static std::string get_name_u(type t);
 
 	static type get_type(const component_pair& p);
 

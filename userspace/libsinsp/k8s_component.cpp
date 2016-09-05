@@ -112,6 +112,38 @@ k8s_pair_list k8s_component::extract_object(const Json::Value& object, const std
 	return entry_list;
 }
 
+std::string k8s_component::get_name_u(type t)
+{
+	switch (t)
+	{
+	case K8S_NAMESPACES:
+		return "NAMESPACE";
+	case K8S_NODES:
+		return "NODE";
+	case K8S_PODS:
+		return "POD";
+	case K8S_REPLICATIONCONTROLLERS:
+		return "REPLICATIONCONTROLLER";
+	case K8S_REPLICASETS:
+		return "REPLICASET";
+	case K8S_SERVICES:
+		return "SERVICE";
+	case K8S_DAEMONSETS:
+		return "DAEMONSET";
+	case K8S_DEPLOYMENTS:
+		return "DEPLOYMENT";
+	case K8S_EVENTS:
+		return "EVENT";
+	case K8S_COMPONENT_COUNT:
+	default:
+		break;
+	}
+
+	std::ostringstream os;
+	os << "Unknown component type " << static_cast<int>(t);
+	throw sinsp_exception(os.str().c_str());
+}
+
 std::string k8s_component::get_name(type t)
 {
 	switch (t)

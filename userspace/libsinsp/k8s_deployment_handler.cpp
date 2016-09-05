@@ -54,11 +54,12 @@ k8s_deployment_handler::k8s_deployment_handler(k8s_state_t& state,
 	std::string url,
 	const std::string& http_version,
 	ssl_ptr_t ssl,
-	bt_ptr_t bt):
+	bt_ptr_t bt,
+	bool connect):
 		k8s_handler("k8s_deployment_handler", true, url,
 					"/apis/extensions/v1beta1/deployments",
 					STATE_FILTER, EVENT_FILTER, collector,
-					http_version, 1000L, ssl, bt, &state)
+					http_version, 1000L, ssl, bt, &state, true, connect)
 {
 }
 
@@ -66,7 +67,7 @@ k8s_deployment_handler::~k8s_deployment_handler()
 {
 }
 
-void k8s_deployment_handler::handle_component(const Json::Value& json, const msg_data* data)
+bool k8s_deployment_handler::handle_component(const Json::Value& json, const msg_data* data)
 {
 	if(data)
 	{
@@ -97,12 +98,14 @@ void k8s_deployment_handler::handle_component(const Json::Value& json, const msg
 				if(!m_state->delete_component(m_state->get_deployments(), data->m_uid))
 				{
 					log_not_found(*data);
+					return false;
 				}
 			}
 			else if(data->m_reason != k8s_component::COMPONENT_ERROR)
 			{
 				g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
 							 std::to_string(data->m_reason), sinsp_logger::SEV_ERROR);
+				return false;
 			}
 		}
 		else
@@ -114,4 +117,5 @@ void k8s_deployment_handler::handle_component(const Json::Value& json, const msg
 	{
 		throw sinsp_exception("K8s node handler: data is null.");
 	}
+	return true;
 }

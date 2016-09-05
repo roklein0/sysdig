@@ -183,6 +183,7 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 				g_logger.log("Unrecognized component type: " + type, sinsp_logger::SEV_ERROR);
 				return;
 			}
+			g_logger.log("Found captured K8s component: " + k8s_component::get_name(component_type), sinsp_logger::SEV_TRACE);
 		}
 		else
 		{
@@ -199,6 +200,12 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 	if(m_state.get_capture_version() == k8s_state_t::CAPTURE_VERSION_NONE)
 	{
 		m_state.set_capture_version(version);
+	}
+	static bool version_logged = false;
+	if(!version_logged)
+	{
+		g_logger.log("K8s capture version: " + std::to_string(version), sinsp_logger::SEV_DEBUG);
+		version_logged = true;
 	}
 	switch(version)
 	{
@@ -223,9 +230,10 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 		{
 			if(m_handler_map.find(component_type) == m_handler_map.end())
 			{
-				m_handler_map[component_type] = k8s_net::get_handler(m_state, component_type);
+				m_handler_map[component_type] = k8s_net::get_handler(m_state, component_type, false);
 				if(m_handler_map[component_type])
 				{
+					g_logger.log("K8s: handling capture JSON ...", sinsp_logger::SEV_DEBUG);
 					m_handler_map[component_type]->handle_json(std::move(root));
 				}
 				else

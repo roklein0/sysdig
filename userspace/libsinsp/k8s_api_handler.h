@@ -29,7 +29,7 @@ public:
 
 private:
 	void handle_json(Json::Value&& root);
-	void handle_component(const Json::Value& json, const msg_data* data = 0);
+	bool handle_component(const Json::Value& json, const msg_data* data = 0);
 
 
 	api_list_t m_extensions;
