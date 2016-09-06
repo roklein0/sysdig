@@ -24,6 +24,7 @@ std::string k8s_service_handler::EVENT_FILTER =
 	"   clusterIP: .spec.clusterIP,"
 	"   ports: .spec.ports,"
 	"   labels: .metadata.labels,"
+	"   selector: .spec.selector"
 	"  }"
 	" ]"
 	"}";
@@ -43,6 +44,7 @@ std::string k8s_service_handler::STATE_FILTER =
 	"   clusterIP: .spec.clusterIP,"
 	"   ports: .spec.ports,"
 	"   labels: .metadata.labels,"
+	"   selector: .spec.selector"
 	"   }"
 	" ]"
 	"}";
@@ -177,6 +179,11 @@ bool k8s_service_handler::handle_component(const Json::Value& json, const msg_da
 				if(entries.size() > 0)
 				{
 					service.set_labels(std::move(entries));
+				}
+				entries = k8s_component::extract_object(json, "selector");
+				if(entries.size() > 0)
+				{
+					service.set_selectors(std::move(entries));
 				}
 				extract_services_data(json, service, m_state->get_pods());
 			}

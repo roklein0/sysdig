@@ -24,7 +24,7 @@ std::string k8s_replicationcontroller_handler::EVENT_FILTER =
 	"   specReplicas: .spec.replicas,"
 	"   statReplicas: .status.replicas,"
 	"   selector: .spec.selector,"
-	"   labels: .metadata.labels,"
+	"   labels: .metadata.labels"
 	"  }"
 	" ]"
 	"}";
@@ -44,7 +44,7 @@ std::string k8s_replicationcontroller_handler::STATE_FILTER =
 	"   specReplicas: .spec.replicas,"
 	"   statReplicas: .status.replicas,"
 	"   selector: .spec.selector,"
-	"   labels: .metadata.labels,"
+	"   labels: .metadata.labels"
 	"   }"
 	" ]"
 	"}";
