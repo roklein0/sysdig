@@ -364,6 +364,7 @@ void k8s_component::add_selectors(k8s_pair_list&& selectors)
 // http://kubernetes.io/v1.0/docs/user-guide/labels.html
 bool k8s_component::selector_in_labels(const k8s_pair_t& selector, const k8s_pair_list& labels) const
 {
+	if(!labels.size()) { return false; }
 	for(const auto& label : labels)
 	{
 		if(label.first == selector.first && label.second == selector.second)
@@ -377,6 +378,7 @@ bool k8s_component::selector_in_labels(const k8s_pair_t& selector, const k8s_pai
 bool k8s_component::selectors_in_labels(const k8s_pair_list& labels) const
 {
 	const k8s_pair_list& selectors = get_selectors();
+	if(!labels.size() || !selectors.size()) { return false; }
 	for(const auto& selector : selectors)
 	{
 		if(!selector_in_labels(selector, labels))
@@ -572,7 +574,7 @@ std::vector<const k8s_pod_t*> k8s_rc_t::get_selected_pods(const std::vector<k8s_
 	std::vector<const k8s_pod_t*> pod_vec;
 	for(const auto& pod : pods)
 	{
-		if (selectors_in_labels(pod.get_labels()) && get_namespace() == pod.get_namespace())
+		if(selectors_in_labels(pod.get_labels()) && get_namespace() == pod.get_namespace())
 		{
 			pod_vec.push_back(&pod);
 		}

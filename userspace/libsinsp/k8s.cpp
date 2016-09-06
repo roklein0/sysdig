@@ -183,7 +183,6 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 				g_logger.log("Unrecognized component type: " + type, sinsp_logger::SEV_ERROR);
 				return;
 			}
-			g_logger.log("Found captured K8s component: " + k8s_component::get_name(component_type), sinsp_logger::SEV_TRACE);
 		}
 		else
 		{
@@ -231,17 +230,16 @@ void k8s::simulate_watch_event(const std::string& json, int version)
 			if(m_handler_map.find(component_type) == m_handler_map.end())
 			{
 				m_handler_map[component_type] = k8s_net::get_handler(m_state, component_type, false);
-				if(m_handler_map[component_type])
-				{
-					g_logger.log("K8s: handling capture JSON ...", sinsp_logger::SEV_DEBUG);
-					m_handler_map[component_type]->handle_json(std::move(root));
-				}
-				else
-				{
-					throw sinsp_exception(std::string("K8s capture replay: error creating ") +
-										  k8s_component::get_name(component_type) +
-										  " handler");
-				}
+			}
+			if(m_handler_map[component_type])
+			{
+				m_handler_map[component_type]->handle_json(std::move(root));
+			}
+			else
+			{
+				throw sinsp_exception(std::string("K8s capture replay: error creating ") +
+									  k8s_component::get_name(component_type) +
+									  " handler");
 			}
 		}
 		else

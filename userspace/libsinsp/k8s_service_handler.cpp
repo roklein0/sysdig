@@ -103,7 +103,7 @@ void k8s_service_handler::extract_services_data(const Json::Value& json, k8s_ser
 					}
 					else if(json_target_port.isString())
 					{
-						std::string port_name = std::move(json_target_port.asString());
+						std::string port_name = json_target_port.asString();
 						std::vector<const k8s_pod_t*> pod_subset = service.get_selected_pods(pods);
 						p.m_target_port = 0;
 						for(const auto& pod : pod_subset)
@@ -114,12 +114,15 @@ void k8s_service_handler::extract_services_data(const Json::Value& json, k8s_ser
 								const k8s_container::port* container_port = container.get_port(port_name);
 								if(container_port)
 								{
+									g_logger.log("K8s: found port for service [" + service.get_name() + "], "
+												 "container [" + container.get_name() + ']',
+												 sinsp_logger::SEV_ERROR);
 									p.m_target_port = container_port->get_port();
 									break;
 								}
 								else
 								{
-									g_logger.log("Error while trying to determine port for service [" + service.get_name() + "]: "
+									g_logger.log("K8s: error while trying to determine port for service [" + service.get_name() + "]: "
 												"no ports found for container [" + container.get_name() + "]", sinsp_logger::SEV_ERROR);
 									p.m_target_port = 0;
 								}

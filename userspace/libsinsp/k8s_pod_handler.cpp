@@ -103,7 +103,6 @@ k8s_container::list k8s_pod_handler::extract_pod_containers(const Json::Value& i
 			const Json::Value& name = container["name"];
 			if(!name.isNull()) { cont_name = name.asString(); }
 			else { return ext_containers; }
-
 			k8s_container::port_list cont_ports;
 			const Json::Value& ports = container["ports"];
 			for(const auto& port : ports)
