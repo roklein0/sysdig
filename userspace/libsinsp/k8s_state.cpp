@@ -365,28 +365,26 @@ void k8s_state_t::update_cache(const k8s_component::type_map::key_type& componen
 
 		case k8s_component::K8S_REPLICASETS:
 		{
-			// TODO
-			/*
-			const k8s_controllers& rcs = get_rcs();
+			const k8s_replicasets& rss = get_rss();
 			const k8s_pods& pods = get_pods();
-			k8s_state_t::pod_rc_map& pod_ctrl_map = get_pod_rc_map();
-			pod_ctrl_map.clear();
-			for(const auto& rc : rcs)
+			k8s_state_t::pod_rs_map& pod_rset_map = get_pod_rs_map();
+			pod_rset_map.clear();
+			for(const auto& rs : rss)
 			{
-				std::vector<const k8s_pod_t*> pod_subset = rc.get_selected_pods(pods);
+				std::vector<const k8s_pod_t*> pod_subset = rs.get_selected_pods(pods);
 				for(auto& pod : pod_subset)
 				{
 					const std::string& pod_uid = pod->get_uid();
-					if(!is_component_cached(pod_ctrl_map, pod_uid, &rc))
+					if(!is_component_cached(pod_rset_map, pod_uid, &rs))
 					{
-						cache_component(pod_ctrl_map, pod_uid, &rc);
+						cache_component(pod_rset_map, pod_uid, &rs);
 					}
 					else
 					{
-						g_logger.log("Attempt to cache already cached REPLICATION CONTROLLER: " + pod_uid, sinsp_logger::SEV_ERROR);
+						g_logger.log("Attempt to cache already cached REPLICA SET: " + pod_uid, sinsp_logger::SEV_ERROR);
 					}
 				}
-			}*/
+			}
 		}
 		break;
 

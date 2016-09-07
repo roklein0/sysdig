@@ -697,15 +697,13 @@ void k8s_dispatcher::extract_data(Json::Value& root, bool enqueue)
 		os << data.m_name << ',' << data.m_uid << ',' << data.m_namespace << ']';
 		g_logger.log(os.str(), sinsp_logger::SEV_INFO);
 		//g_logger.log(root.toStyledString(), sinsp_logger::SEV_DEBUG);
-		{
-			m_state.update_cache(m_type);
+		m_state.update_cache(m_type);
 #ifdef HAS_CAPTURE
-			if(enqueue)
-			{
-				m_state.enqueue_capture_event(root);
-			}
-#endif
+		if(enqueue)
+		{
+			m_state.enqueue_capture_event(root);
 		}
+#endif
 	}
 }
 

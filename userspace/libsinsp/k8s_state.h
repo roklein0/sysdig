@@ -25,6 +25,7 @@ public:
 	typedef std::unordered_map<std::string, const k8s_pod_t*>          container_pod_map;
 	typedef std::unordered_multimap<std::string, const k8s_service_t*> pod_service_map;
 	typedef std::unordered_map<std::string, const k8s_rc_t*>           pod_rc_map;
+	typedef std::unordered_map<std::string, const k8s_rs_t*>           pod_rs_map;
 
 	static const int CAPTURE_VERSION_NONE = -1;
 	static const int CAPTURE_VERSION_1 = 1;
@@ -244,6 +245,7 @@ public:
 	const container_pod_map& get_container_pod_map() const { return m_container_pods; }
 	const pod_service_map& get_pod_service_map() const { return m_pod_services; }
 	const pod_rc_map& get_pod_rc_map() const { return m_pod_rcs; }
+	const pod_rs_map& get_pod_rs_map() const { return m_pod_rss; }
 
 #ifdef HAS_CAPTURE
 	void set_capture_version(int version);
@@ -316,6 +318,7 @@ private:
 	container_pod_map& get_container_pod_map() { return m_container_pods; }
 	pod_service_map& get_pod_service_map() { return m_pod_services; }
 	pod_rc_map& get_pod_rc_map() { return m_pod_rcs; }
+	pod_rs_map& get_pod_rs_map() { return m_pod_rss; }
 
 	static const std::string m_docker_prefix; // "docker://"
 	static const std::string m_rkt_prefix; // "rkt://"
@@ -324,6 +327,7 @@ private:
 	container_pod_map        m_container_pods;
 	pod_service_map          m_pod_services;
 	pod_rc_map               m_pod_rcs;
+	pod_rs_map               m_pod_rss;
 #ifdef HAS_CAPTURE
 	event_list_t             m_capture_events;
 #endif // HAS_CAPTURE

@@ -6048,6 +6048,10 @@ const filtercheck_field_info sinsp_filter_check_k8s_fields[] =
 	{PT_CHARBUF, EPF_NONE, PF_NA, "k8s.ns.id", "Kubernetes namespace id."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "k8s.ns.label", "Kubernetes namespace label. E.g. 'k8s.ns.label.foo'."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "k8s.ns.labels", "Kubernetes namespace comma-separated key/value labels. E.g. 'foo1:bar1,foo2:bar2'."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "k8s.rs.name", "Kubernetes replica set name."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "k8s.rs.id", "Kubernetes replica set id."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "k8s.rs.label", "Kubernetes replica set label. E.g. 'k8s.rs.label.foo'."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "k8s.rs.labels", "Kubernetes replica set comma-separated key/value labels. E.g. 'foo1:bar1,foo2:bar2'."},
 };
 
 sinsp_filter_check_k8s::sinsp_filter_check_k8s()
@@ -6168,6 +6172,20 @@ const k8s_rc_t* sinsp_filter_check_k8s::find_rc_by_pod(const k8s_pod_t* pod)
 	const k8s_state_t::pod_rc_map& pod_rcs = k8s_state.get_pod_rc_map();
 	k8s_state_t::pod_rc_map::const_iterator it = pod_rcs.find(pod->get_uid());
 	if(it != pod_rcs.end())
+	{
+		return it->second;
+	}
+
+	return NULL;
+}
+
+const k8s_rs_t* sinsp_filter_check_k8s::find_rs_by_pod(const k8s_pod_t* pod)
+{
+	const k8s_state_t& k8s_state = m_inspector->m_k8s_client->get_state();
+
+	const k8s_state_t::pod_rs_map& pod_rss = k8s_state.get_pod_rs_map();
+	k8s_state_t::pod_rs_map::const_iterator it = pod_rss.find(pod->get_uid());
+	if(it != pod_rss.end())
 	{
 		return it->second;
 	}
@@ -6320,6 +6338,56 @@ uint8_t* sinsp_filter_check_k8s::extract(sinsp_evt *evt, OUT uint32_t* len, bool
 		if(rc != NULL)
 		{
 			concatenate_labels(rc->get_labels(), &m_tstr);
+			*len = m_tstr.size();
+			return (uint8_t*) m_tstr.c_str();
+		}
+
+		break;
+	}
+	case TYPE_K8S_RS_NAME:
+	{
+		const k8s_rs_t* rs = find_rs_by_pod(pod);
+		if(rs != NULL)
+		{
+			m_tstr = rs->get_name();
+			*len = m_tstr.size();
+			return (uint8_t*) m_tstr.c_str();
+		}
+
+		break;
+	}
+	case TYPE_K8S_RS_ID:
+	{
+		const k8s_rs_t* rs = find_rs_by_pod(pod);
+		if(rs != NULL)
+		{
+			m_tstr = rs->get_uid();
+			*len = m_tstr.size();
+			return (uint8_t*) m_tstr.c_str();
+		}
+
+		break;
+	}
+	case TYPE_K8S_RS_LABEL:
+	{
+		const k8s_rs_t* rs = find_rs_by_pod(pod);
+		if(rs != NULL)
+		{
+			if(find_label(rs->get_labels(), m_argname, &m_tstr))
+			{
+				*len = m_tstr.size();
+				return (uint8_t*) m_tstr.c_str();
+			}
+		}
+
+		break;
+	}
+	case TYPE_K8S_RS_LABELS:
+	{
+		const k8s_rs_t* rs = find_rs_by_pod(pod);
+		if(rs != NULL)
+		{
+			concatenate_labels(rs->get_labels(), &m_tstr);
 			*len = m_tstr.size();
 			return (uint8_t*) m_tstr.c_str();
 		}
