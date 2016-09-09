@@ -223,6 +223,9 @@ public:
 class SINSP_PUBLIC sinsp
 {
 public:
+	typedef std::set<std::string> k8s_ext_list_t;
+	typedef std::shared_ptr<k8s_ext_list_t> k8s_ext_list_ptr_t;
+
 	sinsp();
 	~sinsp();
 
@@ -791,6 +794,7 @@ private:
 	// this is here for testing purposes only
 	sinsp_threadinfo* find_thread_test(int64_t tid, bool lookup_only);
 	bool remove_inactive_threads();
+	k8s_ext_list_ptr_t k8s_discover_ext(const std::string& k8s_api);
 	void collect_k8s();
 	void update_k8s_state();
 	void update_mesos_state();
@@ -841,10 +845,12 @@ private:
 	std::shared_ptr<sinsp_bearer_token> m_k8s_bt;
 	k8s* m_k8s_client;
 	uint64_t m_k8s_last_watch_time_ns;
-	//unique_ptr<k8s_handler::collector_t> m_k8s_collector;
 	unique_ptr<k8s_api_handler> m_k8s_api_handler;
 	shared_ptr<socket_collector<socket_data_handler<k8s_handler>>> m_k8s_collector;
 	bool m_k8s_api_detected = false;
+	unique_ptr<k8s_api_handler> m_k8s_ext_handler;
+	k8s_ext_list_ptr_t m_ext_list_ptr;
+	bool m_k8s_ext_detect_done = false;
 
 	//
 	// Mesos/Marathon

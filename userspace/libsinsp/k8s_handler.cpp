@@ -401,7 +401,7 @@ void k8s_handler::handle_json(Json::Value&& root)
 								os << "K8s " + reason_type + " message received for non-existing " << data.m_kind <<
 									" [" << data.m_uid << "], giving up.";
 								g_logger.log(os.str(), sinsp_logger::SEV_WARNING);
-								return;
+								continue;
 							}
 						}
 						else if(data.m_reason == k8s_component::COMPONENT_DELETED)
@@ -412,19 +412,19 @@ void k8s_handler::handle_json(Json::Value&& root)
 								os << "K8s " + reason_type + " message received for non-existing " << data.m_kind <<
 									" [" << data.m_uid << "], giving up.";
 								g_logger.log(os.str(), sinsp_logger::SEV_ERROR);
-								return;
+								continue;
 							}
 						}
 						else if(data.m_reason == k8s_component::COMPONENT_ERROR)
 						{
 							handle_error(data, item);
-							return;
+							continue;
 						}
 						else
 						{
 							g_logger.log(std::string("Unsupported K8S " + name() + " event reason: ") +
 										 std::to_string(data.m_reason), sinsp_logger::SEV_ERROR);
-							return;
+							continue;
 						}
 						/*if(g_logger.get_severity() >= sinsp_logger::SEV_TRACE)
 						{
@@ -436,6 +436,7 @@ void k8s_handler::handle_json(Json::Value&& root)
 							os << "K8s [" + reason_type + ", " << data.m_kind <<
 								", " << data.m_name << ", " << data.m_uid << "]";
 							g_logger.log(os.str(), sinsp_logger::SEV_INFO);
+							m_state->update_cache(k8s_component::get_type(name()));
 						}
 						else
 						{

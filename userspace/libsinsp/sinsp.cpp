@@ -1744,6 +1744,8 @@ void sinsp::init_k8s_client(string* api_server, string* ssl_cert, bool verbose)
 		,m_k8s_ssl
 		,m_k8s_bt
 #endif // HAS_CAPTURE
+		,nullptr
+		,m_ext_list_ptr
 	);
 }
 
@@ -1774,39 +1776,84 @@ void sinsp::collect_k8s()
 	}
 }
 
+sinsp::k8s_ext_list_ptr_t sinsp::k8s_discover_ext(const std::string& k8s_api)
+{
+	try
+	{
+		if(!m_k8s_ext_detect_done)
+		{
+			g_logger.log("K8s API extensions handler: detecting extensions.", sinsp_logger::SEV_TRACE);
+			if(!m_k8s_ext_handler)
+			{
+				if(!m_k8s_collector)
+				{
+					m_k8s_collector = std::make_shared<k8s_handler::collector_t>();
+				}
+				if(uri(k8s_api).is_secure()) { init_k8s_ssl(m_k8s_api_server, m_k8s_api_cert); }
+				m_k8s_ext_handler.reset(new k8s_api_handler(m_k8s_collector, k8s_api, "/apis/extensions/v1beta1", "[.resources[].name]", "1.0", m_k8s_ssl, m_k8s_bt));
+				g_logger.log("K8s API extensions handler: collector created.", sinsp_logger::SEV_TRACE);
+				return nullptr;
+			}
+			else
+			{
+				g_logger.log("K8s API extensions handler: collecting data.", sinsp_logger::SEV_TRACE);
+				m_k8s_ext_handler->collect_data();
+				if(m_k8s_ext_handler->ready())
+				{
+					g_logger.log("K8s API extensions handler: data received.", sinsp_logger::SEV_TRACE);
+					if(m_k8s_ext_handler->error())
+					{
+						g_logger.log("K8s API extensions handler: data error occurred while detecting API extensions.",
+									 sinsp_logger::SEV_WARNING);
+						m_ext_list_ptr.reset();
+					}
+					else
+					{
+						const k8s_api_handler::api_list_t& exts = m_k8s_ext_handler->extensions();
+						std::ostringstream ostr;
+						k8s_ext_list_t ext_list;
+						for(const auto& ext : exts)
+						{
+							ext_list.insert(ext);
+							ostr << std::endl << ext;
+						}
+						g_logger.log("K8s API extensions handler extensions found: " + ostr.str(),
+									 sinsp_logger::SEV_DEBUG);
+						m_ext_list_ptr.reset(new k8s_ext_list_t(ext_list));
+					}
+					m_k8s_ext_detect_done = true;
+					m_k8s_collector.reset();
+					m_k8s_ext_handler.reset();
+				}
+				else
+				{
+					g_logger.log("K8s API extensions handler: not ready.", sinsp_logger::SEV_TRACE);
+					return nullptr;
+				}
+			}
+		}
+	}
+	catch(std::exception& ex)
+	{
+		g_logger.log(std::string("K8s API extensions handler error: ").append(ex.what()),
+					 sinsp_logger::SEV_ERROR);
+		m_k8s_ext_detect_done = false;
+		m_k8s_collector.reset();
+		m_k8s_ext_handler.reset();
+	}
+
+	return m_ext_list_ptr;
+}
+
 void sinsp::update_k8s_state()
 {
-	/*ASSERT(m_k8s_client);
-	if(m_lastevent_ts > m_k8s_last_watch_time_ns + ONE_SECOND_IN_NS)
-	{
-		m_k8s_last_watch_time_ns = m_lastevent_ts;
-
-		if(m_parser && m_k8s_client->is_alive())
-		{
-			uint64_t delta = sinsp_utils::get_current_time_ns();
-
-			m_k8s_client->watch();
-			m_parser->schedule_k8s_events(&m_meta_evt);
-
-			delta = sinsp_utils::get_current_time_ns() - delta;
-
-			g_logger.format(sinsp_logger::SEV_DEBUG, "Updating Kubernetes state took %" PRIu64 " ms", delta / 1000000LL);
-		}
-		else
-		{
-			g_logger.format(sinsp_logger::SEV_WARNING, "Kubernetes connection not active anymore, retrying");
-			delete m_k8s_client;
-			m_k8s_client = nullptr;
-			init_k8s_client(m_k8s_api_server, m_k8s_api_cert, m_verbose_json);
-		}
-	}*/
 	try
 	{
 		if(m_k8s_client && m_k8s_api_server && !m_k8s_api_server->empty())
 		{
-			if(!m_k8s_api_detected)
+			if(!m_k8s_api_detected && !m_k8s_ext_detect_done)
 			{
-				if(!m_k8s_api_handler)
+				if(!m_k8s_api_handler && !m_k8s_ext_detect_done)
 				{
 					if(!m_k8s_collector)
 					{
@@ -1820,30 +1867,39 @@ void sinsp::update_k8s_state()
 				}
 				else
 				{
-					m_k8s_api_handler->collect_data();
-					if(m_k8s_api_handler->ready())
+					if(!m_k8s_api_detected)
 					{
-						g_logger.log("K8s API handler data received.", sinsp_logger::SEV_DEBUG);
-						if(m_k8s_api_handler->error())
+						m_k8s_api_handler->collect_data();
+						if(m_k8s_api_handler->ready())
 						{
-							g_logger.log("K8s API handler data error occurred while detecting API versions.",
-										 sinsp_logger::SEV_ERROR);
+							g_logger.log("K8s API handler data received.", sinsp_logger::SEV_DEBUG);
+							if(m_k8s_api_handler->error())
+							{
+								g_logger.log("K8s API handler data error occurred while detecting API versions.",
+											 sinsp_logger::SEV_ERROR);
+							}
+							else
+							{
+								m_k8s_api_detected = m_k8s_api_handler->has("v1");
+							}
+							m_k8s_collector.reset();
+							m_k8s_api_handler.reset();
 						}
 						else
 						{
-							m_k8s_api_detected = m_k8s_api_handler->has("v1");
+							g_logger.log("K8s API handler not ready yet.", sinsp_logger::SEV_DEBUG);
 						}
-						m_k8s_collector.reset();
-						m_k8s_api_handler.reset();
 					}
-					else
+					if(m_k8s_api_detected && !m_k8s_ext_detect_done)
 					{
-						g_logger.log("K8s API handler not ready yet.", sinsp_logger::SEV_DEBUG);
+						//TODO
+						//k8s_discover_ext(*m_k8s_api_server);
+						m_k8s_ext_detect_done = true;
 					}
 				}
 			}
 
-			if(m_k8s_api_detected)
+			if(m_k8s_api_detected && m_k8s_ext_detect_done)
 			{
 				collect_k8s();
 			}

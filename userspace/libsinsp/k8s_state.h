@@ -350,6 +350,7 @@ private:
 	int             m_capture_version = -1;
 
 	friend class k8s_dispatcher;
+	friend class k8s_handler;
 	friend class k8s;
 };
 
