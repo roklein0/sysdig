@@ -4069,8 +4069,22 @@ void sinsp_parser::parse_k8s_evt(sinsp_evt *evt)
 	std::string json(parinfo->m_val, parinfo->m_len);
 	//g_logger.log(json, sinsp_logger::SEV_DEBUG);
 	ASSERT(m_inspector);
-	ASSERT(m_inspector->m_k8s_client);
-	m_inspector->m_k8s_client->simulate_watch_event(std::move(json), get_k8s_version(json));
+	if(!m_inspector)
+	{
+		throw sinsp_exception("Inspector is null, K8s client can not be created.");
+	}
+	if(!m_inspector->m_k8s_client)
+	{
+		m_inspector->make_k8s_client();
+	}
+	if(m_inspector->m_k8s_client)
+	{
+		m_inspector->m_k8s_client->simulate_watch_event(std::move(json), get_k8s_version(json));
+	}
+	else
+	{
+		throw sinsp_exception("K8s client can not be created.");
+	}
 }
 
 void sinsp_parser::parse_mesos_evt(sinsp_evt *evt)

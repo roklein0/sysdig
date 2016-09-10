@@ -682,6 +682,7 @@ public:
 
 	void init_k8s_ssl(string* api_server, string* ssl_cert);
 	void init_k8s_client(string* api_server, string* ssl_cert, bool verbose = false);
+	void make_k8s_client();
 	k8s* get_k8s_client() const { return m_k8s_client; }
 
 	void init_mesos_client(string* api_server, bool verbose = false);
@@ -794,7 +795,8 @@ private:
 	// this is here for testing purposes only
 	sinsp_threadinfo* find_thread_test(int64_t tid, bool lookup_only);
 	bool remove_inactive_threads();
-	k8s_ext_list_ptr_t k8s_discover_ext(const std::string& k8s_api);
+
+	void k8s_discover_ext();
 	void collect_k8s();
 	void update_k8s_state();
 	void update_mesos_state();
