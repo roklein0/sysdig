@@ -11,3 +11,5 @@
 build/
 driver/Makefile
 driver/driver_config.h
+cmake-build-debug/
+.idea/
