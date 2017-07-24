@@ -711,6 +711,9 @@ public:
 
 	void refresh_ifaddr_list();
 
+	int32_t clear_eventmask();
+	int32_t set_eventmask(uint32_t event_id);
+
 VISIBILITY_PRIVATE
 
 // Doxygen doesn't understand VISIBILITY_PRIVATE

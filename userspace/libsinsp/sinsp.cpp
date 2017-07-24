@@ -1793,6 +1793,14 @@ void sinsp::update_mesos_state()
 	}
 }
 
+int32_t sinsp::clear_eventmask() {
+	return scap_clear_eventmask(m_h);
+}
+
+int32_t sinsp::set_eventmask(uint32_t event_id) {
+	return scap_set_eventmask(m_h, event_id);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Note: this is defined here so we can inline it in sinso::next
 ///////////////////////////////////////////////////////////////////////////////
