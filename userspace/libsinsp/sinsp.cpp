@@ -1801,6 +1801,10 @@ int32_t sinsp::set_eventmask(uint32_t event_id) {
 	return scap_set_eventmask(m_h, event_id);
 }
 
+int32_t sinsp::unset_eventmask(uint32_t event_id) {
+	return scap_unset_eventmask(m_h, event_id);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Note: this is defined here so we can inline it in sinso::next
 ///////////////////////////////////////////////////////////////////////////////
