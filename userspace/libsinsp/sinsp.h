@@ -713,7 +713,7 @@ public:
 
 	int32_t clear_eventmask();
 	int32_t set_eventmask(uint32_t event_id);
-	int32_t sinsp::unset_eventmask(uint32_t event_id)
+	int32_t unset_eventmask(uint32_t event_id);
 
 VISIBILITY_PRIVATE
 
